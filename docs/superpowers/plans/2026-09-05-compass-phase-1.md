@@ -811,6 +811,8 @@ Vì sao nghiêm trọng: Task 13 đối chiếu ID trong bảng này với test 
 
 Tương tự, `Loại:`/`Phạm vi:` phải đọc được ở mọi vị trí. Bản đầu chỉ đọc trước heading đầu tiên, nên đặt sai chỗ là `type` rỗng, rồi validator báo "loại không hợp lệ" — che mất nguyên nhân thật.
 
+**Chi tiết dễ sửa nhầm:** hai dòng metadata **không** `continue` sau khi khớp. Chúng phải rơi xuống `buffer.push(line)` để vẫn nằm trong nội dung section — nếu thoát sớm, một section chỉ chứa dòng metadata sẽ thành rỗng, và kiểm "Rủi ro hồi quy trống" sẽ báo sai.
+
 - [ ] **Step 1: Viết test thất bại**
 
 Tạo `test/spec-parser.test.mjs`:
@@ -954,6 +956,8 @@ export function parseSpec(markdown) {
   const testCases = [];
   const malformedRows = [];
 
+  let typeSet = false;
+  let scopeSet = false;
   let currentSection = null;
   let buffer = [];
   let inTestTable = false;
@@ -965,12 +969,15 @@ export function parseSpec(markdown) {
     buffer = [];
   };
 
-  lines.forEach((line, index) => {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
+    const lineNumber = lineIndex + 1;
+
     const heading1 = line.match(/^#\s+([^:]+):\s*(.+)$/);
     if (heading1) {
       taskId = heading1[1].trim();
       title = heading1[2].trim();
-      return;
+      continue;
     }
 
     const heading2 = line.match(/^##\s+(.+)$/);
@@ -978,20 +985,20 @@ export function parseSpec(markdown) {
       flush();
       currentSection = heading2[1].trim();
       inTestTable = currentSection === 'Test cases';
-      return;
+      continue;
     }
 
     const typeLine = line.match(/^Loại:\s*(.+)$/);
-    if (typeLine && type === '') { type = typeLine[1].trim(); return; }
+    if (typeLine && !typeSet) { type = typeLine[1].trim(); typeSet = true; }
     const scopeLine = line.match(/^Phạm vi:\s*(.+)$/);
-    if (scopeLine && scope === '') { scope = scopeLine[1].trim(); return; }
+    if (scopeLine && !scopeSet) { scope = scopeLine[1].trim(); scopeSet = true; }
 
     if (inTestTable && line.trim().startsWith('|')) {
       const cells = splitRow(line);
-      if (isSeparator(cells) || cells[0] === 'ID') return;
+      if (isSeparator(cells) || cells[0] === 'ID') continue;
       if (cells.length !== 5) {
-        malformedRows.push({ line: index + 1, text: line.trim(), cellCount: cells.length });
-        return;
+        malformedRows.push({ line: lineNumber, text: line.trim(), cellCount: cells.length });
+        continue;
       }
       testCases.push({
         id: cells[0],
@@ -1000,11 +1007,11 @@ export function parseSpec(markdown) {
         expected: cells[3],
         priority: cells[4],
       });
-      return;
+      continue;
     }
 
     buffer.push(line);
-  });
+  }
   flush();
 
   return { taskId, title, type, scope, sections, testCases, malformedRows };
