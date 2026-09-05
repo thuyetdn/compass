@@ -94,3 +94,31 @@ test('validateSpec accepts spec with valid type and at least one test case', () 
   assert.equal(result.ok, true, result.errors.join('; '));
   assert.ok(!result.errors.some((e) => e.includes('ít nhất 1 test case')));
 });
+
+test('validateSpec rejects spec with malformed row in table', () => {
+  const spec = `# T-001: Test
+Loại: fix
+Phạm vi: src/
+
+## Mục tiêu
+Làm gì đó.
+
+## Rủi ro hồi quy
+Không có.
+
+## Test cases
+| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |
+|----|-----|-------|---------|---------|
+| H1 | Happy | a | b | P0 |
+| H2 | Happy | c |
+`;
+  const result = validateSpec(spec);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('Dòng') && e.includes('không đúng định dạng')));
+});
+
+test('validateSpec produces no malformed-row error for clean table', () => {
+  const result = validateSpec(buildSpec({ type: 'fix', rows: [happy(1), happy(2)] }));
+  assert.equal(result.ok, true);
+  assert.ok(!result.errors.some((e) => e.includes('không đúng định dạng')));
+});

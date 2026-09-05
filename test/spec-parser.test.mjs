@@ -67,3 +67,87 @@ test('parseSpec returns empty test cases when the table is absent', () => {
   const spec = parseSpec('# T-002: Không có bảng\nLoại: fix\n');
   assert.deepEqual(spec.testCases, []);
 });
+
+test('parseSpec records 4-cell row in malformedRows', () => {
+  const spec = parseSpec(`# T-001: Test
+Loại: fix
+
+## Test cases
+| ID | Lớp | Mô tả | Kỳ vọng |
+|----|-----|-------|---------|
+| H1 | Happy | a | b |
+`);
+  assert.equal(spec.testCases.length, 0);
+  assert.equal(spec.malformedRows.length, 1);
+  assert.equal(spec.malformedRows[0].cellCount, 4);
+  assert.match(spec.malformedRows[0].text, /H1/);
+});
+
+test('parseSpec records 6-cell row in malformedRows', () => {
+  const spec = parseSpec(`# T-001: Test
+Loại: fix
+
+## Test cases
+| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |
+|----|-----|-------|---------|---------|
+| H1 | Happy | a | b | P0 | x |
+`);
+  assert.equal(spec.testCases.length, 0);
+  assert.equal(spec.malformedRows.length, 1);
+  assert.equal(spec.malformedRows[0].cellCount, 6);
+});
+
+test('parseSpec records row with pipe in cell as malformed', () => {
+  const spec = parseSpec(`# T-001: Test
+Loại: fix
+
+## Test cases
+| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |
+|----|-----|-------|---------|---------|
+| H1 | Happy | a|b | c | P0 |
+`);
+  assert.equal(spec.testCases.length, 0);
+  assert.equal(spec.malformedRows.length, 1);
+  assert.ok(!spec.testCases.some((c) => c.priority === 'c'));
+});
+
+test('parseSpec returns empty malformedRows for well-formed table', () => {
+  const spec = parseSpec(SAMPLE);
+  assert.deepEqual(spec.malformedRows, []);
+});
+
+test('parseSpec reads Loại and Phạm vi after ## heading', () => {
+  const spec = parseSpec(`# T-001: Test
+
+## Mục tiêu
+Làm gì đó.
+
+Loại: bug
+Phạm vi: src/lib
+
+## Test cases
+| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |
+|----|-----|-------|---------|---------|
+| H1 | Happy | a | b | P0 |
+`);
+  assert.equal(spec.type, 'bug');
+  assert.equal(spec.scope, 'src/lib');
+});
+
+test('parseSpec takes first Loại and Phạm vi when duplicated', () => {
+  const spec = parseSpec(`# T-001: Test
+Loại: fix
+Phạm vi: src/first
+
+## Mục tiêu
+Loại: bug
+Phạm vi: src/second
+
+## Test cases
+| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |
+|----|-----|-------|---------|---------|
+| H1 | Happy | a | b | P0 |
+`);
+  assert.equal(spec.type, 'fix');
+  assert.equal(spec.scope, 'src/first');
+});
