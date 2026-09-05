@@ -52,7 +52,24 @@ Gate record có chữ ký — sửa tay là lộ.
 
 ## Trạng thái
 
-GĐ 1: gate `spec` và `test`.
+GĐ 1 xong: gate `spec` và `test`, 218 test.
 GĐ 2-4: `convention`, `ui`, `visual`, `review`, knowledge base, điều tra, multi-repo.
+
+Task `feature-s` trở lên đóng xanh **mà chưa ai đo giao diện** — `done` liệt kê rõ gate nào
+chưa được kiểm. Đọc dòng đó.
+
+## Reporter
+
+Compass tìm test ID trong output, nên reporter phải in tên từng test:
+
+| Runner | Lệnh |
+|---|---|
+| `node --test` | chạy sẵn |
+| Vitest | `vitest run --reporter=tap` |
+| Jest | `jest --verbose` |
+
+## Ví dụ
+
+[examples/todo](examples/todo/) — todo list React, task `feature-s` 13 test case.
 
 Thiết kế đầy đủ: [docs/superpowers/specs/2026-09-05-compass-design.md](docs/superpowers/specs/2026-09-05-compass-design.md)

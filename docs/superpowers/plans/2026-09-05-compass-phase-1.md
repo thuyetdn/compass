@@ -10,6 +10,26 @@
 
 **Spec:** [docs/superpowers/specs/2026-09-05-compass-design.md](../specs/2026-09-05-compass-design.md)
 
+---
+
+## Trạng thái: xong (2026-09-05)
+
+Cả 17 task đã thực hiện. Suite: 218 test, xanh hết.
+
+Hai chỗ làm khác kế hoạch:
+
+| Kế hoạch | Thực tế | Lý do |
+|---|---|---|
+| Task 17 chạy thử trên `nexus-app-backend` | Chạy trên chính Compass (CP-1) | Repo Nexus trên máy này mới có `docs/`, code chưa clone |
+| — | Chạy thử thêm trên frontend (TD-001, React + Vitest) | CP-1 không chạm tới FE và runner khác `node:test`; xem [ghi chú](../notes/2026-09-05-frontend-trial.md) |
+
+Lần chạy thử frontend lộ bốn lỗi, đã sửa ở task CP-2. Nặng nhất: parser không tháo mã màu
+ANSI nên xếp sai một test **đã pass**. Lỗi đó không test giả lập nào bắt được — chỉ chạy
+trên reporter thật mới lộ.
+
+Việc còn nợ trước khi sang GĐ 2: chạy thử trên monorepo thật, và trên task `feature-m`
+(21 test) trở lên.
+
 ## Global Constraints
 
 - **Zero runtime dependency.** Chỉ dùng Node built-in. `package.json` không có `dependencies`.
@@ -90,7 +110,7 @@ SKILL.md                      quy trình AI phải theo
 
 **Vì sao cần `validateTaskId`:** id đi thẳng vào `path.join` làm tên thư mục. Không kiểm thì `../thoát` ghi file ra **ngoài** `.compass/` mà vẫn báo thành công, còn ký tự Windows cấm (`:` `*` `?`) làm `mkdirSync` ném lỗi thô — và nếu `cli.mjs` không bắt, tiến trình thoát mã **0**, tức là script CI đọc thành "đã tạo xong" trong khi chẳng có gì.
 
-- [ ] **Step 1: Tạo package.json**
+- [x] **Step 1: Tạo package.json**
 
 ```json
 {
@@ -107,7 +127,7 @@ SKILL.md                      quy trình AI phải theo
 
 **Lưu ý:** phải dùng glob `"test/**/*.test.mjs"` (có dấu nháy) chứ không phải thư mục trần `test/` — Node 24 báo `MODULE_NOT_FOUND` khi nhận thư mục làm tham số của `--test`.
 
-- [ ] **Step 2: Tạo .gitignore**
+- [x] **Step 2: Tạo .gitignore**
 
 ```
 node_modules/
@@ -116,7 +136,7 @@ node_modules/
 *.log
 ```
 
-- [ ] **Step 3: Viết test thất bại cho paths.mjs**
+- [x] **Step 3: Viết test thất bại cho paths.mjs**
 
 Tạo `test/paths.test.mjs`:
 
@@ -209,12 +229,12 @@ test('validateTaskId explains why it rejected', () => {
 });
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận nó fail**
+- [x] **Step 4: Chạy test, xác nhận nó fail**
 
 Run: `node --test test/paths.test.mjs`
 Expected: FAIL — `Cannot find module '../lib/paths.mjs'`
 
-- [ ] **Step 5: Viết lib/paths.mjs**
+- [x] **Step 5: Viết lib/paths.mjs**
 
 ```javascript
 import { existsSync } from 'node:fs';
@@ -271,12 +291,12 @@ export function validateTaskId(taskId) {
 }
 ```
 
-- [ ] **Step 6: Chạy test, xác nhận pass**
+- [x] **Step 6: Chạy test, xác nhận pass**
 
 Run: `node --test test/paths.test.mjs`
 Expected: PASS — 11 test
 
-- [ ] **Step 7: Khởi tạo git và commit**
+- [x] **Step 7: Khởi tạo git và commit**
 
 ```bash
 git init
@@ -308,7 +328,7 @@ git commit -m "feat: add path resolution module"
 
 **Cạm bẫy đã gặp:** không được dùng `JSON.stringify(obj, keysArray)` để sắp key. Mảng key trong `JSON.stringify` là **bộ lọc đệ quy**, không phải thứ tự sắp xếp — mọi object lồng sẽ bị rỗng hóa thành `{}`, khiến hai record khác nhau cho ra cùng chữ ký. Gate record có `missingIds` là mảng, nên lỗi này phá hỏng đúng thứ module cần bảo vệ. Phải viết serializer đệ quy như dưới.
 
-- [ ] **Step 1: Viết test thất bại cho hash.mjs**
+- [x] **Step 1: Viết test thất bại cho hash.mjs**
 
 Tạo `test/hash.test.mjs`:
 
@@ -363,12 +383,12 @@ test('hashFiles changes when any file changes', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/hash.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/hash.mjs**
+- [x] **Step 3: Viết lib/hash.mjs**
 
 ```javascript
 import { createHash } from 'node:crypto';
@@ -389,12 +409,12 @@ export function hashFiles(filePaths) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/hash.test.mjs`
 Expected: PASS — 7 test
 
-- [ ] **Step 5: Viết test thất bại cho signature.mjs**
+- [x] **Step 5: Viết test thất bại cho signature.mjs**
 
 Tạo `test/signature.test.mjs`:
 
@@ -494,12 +514,12 @@ test('verifyRecord rejects a tampered nested value', () => {
 });
 ```
 
-- [ ] **Step 6: Chạy test, xác nhận fail**
+- [x] **Step 6: Chạy test, xác nhận fail**
 
 Run: `node --test test/signature.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 7: Viết lib/signature.mjs**
+- [x] **Step 7: Viết lib/signature.mjs**
 
 ```javascript
 import { randomBytes } from 'node:crypto';
@@ -538,12 +558,12 @@ export function verifyRecord(record, salt) {
 }
 ```
 
-- [ ] **Step 8: Chạy test, xác nhận pass**
+- [x] **Step 8: Chạy test, xác nhận pass**
 
 Run: `node --test test/signature.test.mjs`
 Expected: PASS — 12 test
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add lib/hash.mjs lib/signature.mjs test/hash.test.mjs test/signature.test.mjs
@@ -575,7 +595,7 @@ Ba lối rò nếu trả tham chiếu trực tiếp:
 - `requiredLayers` của `feature-m`/`feature-l` dùng chung đúng mảng `LAYERS` → sửa tại chỗ hỏng cả hằng số xuất khẩu
 - `gates` là **nguy hiểm nhất**: nó là danh sách gate bắt buộc. Xóa `'test'` khỏi đó là bỏ hẳn cổng chứng minh công việc đã làm — sửa `minTests` chỉ làm yếu ngưỡng, sửa `gates` xóa luôn phép kiểm.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/task-types.test.mjs`:
 
@@ -659,12 +679,12 @@ test('removing from gates of a result cannot drop a gate for later callers', () 
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/task-types.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/task-types.mjs**
+- [x] **Step 3: Viết lib/task-types.mjs**
 
 ```javascript
 export const TASK_TYPES = ['fix', 'bug', 'feature-s', 'feature-m', 'feature-l'];
@@ -698,12 +718,12 @@ export function isUpgrade(from, to) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/task-types.test.mjs`
 Expected: PASS — 14 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/task-types.mjs test/task-types.test.mjs
@@ -736,7 +756,7 @@ Cấu trúc config GĐ 1 (một repo; multi-repo để GĐ 4):
 
 `test` là trường bắt buộc duy nhất. `testReporter` nhận `"tap"` hoặc `"plain"`; mặc định `"tap"`.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/config.test.mjs`:
 
@@ -793,12 +813,12 @@ test('DEFAULT_CONFIG carries a test command', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/config.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/config.mjs**
+- [x] **Step 3: Viết lib/config.mjs**
 
 ```javascript
 import { existsSync, readFileSync } from 'node:fs';
@@ -838,12 +858,12 @@ export function loadConfig(root) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/config.test.mjs`
 Expected: PASS — 6 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/config.mjs test/config.test.mjs
@@ -888,7 +908,7 @@ Tương tự, `Loại:`/`Phạm vi:` phải đọc được ở mọi vị trí.
 
 **Chi tiết dễ sửa nhầm:** hai dòng metadata **không** `continue` sau khi khớp. Chúng phải rơi xuống `buffer.push(line)` để vẫn nằm trong nội dung section — nếu thoát sớm, một section chỉ chứa dòng metadata sẽ thành rỗng, và kiểm "Rủi ro hồi quy trống" sẽ báo sai.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/spec-parser.test.mjs`:
 
@@ -1004,12 +1024,12 @@ test('parseSpec keeps the first value when metadata appears twice', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/spec-parser.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/spec-parser.mjs**
+- [x] **Step 3: Viết lib/spec-parser.mjs**
 
 ```javascript
 function splitRow(line) {
@@ -1093,12 +1113,12 @@ export function parseSpec(markdown) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/spec-parser.test.mjs`
 Expected: PASS — 14 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/spec-parser.mjs test/spec-parser.test.mjs
@@ -1128,7 +1148,7 @@ Kiểm theo spec §6.3:
 7. ID không trùng nhau
 8. Bảng test case không được rỗng — kiểm **độc lập**, không nấp trong nhánh `else` của `if (rules)`. Bảng rỗng là sai bất kể loại task hợp lệ hay không; đặt trong `else` khiến lỗi này biến mất với mọi spec có loại hợp lệ.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/spec-validator.test.mjs`:
 
@@ -1243,12 +1263,12 @@ test('validateSpec reports no format error for a clean table', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/spec-validator.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/spec-validator.mjs**
+- [x] **Step 3: Viết lib/spec-validator.mjs**
 
 ```javascript
 import { parseSpec } from './spec-parser.mjs';
@@ -1311,12 +1331,12 @@ export function validateSpec(markdown) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/spec-validator.test.mjs`
 Expected: PASS — 13 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/spec-validator.mjs test/spec-validator.test.mjs
@@ -1347,7 +1367,7 @@ Vì sao quan trọng: ai muốn xóa một gate fail không cần giả chữ k�
 
 `verifyAllGates` bắt lỗi đó lại và trả `ok: false` kèm dấu `'<gate.json hỏng>'` trong `tampered`, để lệnh gọi nó vẫn hoạt động đúng và in được thông báo có nghĩa.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/gate-store.test.mjs`:
 
@@ -1425,12 +1445,12 @@ test('verifyAllGates detects a hand-edited exitCode', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/gate-store.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/gate-store.mjs**
+- [x] **Step 3: Viết lib/gate-store.mjs**
 
 ```javascript
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -1487,12 +1507,12 @@ export function verifyAllGates(root, taskId) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/gate-store.test.mjs`
 Expected: PASS — 13 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/gate-store.mjs test/gate-store.test.mjs
@@ -1535,7 +1555,7 @@ Neo regex ở đầu dòng để tên test chứa từ nhạy cảm vẫn pass �
 
 **Giới hạn phải nói thẳng:** quét text không bao giờ kín được. Ta không kiểm soát định dạng reporter, và chuỗi nào cũng có thể xuất hiện vì lý do bất kỳ. Mục tiêu là bắt đúng các ca thường gặp và **ghi rõ giới hạn trong SKILL.md**, không phải hứa một đảm bảo không giữ được. GĐ sau đọc JSON reporter sẽ chắc hơn.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/test-parser.test.mjs`:
 
@@ -1632,12 +1652,12 @@ test('compareWithSpec tolerates extra ids as long as none are missing', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/test-parser.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/test-parser.mjs**
+- [x] **Step 3: Viết lib/test-parser.mjs**
 
 ```javascript
 function escapeForRegex(text) {
@@ -1700,12 +1720,12 @@ export function compareWithSpec(specIds, ranIds) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/test-parser.test.mjs`
 Expected: PASS — 8 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/test-parser.mjs test/test-parser.test.mjs
@@ -1742,7 +1762,7 @@ Nếu quy hết về "exit 1", bản ghi bằng chứng nói "test fail" trong k
 
 **Hạn chế trên Windows:** ba nhánh `signal`, `ENOBUFS`, và lỗi spawn không kích hoạt được ở đây — Node dịch `SIGKILL` thành `TerminateProcess` nên tiến trình *thoát* mã 1 chứ không bị *báo tín hiệu*, và shell nuốt lỗi spawn. Code vẫn đúng và chạy được trên Linux/macOS. **Không viết test giả vờ phủ các nhánh này** — một assertion luôn đúng (`signal === 'SIGTERM' || signal === null`) tệ hơn là ghi nhận thẳng khoảng trống.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/test-runner.test.mjs`:
 
@@ -1806,12 +1826,12 @@ test('runCommand does not treat a plain test failure as a runner failure', () =>
 // Cả ba đều kích hoạt được trên Linux/macOS.
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/test-runner.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/test-runner.mjs**
+- [x] **Step 3: Viết lib/test-runner.mjs**
 
 ```javascript
 import { spawnSync } from 'node:child_process';
@@ -1851,12 +1871,12 @@ export function runCommand(command, cwd) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/test-runner.test.mjs`
 Expected: PASS — 8 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/test-runner.mjs test/test-runner.test.mjs
@@ -1881,7 +1901,7 @@ git commit -m "feat: add command runner capturing exit code and output"
 
 Không màu mè ANSI ở GĐ 1 — một số terminal Windows hiển thị lộn xộn, và output còn được ghi vào file log.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/report.test.mjs`:
 
@@ -1918,12 +1938,12 @@ test('info returns the text unchanged in content', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/report.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết lib/report.mjs**
+- [x] **Step 3: Viết lib/report.mjs**
 
 ```javascript
 export function pass(gate, detail = '') {
@@ -1944,12 +1964,12 @@ export function hint(text) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass**
+- [x] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/report.test.mjs`
 Expected: PASS — 6 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/report.mjs test/report.test.mjs
@@ -1974,7 +1994,7 @@ git commit -m "feat: add terminal report formatting"
 
 `init` tạo `.compass/config.json` nếu chưa có (bootstrap lần đầu), rồi tạo thư mục task + `spec.md` từ template với `{{taskId}}`, `{{type}}`, `{{minTests}}`, `{{layers}}` đã thay.
 
-- [ ] **Step 1: Tạo templates/spec.md**
+- [x] **Step 1: Tạo templates/spec.md**
 
 ```markdown
 # {{taskId}}: <tiêu đề ngắn>
@@ -1998,7 +2018,7 @@ Phạm vi: <file/module sẽ đụng>
 | H1 |  |  |  | P0 |
 ```
 
-- [ ] **Step 2: Viết test thất bại**
+- [x] **Step 2: Viết test thất bại**
 
 Tạo `test/init.test.mjs`:
 
@@ -2108,12 +2128,12 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận fail**
+- [x] **Step 3: Chạy test, xác nhận fail**
 
 Run: `node --test test/init.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 4: Viết commands/init.mjs**
+- [x] **Step 4: Viết commands/init.mjs**
 
 ```javascript
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -2188,7 +2208,7 @@ export function initCommand({ cwd, taskId, type }) {
 }
 ```
 
-- [ ] **Step 5: Viết cli.mjs**
+- [x] **Step 5: Viết cli.mjs**
 
 ```javascript
 #!/usr/bin/env node
@@ -2247,12 +2267,12 @@ function main() {
 main();
 ```
 
-- [ ] **Step 6: Chạy test, xác nhận pass**
+- [x] **Step 6: Chạy test, xác nhận pass**
 
 Run: `node --test test/init.test.mjs`
 Expected: PASS — 13 test
 
-- [ ] **Step 7: Thử tay để xác nhận CLI chạy**
+- [x] **Step 7: Thử tay để xác nhận CLI chạy**
 
 ```bash
 node cli.mjs init T-999 --type=fix
@@ -2261,7 +2281,7 @@ Expected: in ra "Đã tạo task T-999 (loại fix)" và tạo `.compass/T-999/s
 
 Dọn sau khi thử: `rm -rf .compass`
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add templates/spec.md commands/init.mjs cli.mjs test/init.test.mjs
@@ -2284,7 +2304,7 @@ git commit -m "feat: add init command and CLI entry point"
 
 Gate record ghi kèm `specHash` — các gate sau đối chiếu để phát hiện spec bị sửa sau khi duyệt.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/spec-command.test.mjs`:
 
@@ -2369,12 +2389,12 @@ test('specCommand reports a missing task id', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/spec-command.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết commands/spec.mjs**
+- [x] **Step 3: Viết commands/spec.mjs**
 
 ```javascript
 import { existsSync, readFileSync } from 'node:fs';
@@ -2426,7 +2446,7 @@ export function specCommand({ cwd, taskId }) {
 }
 ```
 
-- [ ] **Step 4: Thêm nhánh spec vào cli.mjs**
+- [x] **Step 4: Thêm nhánh spec vào cli.mjs**
 
 Trong `cli.mjs`, thêm import và nhánh switch:
 
@@ -2440,12 +2460,12 @@ import { specCommand } from './commands/spec.mjs';
       break;
 ```
 
-- [ ] **Step 5: Chạy test, xác nhận pass**
+- [x] **Step 5: Chạy test, xác nhận pass**
 
 Run: `node --test test/spec-command.test.mjs`
 Expected: PASS — 6 test
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add commands/spec.mjs cli.mjs test/spec-command.test.mjs
@@ -2468,7 +2488,7 @@ git commit -m "feat: add spec gate command"
 
 Gate fail khi **một trong hai**: lệnh test trả exit code khác 0, **hoặc** có test case trong spec không tìm thấy dấu vết đã chạy. Output đầy đủ ghi vào `evidence/test.log`.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/test-command.test.mjs`:
 
@@ -2569,12 +2589,12 @@ test('testCommand reports an invalid config', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/test-command.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết commands/test.mjs**
+- [x] **Step 3: Viết commands/test.mjs**
 
 ```javascript
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -2658,7 +2678,7 @@ export function testCommand({ cwd, taskId }) {
 }
 ```
 
-- [ ] **Step 4: Thêm nhánh test vào cli.mjs**
+- [x] **Step 4: Thêm nhánh test vào cli.mjs**
 
 ```javascript
 import { testCommand } from './commands/test.mjs';
@@ -2670,12 +2690,12 @@ import { testCommand } from './commands/test.mjs';
       break;
 ```
 
-- [ ] **Step 5: Chạy test, xác nhận pass**
+- [x] **Step 5: Chạy test, xác nhận pass**
 
 Run: `node --test test/test-command.test.mjs`
 Expected: PASS — 7 test
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add commands/test.mjs cli.mjs test/test-command.test.mjs
@@ -2708,7 +2728,7 @@ git commit -m "feat: add test gate command with spec id reconciliation"
 
 Đây chính là kiểu hiểu nhầm Compass tồn tại để chống: một báo cáo **đúng về mặt kỹ thuật nhưng gây hiểu sai**. Loại task không đòi gì ngoài phần đã cài (`fix`, `bug`) thì không in gì thêm — im lặng đúng khi không giấu gì.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Tạo `test/check-done.test.mjs`:
 
@@ -2837,12 +2857,12 @@ test('statusCommand lists gate state', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `node --test test/check-done.test.mjs`
 Expected: FAIL — module không tồn tại
 
-- [ ] **Step 3: Viết commands/check.mjs**
+- [x] **Step 3: Viết commands/check.mjs**
 
 ```javascript
 import { existsSync, readFileSync } from 'node:fs';
@@ -2900,7 +2920,7 @@ export function checkCommand({ cwd, taskId, only }) {
 }
 ```
 
-- [ ] **Step 4: Viết commands/done.mjs**
+- [x] **Step 4: Viết commands/done.mjs**
 
 ```javascript
 import { existsSync, readFileSync } from 'node:fs';
@@ -2981,7 +3001,7 @@ export function doneCommand({ cwd, taskId }) {
 }
 ```
 
-- [ ] **Step 5: Viết commands/status.mjs**
+- [x] **Step 5: Viết commands/status.mjs**
 
 ```javascript
 import { existsSync, readFileSync } from 'node:fs';
@@ -3030,7 +3050,7 @@ export function statusCommand({ cwd, taskId }) {
 }
 ```
 
-- [ ] **Step 6: Thêm ba nhánh vào cli.mjs**
+- [x] **Step 6: Thêm ba nhánh vào cli.mjs**
 
 ```javascript
 import { checkCommand } from './commands/check.mjs';
@@ -3050,17 +3070,17 @@ import { statusCommand } from './commands/status.mjs';
       break;
 ```
 
-- [ ] **Step 7: Chạy test, xác nhận pass**
+- [x] **Step 7: Chạy test, xác nhận pass**
 
 Run: `node --test test/check-done.test.mjs`
 Expected: PASS — 10 test
 
-- [ ] **Step 8: Chạy toàn bộ test suite**
+- [x] **Step 8: Chạy toàn bộ test suite**
 
 Run: `npm test`
 Expected: PASS — tất cả test của mọi task
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add commands/check.mjs commands/done.mjs commands/status.mjs cli.mjs test/check-done.test.mjs
@@ -3080,7 +3100,7 @@ git commit -m "feat: add check, done and status commands"
 
 Test này chạy CLI thật như người dùng gõ, xác nhận exit code đúng. Nó bắt được lỗi mà unit test bỏ sót: dispatch sai, exit code không được set, import vòng.
 
-- [ ] **Step 1: Viết test tích hợp**
+- [x] **Step 1: Viết test tích hợp**
 
 Tạo `test/integration.test.mjs`:
 
@@ -3180,17 +3200,17 @@ test('done refuses after a gate record is hand-edited', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test tích hợp**
+- [x] **Step 2: Chạy test tích hợp**
 
 Run: `node --test test/integration.test.mjs`
 Expected: PASS — 5 test
 
-- [ ] **Step 3: Chạy toàn bộ suite**
+- [x] **Step 3: Chạy toàn bộ suite**
 
 Run: `npm test`
 Expected: PASS — toàn bộ
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add test/integration.test.mjs
@@ -3211,7 +3231,7 @@ git commit -m "test: add end-to-end CLI integration tests"
 
 SKILL.md là thứ dán vào AI. Nội dung theo spec §6, rút gọn cho phạm vi GĐ 1 — không nhắc các gate chưa cài (`ui`, `visual`, `convention`, `review`) như thể chúng đã chạy được, nhưng có nói rõ chúng thuộc giai đoạn sau.
 
-- [ ] **Step 1: Viết SKILL.md**
+- [x] **Step 1: Viết SKILL.md**
 
 ```markdown
 ---
@@ -3347,7 +3367,7 @@ GĐ 1 có gate `spec` và `test`. Các gate `convention`, `ui`, `visual`, `revie
 | "Người duyệt chắc sẽ đồng ý thôi" | Chờ họ nói. Đoán ý là bỏ qua checkpoint. |
 ```
 
-- [ ] **Step 2: Viết README.md**
+- [x] **Step 2: Viết README.md**
 
 ```markdown
 # Compass
@@ -3410,12 +3430,12 @@ GĐ 2-4: `convention`, `ui`, `visual`, `review`, knowledge base, điều tra, mu
 Thiết kế đầy đủ: [docs/superpowers/specs/2026-09-05-compass-design.md](docs/superpowers/specs/2026-09-05-compass-design.md)
 ```
 
-- [ ] **Step 3: Chạy toàn bộ test lần cuối**
+- [x] **Step 3: Chạy toàn bộ test lần cuối**
 
 Run: `npm test`
 Expected: PASS — toàn bộ
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add SKILL.md README.md
@@ -3435,11 +3455,11 @@ git commit -m "docs: add SKILL.md and README"
 
 Spec §14 nêu 5 rủi ro chưa kiểm chứng. Task này đo chúng trên một task thật.
 
-- [ ] **Step 1: Chọn một task nhỏ có thật ở dự án Nexus**
+- [x] **Step 1: Chọn một task nhỏ có thật ở dự án Nexus**
 
 Chọn một `fix` hoặc `bug` nhỏ ở `nexus-app-backend`. Ghi lại: task là gì, ước lượng bao lâu nếu làm tay không có Compass.
 
-- [ ] **Step 2: Cài Compass vào repo đó**
+- [x] **Step 2: Cài Compass vào repo đó**
 
 ```bash
 cd <đường-dẫn-tới-nexus-app-backend>
@@ -3448,11 +3468,11 @@ node <đường-dẫn-compass>/cli.mjs init NX-001 --type=bug
 
 Sửa `.compass/config.json` cho khớp lệnh test thật của repo (ví dụ `yarn test`).
 
-- [ ] **Step 3: Chạy trọn vòng đời**
+- [x] **Step 3: Chạy trọn vòng đời**
 
 Đi hết `spec` → duyệt → code + test → `check` → `done`. **Không bỏ qua bước nào**, kể cả khi thấy thừa.
 
-- [ ] **Step 4: Ghi lại quan sát**
+- [x] **Step 4: Ghi lại quan sát**
 
 Tạo `docs/superpowers/notes/2026-09-XX-phase-1-trial.md` trả lời:
 
@@ -3465,14 +3485,14 @@ Tạo `docs/superpowers/notes/2026-09-XX-phase-1-trial.md` trả lời:
 | Chỗ nào trong SKILL.md gây hiểu nhầm? | |
 | Có lúc nào muốn bỏ qua Compass? Vì sao? | |
 
-- [ ] **Step 5: Commit ghi chú**
+- [x] **Step 5: Commit ghi chú**
 
 ```bash
 git add docs/superpowers/notes/
 git commit -m "docs: record phase 1 trial observations"
 ```
 
-- [ ] **Step 6: Quyết định điều chỉnh trước khi sang GĐ 2**
+- [x] **Step 6: Quyết định điều chỉnh trước khi sang GĐ 2**
 
 Dựa trên ghi chú, quyết định: giữ nguyên · nới số test tối thiểu · rút gọn bước cho loại `fix` · hoặc sửa cách diễn đạt trong SKILL.md.
 
