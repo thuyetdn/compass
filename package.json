@@ -2,9 +2,13 @@
   "name": "compass",
   "version": "0.1.0",
   "type": "module",
-  "bin": { "compass": "./cli.mjs" },
-  "engines": { "node": ">=20" },
+  "bin": {
+    "compass": "./cli.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test \"test/**/*.test.mjs\""
   }
 }

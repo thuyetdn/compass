@@ -97,10 +97,12 @@ SKILL.md                      quy trình AI phải theo
   "bin": { "compass": "./cli.mjs" },
   "engines": { "node": ">=20" },
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test \"test/**/*.test.mjs\""
   }
 }
 ```
+
+**Lưu ý:** phải dùng glob `"test/**/*.test.mjs"` (có dấu nháy) chứ không phải thư mục trần `test/` — Node 24 báo `MODULE_NOT_FOUND` khi nhận thư mục làm tham số của `--test`.
 
 - [ ] **Step 2: Tạo .gitignore**
 
