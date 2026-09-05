@@ -36,18 +36,70 @@ Không cài được thì gọi trực tiếp, thay `compass` bằng `node <đư
 
 ### Quy tắc diễn đạt tiếng Việt
 
-**Cấm:**
-- Dịch code thành lời (*"gọi hàm X để lấy Y rồi trả về Z"*)
-- Hán-Việt nặng khi có từ thuần Việt: "thực hiện việc kiểm tra" → "kiểm tra"
-- Câu bị động kiểu Tây: "dữ liệu được xử lý bởi service" → "service xử lý dữ liệu"
-- Dịch thuật ngữ đã quen: giữ nguyên *token, cache, race condition, deadlock*
+Sáu lỗi, mỗi lỗi một cặp câu. Đọc cặp câu, đừng đọc tên lỗi.
 
-**Bắt buộc:**
-- Kể theo **dòng chảy dữ liệu**, không theo thứ tự file
-- Nói cái quan trọng trước — đọc 3 câu đầu vẫn nắm được ý chính
-- **Chỉ ra chỗ đáng ngờ** — giả định ngầm, nhánh không xử lý, chỗ dễ vỡ
-- Ví dụ cụ thể thay vì mô tả trừu tượng
-- Sơ đồ khi có từ 4 bước trở lên
+**1. Mô tả cơ chế thay vì nói kết quả**
+
+> ❌ Compass tìm test bằng cách đọc chữ trong màn hình output.
+>
+> ✅ Reporter không in tên test thì Compass báo thiếu, dù bạn đã viết đủ.
+
+Câu đầu tả máy chạy ra sao. Câu sau nói chuyện gì xảy ra với người đọc. Luôn chọn câu sau.
+
+**2. Chủ ngữ mơ hồ**
+
+> ❌ Ai đó quên chép `ui` và `visual` vào bảng gate.
+>
+> ✅ Bảng gate thiếu `ui` và `visual`.
+
+"Ai đó", "hệ thống", "người ta" — bỏ hết. Nói thẳng cái gì thiếu, cái gì sai.
+
+**3. Dịch code thành lời**
+
+> ❌ Hàm `syncEvents` gọi Graph API lấy danh sách rồi lưu vào database qua repository.
+>
+> ✅ Lịch kéo về mỗi 15 phút, hỏi Graph "có gì đổi không" bằng deltaToken lưu trong DB.
+
+Người đọc mở được file. Họ cần biết **vì sao** và **khi nào hỏng**, không cần biết dòng nào gọi dòng nào.
+
+**4. Hán-Việt nặng khi có từ thuần Việt**
+
+> ❌ Thực hiện việc kiểm tra tính hợp lệ của dữ liệu đầu vào.
+>
+> ✅ Kiểm dữ liệu vào có hợp lệ không.
+
+Thấy "thực hiện việc", "tiến hành", "tính ... của" — cắt.
+
+**5. Bị động kiểu Tây**
+
+> ❌ Dữ liệu được xử lý bởi service rồi được lưu bởi repository.
+>
+> ✅ Service xử lý dữ liệu, repository lưu lại.
+
+Tiếng Việt có chủ ngữ thì dùng chủ ngữ.
+
+**6. Nói vòng trước khi vào việc**
+
+> ❌ Tôi đã tiến hành phân tích và nhận thấy rằng có một vấn đề khá nghiêm trọng ở đây, cụ thể là...
+>
+> ✅ Parser xếp sai một test đã pass.
+
+Câu đầu tiên phải là kết luận. Bối cảnh để sau.
+
+**Giữ nguyên, đừng dịch:** token · cache · race condition · deadlock · commit · merge · gate · reporter.
+
+### Tự kiểm trước khi gửi
+
+Đọc lại đoạn vừa viết, hỏi bốn câu:
+
+| Hỏi | Nếu "không" thì |
+|---|---|
+| Ba câu đầu đã nói hết ý chính chưa? | Chuyển kết luận lên đầu |
+| Mỗi khẳng định có số hoặc ví dụ chưa? | Thay lời khen bằng số đo |
+| Có chỗ nào đáng ngờ mà tôi im lặng không? | Nói ra — giả định ngầm, nhánh chưa xử lý, chỗ dễ vỡ |
+| Đoạn từ 4 bước trở lên đã có bảng hoặc sơ đồ chưa? | Vẽ ra |
+
+**Khó nhất là câu thứ ba.** Chỗ đáng ngờ thường là chỗ mình lười kiểm. Nói ra thì mất mặt một chút, giấu đi thì người khác sập bẫy.
 
 ## Vòng đời task
 
