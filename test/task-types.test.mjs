@@ -43,3 +43,31 @@ test('isUpgrade rejects moving to a lighter type', () => {
 test('isUpgrade rejects staying the same', () => {
   assert.equal(isUpgrade('bug', 'bug'), false);
 });
+
+test('mutating rulesFor result does not affect later calls', () => {
+  const result1 = rulesFor('bug');
+  result1.minTests = 999;
+  const result2 = rulesFor('bug');
+  assert.equal(result2.minTests, 6);
+});
+
+test('mutating requiredLayers does not affect later calls or LAYERS constant', () => {
+  const result = rulesFor('feature-m');
+  result.requiredLayers.push('Corrupted');
+
+  const result2 = rulesFor('feature-m');
+  assert.equal(result2.requiredLayers.length, 6);
+  assert.deepEqual(result2.requiredLayers, LAYERS);
+
+  assert.equal(LAYERS.length, 6);
+  assert.deepEqual(LAYERS, ['Happy', 'Validation', 'Error', 'Edge', 'Security', 'Performance']);
+});
+
+test('successive calls to rulesFor return different object and array references', () => {
+  const result1 = rulesFor('feature-m');
+  const result2 = rulesFor('feature-m');
+
+  assert.ok(result1 !== result2);
+  assert.ok(result1.requiredLayers !== result2.requiredLayers);
+  assert.deepEqual(result1.requiredLayers, result2.requiredLayers);
+});
