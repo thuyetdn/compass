@@ -120,3 +120,14 @@ test('testCommand: when process is killed by signal, shows in gate', () => {
   assert.ok('signal' in gate);
   assert.ok('suiteFailure' in gate);
 });
+
+test('testCommand: retried-then-passed ID not reported as failed', () => {
+  // Spec declares H1 and H2; first test fails then passes; second never written
+  const retryOutput = 'node -e "console.log(\'not ok 1 - test_H1_a\\nok 2 - test_H1_a\\nok 3 - nothing\')"';
+  const root = makeTask(retryOutput);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  // H1 should NOT appear in the failure message at all (it did pass eventually)
+  assert.match(result.output, /H2/);
+  assert.ok(!result.output.includes('H1'), 'H1 should not appear in output since it passed');
+});

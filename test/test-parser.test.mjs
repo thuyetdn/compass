@@ -83,10 +83,34 @@ test('extractRanIds: checkmark marker counts as pass', () => {
   assert.deepEqual(result.seenOnUnknownLines, []);
 });
 
-test('extractRanIds: ID on both pass and fail counts as ran', () => {
-  const output = 'ok 1 - test_H1_a\nnot ok 1 - test_H1_a (retry)';
+test('extractRanIds: ID on both pass and fail counts as ran only', () => {
+  const output = 'not ok 1 - test_H1_a (first attempt)\nok 1 - test_H1_a (retry)';
   const result = extractRanIds(output, ['H1']);
   assert.deepEqual(result.ran, ['H1']);
+  assert.deepEqual(result.seenOnNonPassLines, []);
+  assert.deepEqual(result.seenOnUnknownLines, []);
+});
+
+test('extractRanIds: ID on fail then pass is removed from seenOnNonPassLines', () => {
+  const output = 'not ok 1 - test_H1_a\nok 2 - test_H1_a';
+  const result = extractRanIds(output, ['H1']);
+  assert.deepEqual(result.ran, ['H1']);
+  assert.deepEqual(result.seenOnNonPassLines, []);
+  assert.deepEqual(result.seenOnUnknownLines, []);
+});
+
+test('extractRanIds: ID on unknown then pass is removed from seenOnUnknownLines', () => {
+  const output = 'H1 mentioned\nok 1 - test_H1_a';
+  const result = extractRanIds(output, ['H1']);
+  assert.deepEqual(result.ran, ['H1']);
+  assert.deepEqual(result.seenOnNonPassLines, []);
+  assert.deepEqual(result.seenOnUnknownLines, []);
+});
+
+test('extractRanIds: ID on fail line only stays in seenOnNonPassLines', () => {
+  const output = 'not ok 1 - test_H1_a';
+  const result = extractRanIds(output, ['H1']);
+  assert.deepEqual(result.ran, []);
   assert.deepEqual(result.seenOnNonPassLines, ['H1']);
   assert.deepEqual(result.seenOnUnknownLines, []);
 });
