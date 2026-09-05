@@ -52,7 +52,7 @@ Gate record có chữ ký — sửa tay là lộ.
 
 ## Trạng thái
 
-Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 529 test.
+Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 532 test.
 
 Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
 Khai nhiều repo trong `config.json` nếu một task đụng nhiều nơi.
@@ -88,7 +88,7 @@ Compass tìm test ID trong output, nên reporter phải in tên từng test:
 ## Test
 
 ```bash
-npm test        # 529 test, vài giây
+npm test        # 532 test, vài giây
 npm run test:deep  # 10 test qua CLI thật trên examples/todo, ~100 giây
 ```
 

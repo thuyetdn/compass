@@ -13,7 +13,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 
 ```json
 {
-  "brief": "a8056f710462",
+  "brief": "e948e4909234",
   "findings": [
     {
       "severity": "Critical | Major | Minor | Info",
@@ -26,7 +26,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 }
 ```
 
-Không tìm thấy gì thì nộp `{ "brief": "a8056f710462", "findings": [] }`. Đừng bịa ra finding cho có.
+Không tìm thấy gì thì nộp `{ "brief": "e948e4909234", "findings": [] }`. Đừng bịa ra finding cho có.
 
 | Mức | Dùng khi |
 |---|---|
@@ -115,6 +115,7 @@ lại chứ không đoán.
 | EC6 | Edge | Script mở đầu bằng /** | Đọc mô tả ở dòng dưới, không lấy dấu sao | P1 |
 | EC7 | Edge | Pitfall ghi tên thẻ JSX | Không chặn nhầm — đó là nội dung thật | P0 |
 | V9 | Validation | Gợi ý template một từ, không khoảng trắng | Vẫn bị chặn — mọi gợi ý trong template đều phải bắt được | P0 |
+| EC8 | Edge | Hồ sơ lưu bằng CRLF | Đọc và đóng được y như LF | P0 |
 
 ```
 
@@ -219,7 +220,7 @@ index 0000000..d238733
 +**Vùng ảnh hưởng:** lib/dev-server.mjs
 +**Phòng tránh:** giết theo cây (`taskkill /t`), và **đợi** nó chết trước khi trả về. Đừng suy ra trạng thái cây tiến trình từ exit code của tiến trình gốc.
 diff --git a/README.md b/README.md
-index d9ae78c..c1f7b7a 100644
+index d9ae78c..8538075 100644
 --- a/README.md
 +++ b/README.md
 @@ -52,9 +52,10 @@ Gate record có chữ ký — sửa tay là lộ.
@@ -227,7 +228,7 @@ index d9ae78c..c1f7b7a 100644
  ## Trạng thái
  
 -Sáu gate đã chạy được: `spec`, `convention`, `test`, `ui`, `visual`, `review` — 403 test.
-+Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 523 test.
++Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 529 test.
  
 -Chưa có: knowledge base sinh tự động, lệnh `investigate`, multi-repo.
 +Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
@@ -240,7 +241,7 @@ index d9ae78c..c1f7b7a 100644
  
  ```bash
 -npm test        # 403 test, vài giây
-+npm test        # 523 test, vài giây
++npm test        # 529 test, vài giây
  npm run test:deep  # 10 test qua CLI thật trên examples/todo, ~100 giây
  ```
  
@@ -922,15 +923,15 @@ index ee04046..b7fe554 100644
      let state;
 diff --git a/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md b/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
 new file mode 100644
-index 0000000..0955502
+index 0000000..05dddd2
 --- /dev/null
 +++ b/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,163 @@
 +# Compass GĐ 3 và 4 — ghi chú
 +
 +**Ngày:** 2026-09-06
 +**Task:** CP-7 (`sourceHash`) · CP-9 (test tích hợp sâu) · CP-10 (`knowledge`) · CP-11 (`investigate` + `scripts`) · CP-12 (multi-repo) · INV-1 (điều tra thật đầu tiên)
-+**Suite:** 385 → 523 test
++**Suite:** 385 → 529 test
 +
 +Tiếp sau [GĐ 2](2026-09-05-phase-2-notes.md). Lộ trình trong spec thiết kế §13 đã đi hết.
 +
@@ -1027,14 +1028,21 @@ index 0000000..0955502
 +| 1 | `usedIn` đếm tên trần trong comment |
 +| 2 | Bản sửa vòng 1 vẫn để lọt import bị comment-out; và `readProps` mất prop |
 +| 3 | Bản sửa vòng 2 không biết regex literal — `/['"]/g` mở chuỗi ma nuốt dòng import ngay dưới, tái hiện được trên chính `lib/paths.mjs`. Và `readProps` vẫn đào type object của tham số không destructure, bịa ra prop |
-+| 4 | Bản sửa Pitfall chặn nhầm `<SaveButton />`; rồi bản sửa cái đó lại để lọt mọi gợi ý một từ (`<ngày>`, `<vì sao>`, `<...>`) |
++| 4 | Bản sửa Pitfall chặn nhầm `<SaveButton />`; rồi bản sửa cái đó lại để lọt mọi gợi ý một từ (`<ngày>`, `<vì sao>`, `<...>`). Và `startsRegex` chỉ xét một ký tự cuối nên `return /['"]/` bị coi là phép chia; `{ close = '}' }` vẫn cắt sớm danh sách prop |
++| 5 | `VALUE_KEYWORDS` thiếu `throw` — sửa từng từ khóa một thì lần nào cũng sót một cái |
 +
-+Bốn vòng, và **mỗi vòng đều tìm ra lỗi do bản sửa của vòng trước sinh ra**. Nếu dừng ở vòng
-+một, bốn lỗi Major vẫn còn nguyên.
++Năm vòng, và **mỗi vòng đều tìm ra lỗi do bản sửa của vòng trước sinh ra**. Nếu dừng ở vòng
++một, năm lỗi Major vẫn còn nguyên.
 +
-+Lần cuối phải bỏ hẳn lối đoán. Thay vì suy ra "cái này trông giống chữ mẫu", đọc thẳng
-+`templates/investigation.md` rồi so khớp chính xác — chữ mẫu là thứ template tự viết ra, biết
-+được chính xác thì đừng đoán.
++Hai cách thoát khỏi mạch đó, cả hai đều là **bỏ suy đoán, lấy nguồn sự thật**:
++
++| Vấn đề | Cách sai (đoán) | Cách đúng |
++|---|---|---|
++| Đâu là chữ mẫu? | Xét hình dạng chuỗi | Đọc `templates/investigation.md`, so khớp chính xác |
++| Thiếu từ khóa nào? | Thêm từng cái khi bị báo | Test rà **cả danh sách**, thiếu cái nào là đỏ ngay |
++
++Cả hai lần, chỗ hỏng không phải logic mà là **cách biết**. Chữ mẫu là thứ template tự viết ra;
++danh sách từ khóa là thứ đếm được. Biết chính xác được thì đừng suy đoán.
 +
 +## Vòng phản hồi chạy thật
 +
@@ -1056,7 +1064,7 @@ index 0000000..0955502
 +| Chỉ số | Giá trị |
 +|---|---|
 +| Suite đầu GĐ 3 | 385 pass |
-+| Suite cuối GĐ 4 | 523 pass |
++| Suite cuối GĐ 4 | 529 pass |
 +| Gate `knowledge` trên Compass | 85 file, ~10ms |
 +| `hashSource` trên Compass | ~15ms |
 +| Số gate | 7 |
@@ -1171,10 +1179,10 @@ index df490fe..c5da26e 100644
    return IMPLEMENTED_GATES.includes(gate);
 diff --git a/lib/investigation-parser.mjs b/lib/investigation-parser.mjs
 new file mode 100644
-index 0000000..58a87af
+index 0000000..f4be8d7
 --- /dev/null
 +++ b/lib/investigation-parser.mjs
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,162 @@
 +import { readFileSync } from 'node:fs';
 +import path from 'node:path';
 +import { fileURLToPath } from 'node:url';
@@ -1182,6 +1190,12 @@ index 0000000..58a87af
 +// An investigation is closed on evidence, not on a story. This parser is what
 +// lets the machine tell one from the other: a hypothesis with no stated way to
 +// test it, a conclusion that cites nothing, a pitfall nobody wrote.
++
++// A file edited on Windows arrives with CRLF, and a trailing CR defeats every
++// end-of-line anchor below: the hypotheses vanished and a filled-in
++// investigation could never close, while the error insisted none were written.
++// spec-parser.mjs reads the same kind of markdown and already splits this way.
++const LINES = /\r?\n/;
 +
 +// Template text left in place, in either shape it takes: a bare `<hint>` line,
 +// or a labelled one like `**Gặp:** <ngày>`. Matching only the bare form let an
@@ -1221,7 +1235,7 @@ index 0000000..58a87af
 +}
 +
 +function sectionBody(markdown, heading) {
-+  const lines = markdown.split('\n');
++  const lines = markdown.split(LINES);
 +  const start = lines.findIndex((l) => l.trim().toLowerCase() === `## ${heading}`.toLowerCase());
 +  if (start === -1) return null;
 +
@@ -1237,14 +1251,14 @@ index 0000000..58a87af
 +function isEmpty(text) {
 +  if (!text) return true;
 +  const meaningful = text
-+    .split('\n')
++    .split(LINES)
 +    .map((l) => l.trim())
 +    .filter((l) => l !== '' && !isPlaceholder(l));
 +  return meaningful.length === 0;
 +}
 +
 +function parseHypotheses(markdown) {
-+  const lines = markdown.split('\n');
++  const lines = markdown.split(LINES);
 +  const hypotheses = [];
 +  let current = null;
 +
@@ -1275,7 +1289,7 @@ index 0000000..58a87af
 +export function parseInvestigation(markdown) {
 +  const hypotheses = parseHypotheses(markdown);
 +  return {
-+    title: (markdown.split('\n')[0] ?? '').replace(/^#\s*/, '').trim(),
++    title: (markdown.split(LINES)[0] ?? '').replace(/^#\s*/, '').trim(),
 +    symptom: sectionBody(markdown, 'Triệu chứng'),
 +    hypotheses,
 +    evidence: sectionBody(markdown, 'Bằng chứng'),
@@ -1318,7 +1332,7 @@ index 0000000..58a87af
 +  } else {
 +    // Every line, not just one: the block goes verbatim into the pitfall
 +    // library, so a half-filled one files template text there forever.
-+    for (const raw of parsed.pitfall.split('\n')) {
++    for (const raw of parsed.pitfall.split(LINES)) {
 +      const line = raw.trim();
 +      if (line === '' || !isPlaceholder(line)) continue;
 +      const label = line.match(/^\*\*([^*]+):\*\*/);
@@ -1333,10 +1347,10 @@ index 0000000..58a87af
 +}
 diff --git a/lib/knowledge-scan.mjs b/lib/knowledge-scan.mjs
 new file mode 100644
-index 0000000..972ccd5
+index 0000000..1b7767e
 --- /dev/null
 +++ b/lib/knowledge-scan.mjs
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,274 @@
 +import { readdirSync, readFileSync } from 'node:fs';
 +import path from 'node:path';
 +import { SKIP_DIRS } from './source-hash.mjs';
@@ -1535,7 +1549,11 @@ index 0000000..972ccd5
 +  if (!/[A-Za-z0-9_$)\]]/.test(prev)) return true;
 +
 +  const word = trimmed.match(/[A-Za-z_$][A-Za-z0-9_$]*$/);
-+  return word !== null && VALUE_KEYWORDS.has(word[0]);
++  if (word === null || !VALUE_KEYWORDS.has(word[0])) return false;
++
++  // `obj.of` is a property named `of`, not the keyword — what follows is
++  // division. A dot before the word settles it.
++  return trimmed[trimmed.length - word[0].length - 1] !== '.';
 +}
 +
 +// Only the import clause counts: `import X`, `import { X }`, `import { Y as X }`,
@@ -2200,10 +2218,10 @@ index 0000000..8331d6c
 +});
 diff --git a/test/investigation-parser.test.mjs b/test/investigation-parser.test.mjs
 new file mode 100644
-index 0000000..2950a67
+index 0000000..6c38015
 --- /dev/null
 +++ b/test/investigation-parser.test.mjs
-@@ -0,0 +1,220 @@
+@@ -0,0 +1,246 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { readFileSync } from 'node:fs';
@@ -2424,6 +2442,32 @@ index 0000000..2950a67
 +  assert.ok(result.errors.some((e) => e.includes('H2') && e.includes('cách kiểm')),
 +    result.errors.join(' · '));
 +});
++
++test('EC8 an investigation saved with CRLF reads the same as one with LF', () => {
++  // Windows editors write CRLF, and this repo has core.autocrlf on. A trailing
++  // CR defeated every end-of-line anchor: the hypotheses disappeared and the
++  // gate insisted none were written, which is a lie about a filled-in file.
++  const lf = COMPLETE.replace(/\r\n/g, '\n');
++  const crlf = lf.replace(/\n/g, '\r\n');
++
++  const fromLf = parseInvestigation(lf);
++  const fromCrlf = parseInvestigation(crlf);
++
++  assert.equal(fromCrlf.hypotheses.length, fromLf.hypotheses.length);
++  assert.deepEqual(fromCrlf.hypotheses.map((h) => h.id), fromLf.hypotheses.map((h) => h.id));
++  assert.equal(validateForClose(fromCrlf).ok, validateForClose(fromLf).ok);
++  assert.equal(validateForClose(fromCrlf).ok, true);
++});
++
++test('CRLF does not hide a genuinely unfilled section either', () => {
++  // The fix must not make the parser lenient — an empty conclusion still blocks.
++  const source = COMPLETE
++    .replace(/## Kết luận\n\n[\s\S]*?\n\n## Pitfall/, '## Kết luận\n\n\n## Pitfall')
++    .replace(/\n/g, '\r\n');
++  const result = validateForClose(parseInvestigation(source));
++  assert.equal(result.ok, false);
++  assert.ok(result.errors.some((e) => e.includes('Kết luận')));
++});
 diff --git a/test/knowledge-command.test.mjs b/test/knowledge-command.test.mjs
 new file mode 100644
 index 0000000..3db3372
@@ -2629,10 +2673,10 @@ index 0000000..3db3372
 +});
 diff --git a/test/knowledge-scan.test.mjs b/test/knowledge-scan.test.mjs
 new file mode 100644
-index 0000000..19e50f3
+index 0000000..b03881d
 --- /dev/null
 +++ b/test/knowledge-scan.test.mjs
-@@ -0,0 +1,357 @@
+@@ -0,0 +1,370 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -2989,6 +3033,19 @@ index 0000000..19e50f3
 +  });
 +  const { components } = scanComponents(root);
 +  assert.equal(components.Card.usedIn, 1);
++});
++
++test('a property named like a keyword is a property, not a keyword', () => {
++  // `obj.of / a` is division. Reading `of` as the keyword made the slash open
++  // a regex, and the quote in the next line's string ended the phantom.
++  for (const expression of ['obj.of / a', 'm.in / 2', 'x.new / y', 'p.await / q']) {
++    const root = makeTree({
++      'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
++      'src/Page.jsx': `const y = ${expression}; const s = 'x/y';\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
++    });
++    const { components } = scanComponents(root);
++    assert.equal(components.Card.usedIn, 1, `"${expression}" là phép chia, không phải regex`);
++  }
 +});
 diff --git a/test/manifest.test.mjs b/test/manifest.test.mjs
 new file mode 100644

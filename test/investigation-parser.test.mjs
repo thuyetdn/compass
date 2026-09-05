@@ -218,3 +218,29 @@ test('V9 a hypothesis whose method is the template hint is caught', () => {
   assert.ok(result.errors.some((e) => e.includes('H2') && e.includes('cách kiểm')),
     result.errors.join(' · '));
 });
+
+test('EC8 an investigation saved with CRLF reads the same as one with LF', () => {
+  // Windows editors write CRLF, and this repo has core.autocrlf on. A trailing
+  // CR defeated every end-of-line anchor: the hypotheses disappeared and the
+  // gate insisted none were written, which is a lie about a filled-in file.
+  const lf = COMPLETE.replace(/\r\n/g, '\n');
+  const crlf = lf.replace(/\n/g, '\r\n');
+
+  const fromLf = parseInvestigation(lf);
+  const fromCrlf = parseInvestigation(crlf);
+
+  assert.equal(fromCrlf.hypotheses.length, fromLf.hypotheses.length);
+  assert.deepEqual(fromCrlf.hypotheses.map((h) => h.id), fromLf.hypotheses.map((h) => h.id));
+  assert.equal(validateForClose(fromCrlf).ok, validateForClose(fromLf).ok);
+  assert.equal(validateForClose(fromCrlf).ok, true);
+});
+
+test('CRLF does not hide a genuinely unfilled section either', () => {
+  // The fix must not make the parser lenient — an empty conclusion still blocks.
+  const source = COMPLETE
+    .replace(/## Kết luận\n\n[\s\S]*?\n\n## Pitfall/, '## Kết luận\n\n\n## Pitfall')
+    .replace(/\n/g, '\r\n');
+  const result = validateForClose(parseInvestigation(source));
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('Kết luận')));
+});

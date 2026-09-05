@@ -355,3 +355,16 @@ test('an identifier that merely looks like a keyword is still division', () => {
   const { components } = scanComponents(root);
   assert.equal(components.Card.usedIn, 1);
 });
+
+test('a property named like a keyword is a property, not a keyword', () => {
+  // `obj.of / a` is division. Reading `of` as the keyword made the slash open
+  // a regex, and the quote in the next line's string ended the phantom.
+  for (const expression of ['obj.of / a', 'm.in / 2', 'x.new / y', 'p.await / q']) {
+    const root = makeTree({
+      'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
+      'src/Page.jsx': `const y = ${expression}; const s = 'x/y';\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
+    });
+    const { components } = scanComponents(root);
+    assert.equal(components.Card.usedIn, 1, `"${expression}" là phép chia, không phải regex`);
+  }
+});

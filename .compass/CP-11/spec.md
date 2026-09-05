@@ -69,3 +69,4 @@ lại chứ không đoán.
 | EC6 | Edge | Script mở đầu bằng /** | Đọc mô tả ở dòng dưới, không lấy dấu sao | P1 |
 | EC7 | Edge | Pitfall ghi tên thẻ JSX | Không chặn nhầm — đó là nội dung thật | P0 |
 | V9 | Validation | Gợi ý template một từ, không khoảng trắng | Vẫn bị chặn — mọi gợi ý trong template đều phải bắt được | P0 |
+| EC8 | Edge | Hồ sơ lưu bằng CRLF | Đọc và đóng được y như LF | P0 |
