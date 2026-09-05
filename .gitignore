@@ -3,9 +3,14 @@ dist/
 .knowledge/derived/
 *.log
 
-# Trạng thái Compass là cục bộ — trừ spec của example, thứ đáng đọc khi xem demo
-.compass/
-!examples/*/.compass/
+# Trạng thái Compass là cục bộ, trừ spec — nó là hồ sơ của task, đáng đọc lại.
+# Evidence và salt vẫn nằm ngoài: bằng chứng chỉ có nghĩa trên máy đã chạy gate.
+.compass/*
+!.compass/config.json
+!.compass/*/
+.compass/*/*
+!.compass/*/spec.md
+
 examples/*/.compass/*
 !examples/*/.compass/config.json
 !examples/*/.compass/*/

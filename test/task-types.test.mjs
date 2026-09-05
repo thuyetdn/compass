@@ -94,3 +94,23 @@ test('removing gates entry does not affect later calls', () => {
   assert.ok(result2.gates.includes('test'));
   assert.deepEqual(result2.gates, ['spec', 'test']);
 });
+
+test('H1 feature-s requires the ui and visual gates', () => {
+  const gates = rulesFor('feature-s').gates;
+  assert.ok(gates.includes('ui'), 'thiếu gate ui');
+  assert.ok(gates.includes('visual'), 'thiếu gate visual');
+});
+
+test('H2 feature-m and feature-l require ui, visual and review', () => {
+  for (const type of ['feature-m', 'feature-l']) {
+    const gates = rulesFor(type).gates;
+    for (const gate of ['ui', 'visual', 'review']) {
+      assert.ok(gates.includes(gate), `${type} thiếu gate ${gate}`);
+    }
+  }
+});
+
+test('V1 fix and bug stay free of frontend gates', () => {
+  assert.deepEqual(rulesFor('fix').gates, ['spec', 'test']);
+  assert.deepEqual(rulesFor('bug').gates, ['spec', 'test']);
+});

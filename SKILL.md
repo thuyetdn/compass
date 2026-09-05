@@ -132,6 +132,20 @@ Ba nhóm tách riêng vì chúng đòi bạn làm ba việc khác nhau: viết t
 
 **Giới hạn — phải biết:** quét text không bao giờ kín được. Định dạng reporter không nằm trong tay Compass, nên gate này bắt các ca thường gặp và **gọi tên thứ nó không phân loại được**, chứ không giả vờ chắc chắn. Đây là lưới chắn, không phải khóa.
 
+### Reporter phải in tên từng test
+
+Compass tìm ID bằng cách đọc output. Reporter nào chỉ in tên **file** thì mọi ID đều biến mất, và gate báo thiếu test dù bạn đã viết đủ.
+
+| Runner | Lệnh trong `config.json` |
+|---|---|
+| `node --test` | chạy sẵn, không cần cờ |
+| Vitest | `vitest run --reporter=tap` — mặc định chỉ in tên file |
+| Jest | `jest --verbose` |
+
+Kiểm nhanh: chạy lệnh test, nhìn output. Không thấy tên test nào thì Compass cũng không thấy.
+
+Khi suite xanh mà gần như không ID nào khớp, gate sẽ tự nhắc khả năng này trước khi bảo bạn đi viết test.
+
 Fail → sửa → chạy lại. Không bỏ qua, không giải thích vòng vo.
 
 ## Bước 5 — Đóng task
@@ -173,7 +187,9 @@ Ba điều này chặn được **sai sót vô tình**, không chặn được *
 
 ## Giai đoạn hiện tại
 
-GĐ 1 có gate `spec` và `test`. Các gate `convention`, `ui`, `visual`, `review` thuộc giai đoạn sau — `check` sẽ báo chúng là bỏ qua, không tính fail. Khi chạy `done`, nếu task type yêu cầu gate chưa được xây dựng, Compass sẽ thông báo rõ chúng là giai đoạn tới.
+GĐ 1 có gate `spec` và `test`. Các gate `convention`, `ui`, `visual`, `review` thuộc giai đoạn sau — `check` báo chúng là bỏ qua, không tính fail, và `done` liệt kê rõ gate nào chưa được kiểm.
+
+Task frontend `feature-s` trở lên vì thế đóng xanh **mà chưa ai đo giao diện**. Dòng "chưa xây dựng ở giai đoạn này" trong output `done` là thứ phải đọc, không phải ghi chú cho vui.
 
 ## Red Flags
 

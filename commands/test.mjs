@@ -104,12 +104,30 @@ export function testCommand({ cwd, taskId }) {
     }
   }
 
+  // Suite xanh mà hầu như không ID nào lộ diện: reporter nhiều khả năng không
+  // in tên từng test. Không đòi con số 0 tuyệt đối — Vitest chỉ nêu tên những
+  // test chậm, nên một spec 13 ca vẫn có thể khớp đúng 1. Khớp được kha khá thì
+  // loại trừ: reporter đó rõ ràng in được tên. Chỉ nêu khả năng, vì người dùng
+  // vẫn có thể quên viết thật.
+  const REPORTER_SUSPECT_RATIO = 0.2;
+  const seenAnywhere = new Set([
+    ...extracted.ran,
+    ...extracted.seenOnNonPassLines,
+    ...extracted.seenOnUnknownLines,
+    ...extracted.seenOnSharedLines,
+  ]).size;
+  const reporterLikely = suiteOk && !comparison.ok && specIds.length > 0 &&
+    seenAnywhere / specIds.length < REPORTER_SUSPECT_RATIO;
+
+  const hints = [];
+  if (reporterLikely) {
+    hints.push(hint('Suite xanh nhưng gần như không ID nào lộ diện — thường là reporter không in tên từng test. Kiểm tra trước: chạy lệnh test rồi xem output có tên test không. Vitest cần --reporter=tap, Jest cần --verbose.'));
+    hints.push(hint('Nếu output đã có tên test mà vẫn không khớp, thì đúng là còn thiếu test — xem hướng dẫn dưới.'));
+  }
+  hints.push(hint('Viết test cho các case còn thiếu, hoặc sửa spec nếu chúng không còn cần thiết (sửa spec cần duyệt lại).'));
+
   return {
     exitCode: 1,
-    output: [
-      fail('test', lines),
-      '',
-      hint('Viết test cho các case còn thiếu, hoặc sửa spec nếu chúng không còn cần thiết (sửa spec cần duyệt lại).'),
-    ].join('\n'),
+    output: [fail('test', lines), '', ...hints].join('\n'),
   };
 }

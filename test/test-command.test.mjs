@@ -26,6 +26,28 @@ Không có.
 | H2 | Happy | Case hai | Đúng | P0 |
 `;
 
+const SPEC_IDS_13 = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'V1', 'V2', 'V3', 'E1', 'EC1', 'EC2', 'S1'];
+const LAYER_13 = ['Happy', 'Happy', 'Happy', 'Happy', 'Happy', 'Happy',
+                  'Validation', 'Validation', 'Validation',
+                  'Error', 'Edge', 'Edge', 'Security'];
+const SPEC_13_HEAD = `# T-1: Tiêu đề
+Loại: feature-s
+Phạm vi: src/
+
+## Mục tiêu
+Làm gì đó.
+
+## Ràng buộc
+Không có.
+
+## Rủi ro hồi quy
+Không có.
+
+## Test cases
+| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |
+|----|-----|-------|---------|---------|
+`;
+
 function makeTask(testCmd) {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-testcmd-'));
   mkdirSync(path.join(root, '.compass', 'T-1', 'evidence'), { recursive: true });
@@ -148,4 +170,47 @@ test('testCommand: retried-then-passed ID not reported as failed', () => {
   // H1 should NOT appear in the failure message at all (it did pass eventually)
   assert.match(result.output, /H2/);
   assert.ok(!result.output.includes('H1'), 'H1 should not appear in output since it passed');
+});
+
+test('H3 a green suite matching no ID at all points at the reporter', () => {
+  // Vitest's default reporter prints file names only, never test names — the
+  // suite passes yet no spec ID is anywhere in the output.
+  const fileNamesOnly = 'node -e "console.log(\'ok 1 - test/App.test.jsx\')"';
+  const root = makeTask(fileNamesOnly);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /reporter/i);
+});
+
+test('E1 a red suite matching no ID stays quiet about the reporter', () => {
+  const redAndSilent = 'node -e "console.log(\'ok 1 - test/App.test.jsx\'); process.exit(1)"';
+  const root = makeTask(redAndSilent);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.ok(!/reporter/i.test(result.output), 'suite lỗi thì nguyên nhân không phải reporter');
+});
+
+test('EC1 a green suite matching most IDs stays quiet about the reporter', () => {
+  // 1 of 2 named — the reporter clearly prints test names, so a missing ID is
+  // a missing test, not a formatting problem.
+  const root = makeTask(printOne);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.ok(!/reporter/i.test(result.output), 'reporter in được tên test thì nó không phải nguyên nhân');
+});
+
+test('EC3 a green suite matching one ID in thirteen still points at the reporter', () => {
+  // Vitest names only its slow tests, so a 13-case spec can match exactly one.
+  const rows = SPEC_IDS_13.map((id, i) => `| ${id} | ${LAYER_13[i]} | Case ${i + 1} | Đúng | P0 |`);
+  const spec = SPEC_13_HEAD + rows.join('\n') + '\n';
+  const onlyOneNamed = 'node -e "console.log(\'ok 1 - test/App.test.jsx (13 tests)\'); console.log(\'  ✓ H6 lowers the count\')"';
+
+  const root = mkdtempSync(path.join(tmpdir(), 'compass-testcmd-'));
+  mkdirSync(path.join(root, '.compass', 'T-1', 'evidence'), { recursive: true });
+  writeFileSync(path.join(root, '.compass', 'config.json'), JSON.stringify({ test: onlyOneNamed }));
+  writeFileSync(path.join(root, '.compass', 'T-1', 'spec.md'), spec);
+
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /reporter/i);
 });

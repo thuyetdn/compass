@@ -10,7 +10,10 @@ test runner không phải `node:test` — để tìm chỗ gãy.
 
 ---
 
-## Ba chỗ gãy tìm được
+**Trạng thái:** đã sửa hết ở [CP-2](../../../.compass/CP-2/spec.md). Phần mô tả dưới giữ
+nguyên hiện trạng lúc phát hiện.
+
+## Bốn chỗ gãy tìm được
 
 ### 1. Reporter mặc định của Vitest làm gate `test` đổ oan
 
@@ -84,7 +87,28 @@ Hai file không khớp nhau.
 **Đề xuất:** thêm `ui`, `visual` vào `gates` của `feature-s`/`m`/`l` ngay bây giờ, dù chưa
 implement. Cơ chế "chưa cài ở giai đoạn này" đã có sẵn và chạy đúng — cứ để nó báo.
 
-### 3. `.gitignore` nuốt mất spec của example
+### 3. Parser không tháo mã màu ANSI — nặng nhất, và chỉ lộ khi đang sửa chỗ 1
+
+Sửa xong chỗ 1, chạy lại trên demo thì thấy `H5` và `H6` rơi vào nhóm "không rõ định dạng".
+Ban đầu tưởng trùng chuỗi ngẫu nhiên. Mở log ra thì không phải:
+
+```
+   [33m[2m✓[22m[39m H6 lowers the remaining count when one is done [33m359[2mms[22m[39m
+```
+
+Vitest **có** in tên test — nhưng chỉ cho test chậm (>300ms), và bọc mã màu.
+`isPassLine` khớp `/^(ok\s+\d+|✔|✓|…)/` sau `trimStart()`, mà dòng này mở đầu bằng
+`\x1b[33m\x1b[2m` nên trượt.
+
+Hậu quả nặng hơn chỗ 1: một test **đã chạy và đã pass** bị xếp sai nhóm. Chỗ 1 làm gate
+mù, chỗ này làm gate **nói sai về thứ nó nhìn thấy**.
+
+Sửa: `stripAnsi` trước khi phân loại dòng và trước khi dò ID.
+
+Bài học về quy trình: lỗi này không có cách nào tìm ra bằng test giả lập, vì test giả lập
+tự sinh output sạch. Chỉ chạy trên reporter thật mới lộ.
+
+### 4. `.gitignore` nuốt mất spec của example
 
 `.compass/` bị ignore toàn cục. Hợp lý cho trạng thái cục bộ, nhưng với một repo example thì
 spec chính là thứ đáng đọc nhất — mà nó lại không vào được git.
@@ -122,6 +146,32 @@ thành phím tắt). Gate không phân biệt được hai loại này — nhưn
 | Monorepo, phân giải config theo tầng | Chưa xây (GĐ 4) |
 | Task `feature-m` (21 test) trở lên | Chưa thử; 13 test đã mất ~30 phút viết |
 | Số test tối thiểu cho `feature-s` | 13 case cho một todo list thấy **vừa đủ**, không gượng như `fix`/2 case |
+| Reporter của Jest, Mocha, pytest | Mới thử `node:test` và Vitest. Mỗi reporter là một định dạng phải dò lại |
+
+---
+
+## Đã sửa gì ở CP-2
+
+| Chỗ gãy | Sửa ở |
+|---|---|
+| 1. Thông báo dẫn sai khi reporter im lặng | `commands/test.mjs` — thêm gợi ý reporter khi tỉ lệ khớp ID dưới 20% |
+| 2. `ui`/`visual` vắng mặt | `lib/task-types.mjs` — khai báo cho `feature-s`/`m`/`l` |
+| 3. Mã màu ANSI | `lib/test-parser.mjs` — `stripAnsi` trước khi phân loại và dò ID |
+| 4. `.gitignore` | Giữ `spec.md` + `config.json` của `examples/*` |
+
+Kiểm chứng trên demo với reporter mặc định của Vitest:
+
+```
+✗ Gate test FAILED
+  Spec khai báo 13 test cases, chỉ tìm thấy 1 đã chạy.
+  Không tìm thấy dấu vết: H1, H2, ...
+
+→ Suite xanh nhưng gần như không ID nào lộ diện — thường là reporter không in tên
+  từng test. Vitest cần --reporter=tap, Jest cần --verbose.
+```
+
+Ngưỡng 20% là phỏng đoán, không phải số đo. Chọn thế vì Vitest khớp 1/13 (7.7%) còn một
+suite thiếu test thật thường khớp cao hơn nhiều. Cần thêm dữ liệu thật để chỉnh.
 
 ---
 
@@ -132,4 +182,5 @@ thành phím tắt). Gate không phân biệt được hai loại này — nhưn
 | Gate `spec` | ~0.1s |
 | Gate `test` (13 test, Vitest + jsdom) | ~17s |
 | Test ID đối chiếu | 13 khai báo → 13 đã chạy |
-| Suite compass sau khi thêm example | 208 pass / 208 — example không lẫn vào |
+| Suite compass trước CP-2 | 208 pass / 208 |
+| Suite compass sau CP-2 | 218 pass / 218 |

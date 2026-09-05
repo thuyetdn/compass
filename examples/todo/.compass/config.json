@@ -1,1 +1,4 @@
-{ "test": "npx vitest run --reporter=tap", "testReporter": "tap" }
+{
+  "test": "npx vitest run --reporter=tap",
+  "testReporter": "tap"
+}

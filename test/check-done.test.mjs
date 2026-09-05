@@ -219,7 +219,7 @@ ${rows.join('\n')}
   checkCommand({ cwd: root, taskId: 'T-FM' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM' });
   assert.equal(result.exitCode, 0, result.output);
-  assert.match(result.output, /convention, review/);
+  assert.match(result.output, /convention, ui, visual, review/);
   assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });
@@ -283,7 +283,7 @@ ${rows.join('\n')}
   checkCommand({ cwd: root, taskId: 'T-FM2' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM2' });
   assert.equal(result.exitCode, 1);
-  assert.match(result.output, /convention, review/);
+  assert.match(result.output, /convention, ui, visual, review/);
   assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });

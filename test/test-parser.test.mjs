@@ -159,3 +159,26 @@ test('extractRanIds: a shared pass line does not affect an unrelated single-ID p
   assert.deepEqual(result.ran, ['V1']);
   assert.deepEqual(result.seenOnSharedLines.sort(), ['H1', 'H2']);
 });
+
+const ESC = '\u001b';
+
+test('H4 a pass line wrapped in ANSI colour still counts as ran', () => {
+  // Vitest prints slow tests as: <dim green ✓> H5 shows ... <reset> 308ms
+  const line = ` ${ESC}[33m${ESC}[2m✓${ESC}[22m${ESC}[39m H5 shows the remaining count ${ESC}[33m308ms${ESC}[39m`;
+  const result = extractRanIds(line, ['H5']);
+  assert.deepEqual(result.ran, ['H5']);
+  assert.deepEqual(result.seenOnUnknownLines, []);
+});
+
+test('E2 a fail line wrapped in ANSI colour is not counted as ran', () => {
+  const line = ` ${ESC}[31m×${ESC}[39m V1 rejects an empty submission`;
+  const result = extractRanIds(line, ['V1']);
+  assert.deepEqual(result.ran, []);
+  assert.deepEqual(result.seenOnNonPassLines, ['V1']);
+});
+
+test('EC2 ANSI between the pass mark and the ID still counts as ran', () => {
+  const line = `${ESC}[32mok 1${ESC}[39m - ${ESC}[1mH1${ESC}[22m adds a todo`;
+  const result = extractRanIds(line, ['H1']);
+  assert.deepEqual(result.ran, ['H1']);
+});

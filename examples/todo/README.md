@@ -23,7 +23,9 @@ Spec nằm ở [.compass/TD-001/spec.md](.compass/TD-001/spec.md).
 
 `.compass/config.json` gọi `npx vitest run --reporter=tap`, **không** phải `npm test`.
 
-Reporter mặc định của Vitest chỉ in tên file, không in tên từng test — gate `test` sẽ không
-tìm thấy ID nào và báo fail oan. TAP reporter in đủ tên test nên đối chiếu ID mới chạy được.
+Reporter mặc định của Vitest chỉ in tên file (và tên vài test chậm) — gate `test` không tìm
+thấy đủ ID và báo fail oan. TAP reporter in đủ tên test nên đối chiếu ID mới chạy được.
+
+Đổi về mặc định thử xem: gate sẽ tự nhắc chính khả năng này trước khi bảo bạn đi viết test.
 
 Chi tiết và các chỗ gãy khác: [ghi chú chạy thử](../../docs/superpowers/notes/2026-09-05-frontend-trial.md).
