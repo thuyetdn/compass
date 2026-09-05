@@ -69,3 +69,42 @@ test('verifyAllGates detects a hand-edited exitCode', () => {
   assert.equal(result.ok, false);
   assert.deepEqual(result.tampered, ['test']);
 });
+
+test('readGates returns empty object when file does not exist', () => {
+  const root = makeTask();
+  assert.deepEqual(readGates(root, 'T-1'), {});
+});
+
+test('readGates throws when gate.json exists but contains invalid JSON', () => {
+  const root = makeTask();
+  const file = gatePath(root, 'T-1');
+  writeFileSync(file, '{ khong phai json');
+  assert.throws(() => readGates(root, 'T-1'), /gate.json hỏng/);
+});
+
+test('verifyAllGates returns ok: false for corrupt gate.json', () => {
+  const root = makeTask();
+  const file = gatePath(root, 'T-1');
+  writeFileSync(file, '{ khong phai json');
+  const result = verifyAllGates(root, 'T-1');
+  assert.equal(result.ok, false);
+  assert(result.tampered.length > 0);
+  assert.deepEqual(result.tampered, ['<gate.json hỏng>']);
+});
+
+test('readGate throws for corrupt gate.json', () => {
+  const root = makeTask();
+  const file = gatePath(root, 'T-1');
+  writeFileSync(file, '{ khong phai json');
+  assert.throws(() => readGate(root, 'T-1', 'test'), /gate.json hỏng/);
+});
+
+test('verifyAllGates reports corruption after writing a gate and corrupting the file', () => {
+  const root = makeTask();
+  writeGate(root, 'T-1', { gate: 'test', exitCode: 0 });
+  const file = gatePath(root, 'T-1');
+  writeFileSync(file, '{ khong phai json');
+  const result = verifyAllGates(root, 'T-1');
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.tampered, ['<gate.json hỏng>']);
+});
