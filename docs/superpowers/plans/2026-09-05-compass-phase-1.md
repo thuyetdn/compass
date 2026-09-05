@@ -1503,10 +1503,30 @@ git commit -m "feat: add signed gate record store"
 **Interfaces:**
 - Consumes: (không)
 - Produces:
-  - `extractRanIds(output: string, knownIds: string[]): string[]` — tìm ID nào xuất hiện trong tên test đã chạy
+  - `extractRanIds(output: string, knownIds: string[]): {ran: string[], seenOnNonPassLines: string[], seenOnUnknownLines: string[]}` — chỉ tính ID nằm trên dòng có dấu hiệu **pass**
   - `compareWithSpec(specIds: string[], ranIds: string[]): {missing: string[], extra: string[], ok: boolean}`
 
-**Vì sao không parse TAP chặt chẽ:** mỗi framework in một kiểu. Cách bền hơn là quét toàn bộ output tìm ID có ranh giới từ (`\bH1\b`). Đánh đổi: nếu ID xuất hiện trong output vì lý do khác (ví dụ tên file) sẽ tính nhầm là đã chạy. Chấp nhận được ở GĐ 1 — GĐ sau có thể đọc JSON reporter.
+**Không được quét cả output.** Mỗi framework in một kiểu, nên cám dỗ là tìm ID ở bất cứ đâu trong output. Đó là sai, và sai theo hướng nguy hiểm nhất — báo xanh khi chưa chạy:
+
+| Output | Quét cả output | Đúng ra phải |
+|---|---|---|
+| `echo H1 H2` (không chạy gì) | ✓ 2/2 PASSED | fail — không có dấu hiệu pass |
+| `ok 2 - test_H2_b # SKIP` | ✓ đã chạy | fail — test bị bỏ qua |
+| `Error in spec H2: cannot read` | ✓ đã chạy | fail — chỉ là thông báo lỗi |
+
+Hai ca sau **xảy ra hằng ngày** và không cần ai cố ý gian lận. Đây đúng là "AI báo xong khi chưa xong" tái hiện ngay trong công cụ xây để chống nó.
+
+Nên: quét **theo dòng**, phân loại dòng trước, chỉ tính ID nằm trên dòng có dấu hiệu **pass**. Trả về ba nhóm, vì "chưa viết test" và "test bị skip" đòi hỏi người dùng làm hai việc khác hẳn nhau:
+
+| Nhóm | Nghĩa | Người dùng phải làm gì |
+|---|---|---|
+| `ran` | thấy trên dòng pass | không phải làm gì |
+| `seenOnNonPassLines` | chỉ thấy trên dòng fail/skip/error | sửa hoặc bỏ skip |
+| `seenOnUnknownLines` | chỉ thấy trên dòng không phân loại được | kiểm tra reporter, có thể định dạng lạ |
+
+Neo regex ở đầu dòng để tên test chứa từ nhạy cảm vẫn pass đúng — `ok 3 - test_H1_rejects input with an error` là **pass**, không phải error.
+
+**Giới hạn phải nói thẳng:** quét text không bao giờ kín được. Ta không kiểm soát định dạng reporter, và chuỗi nào cũng có thể xuất hiện vì lý do bất kỳ. Mục tiêu là bắt đúng các ca thường gặp và **ghi rõ giới hạn trong SKILL.md**, không phải hứa một đảm bảo không giữ được. GĐ sau đọc JSON reporter sẽ chắc hơn.
 
 - [ ] **Step 1: Viết test thất bại**
 
@@ -1525,24 +1545,61 @@ not ok 3 - test_V1_rejects an unknown country code
 1..3
 `;
 
-test('extractRanIds finds ids present in test names', () => {
-  const ran = extractRanIds(TAP_OUTPUT, ['H1', 'H2', 'V1', 'V2']);
-  assert.deepEqual(ran.sort(), ['H1', 'H2', 'V1']);
+test('extractRanIds counts only ids on passing lines', () => {
+  const result = extractRanIds(TAP_OUTPUT, ['H1', 'H2', 'V1', 'V2']);
+  assert.deepEqual(result.ran.sort(), ['H1', 'H2']);
+});
+
+test('extractRanIds puts a failing id in seenOnNonPassLines', () => {
+  const result = extractRanIds(TAP_OUTPUT, ['V1']);
+  assert.deepEqual(result.ran, []);
+  assert.deepEqual(result.seenOnNonPassLines, ['V1']);
+});
+
+test('extractRanIds does not count a skipped test as ran', () => {
+  const result = extractRanIds('ok 2 - test_H2_b # SKIP', ['H2']);
+  assert.deepEqual(result.ran, []);
+  assert.deepEqual(result.seenOnNonPassLines, ['H2']);
+});
+
+test('extractRanIds does not count an id mentioned only in an error', () => {
+  assert.deepEqual(extractRanIds('Error in spec H2: cannot read', ['H2']).ran, []);
+});
+
+test('extractRanIds does not count a bare line with no marker', () => {
+  const result = extractRanIds('H1 H2', ['H1', 'H2']);
+  assert.deepEqual(result.ran, []);
+  assert.deepEqual(result.seenOnUnknownLines.sort(), ['H1', 'H2']);
+});
+
+test('extractRanIds accepts check-mark reporters', () => {
+  assert.deepEqual(extractRanIds('✔ test_H1_a (2ms)', ['H1']).ran, ['H1']);
+  assert.deepEqual(extractRanIds('✓ test_H1_a', ['H1']).ran, ['H1']);
+});
+
+test('extractRanIds keeps a test name containing a sensitive word passing', () => {
+  const output = 'ok 3 - test_H1_rejects malformed input with an error';
+  assert.deepEqual(extractRanIds(output, ['H1']).ran, ['H1']);
+});
+
+test('extractRanIds treats a retry that eventually passed as ran only', () => {
+  const result = extractRanIds('not ok 1 - test_H1_a\nok 2 - test_H1_a', ['H1']);
+  assert.deepEqual(result.ran, ['H1']);
+  assert.deepEqual(result.seenOnNonPassLines, []);
+  assert.deepEqual(result.seenOnUnknownLines, []);
 });
 
 test('extractRanIds omits ids that never appear', () => {
-  const ran = extractRanIds(TAP_OUTPUT, ['H1', 'S1']);
-  assert.ok(!ran.includes('S1'));
+  assert.ok(!extractRanIds(TAP_OUTPUT, ['H1', 'S1']).ran.includes('S1'));
 });
 
 test('extractRanIds respects word boundaries', () => {
-  const output = 'ok 1 - test_H10_something';
-  assert.deepEqual(extractRanIds(output, ['H1']), []);
+  assert.deepEqual(extractRanIds('ok 1 - test_H10_something', ['H1']).ran, []);
 });
 
 test('extractRanIds returns each id once', () => {
   const output = 'ok 1 - test_H1_a\nok 2 - test_H1_b';
-  assert.deepEqual(extractRanIds(output, ['H1']), ['H1']);
+  assert.deepEqual(extractRanIds(output, ['H1']).ran, ['H1']);
 });
 
 test('compareWithSpec reports ids the run never covered', () => {
@@ -1580,13 +1637,51 @@ function escapeForRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const SKIP_SUFFIX = /[#\s](SKIP|SKIPPED|TODO|PENDING)/;
+
+function isPassLine(line) {
+  const trimmed = line.trimStart();
+  // Dấu skip thắng dấu pass: "ok 2 - test_H2_b # SKIP" KHÔNG phải là đã chạy.
+  if (SKIP_SUFFIX.test(trimmed)) return false;
+  return /^(ok\s+\d+|✔|✓|PASS|PASSED|√)/.test(trimmed);
+}
+
+function isNonPassLine(line) {
+  return /^(not\s+ok|✗|✕|×|FAIL|FAILED|SKIP|SKIPPED|TODO|PENDING)/.test(line.trimStart())
+    || SKIP_SUFFIX.test(line)
+    || /^(Error|error:|at\s)/.test(line);
+}
+
 export function extractRanIds(output, knownIds) {
-  const found = new Set();
-  for (const id of knownIds) {
-    const pattern = new RegExp(`(^|[^A-Za-z0-9])${escapeForRegex(id)}([^A-Za-z0-9]|$)`, 'm');
-    if (pattern.test(output)) found.add(id);
+  const ran = new Set();
+  const seenOnNonPassLines = new Set();
+  const seenOnUnknownLines = new Set();
+
+  for (const line of output.split('\n')) {
+    const passLine = isPassLine(line);
+    const nonPassLine = isNonPassLine(line);
+
+    for (const id of knownIds) {
+      const pattern = new RegExp(`(^|[^A-Za-z0-9])${escapeForRegex(id)}([^A-Za-z0-9]|$)`);
+      if (!pattern.test(line)) continue;
+      if (passLine) ran.add(id);
+      else if (nonPassLine) seenOnNonPassLines.add(id);
+      else seenOnUnknownLines.add(id);
+    }
   }
-  return [...found];
+
+  // Pass ở bất kỳ dòng nào là đã chạy — lần fail trước đó là lịch sử, không phải phát hiện.
+  // Thiếu bước này, một ID retry rồi xanh vẫn bị liệt kê là "không pass", đẩy người đọc đi sửa nhầm chỗ.
+  for (const id of ran) {
+    seenOnNonPassLines.delete(id);
+    seenOnUnknownLines.delete(id);
+  }
+
+  return {
+    ran: [...ran],
+    seenOnNonPassLines: [...seenOnNonPassLines],
+    seenOnUnknownLines: [...seenOnUnknownLines],
+  };
 }
 
 export function compareWithSpec(specIds, ranIds) {
