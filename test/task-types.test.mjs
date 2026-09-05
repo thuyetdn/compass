@@ -71,3 +71,26 @@ test('successive calls to rulesFor return different object and array references'
   assert.ok(result1.requiredLayers !== result2.requiredLayers);
   assert.deepEqual(result1.requiredLayers, result2.requiredLayers);
 });
+
+test('mutating gates array does not affect later calls', () => {
+  const result1 = rulesFor('bug');
+  result1.gates.push('HACKED');
+  const result2 = rulesFor('bug');
+  assert.equal(result2.gates.length, 2);
+  assert.ok(!result2.gates.includes('HACKED'));
+});
+
+test('successive calls return different gates array references', () => {
+  const result1 = rulesFor('feature-s');
+  const result2 = rulesFor('feature-s');
+  assert.ok(result1.gates !== result2.gates);
+  assert.deepEqual(result1.gates, result2.gates);
+});
+
+test('removing gates entry does not affect later calls', () => {
+  const result1 = rulesFor('bug');
+  result1.gates.splice(result1.gates.indexOf('test'), 1);
+  const result2 = rulesFor('bug');
+  assert.ok(result2.gates.includes('test'));
+  assert.deepEqual(result2.gates, ['spec', 'test']);
+});
