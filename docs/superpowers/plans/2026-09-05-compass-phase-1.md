@@ -86,6 +86,9 @@ SKILL.md                      quy trình AI phải theo
   - `gatePath(root: string, taskId: string): string` — trả `<root>/.compass/<taskId>/evidence/gate.json`
   - `configPath(root: string): string` — trả `<root>/.compass/config.json`
   - `saltPath(root: string): string` — trả `<root>/.compass/.salt`
+  - `validateTaskId(taskId: string): {ok: true} | {ok: false, reason: string}` — task id thành tên thư mục, nên phải kiểm trước khi chạm filesystem
+
+**Vì sao cần `validateTaskId`:** id đi thẳng vào `path.join` làm tên thư mục. Không kiểm thì `../thoát` ghi file ra **ngoài** `.compass/` mà vẫn báo thành công, còn ký tự Windows cấm (`:` `*` `?`) làm `mkdirSync` ném lỗi thô — và nếu `cli.mjs` không bắt, tiến trình thoát mã **0**, tức là script CI đọc thành "đã tạo xong" trong khi chẳng có gì.
 
 - [ ] **Step 1: Tạo package.json**
 
@@ -125,7 +128,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   findRoot, compassDir, taskDir, evidenceDir,
-  specPath, gatePath, configPath, saltPath
+  specPath, gatePath, configPath, saltPath, validateTaskId
 } from '../lib/paths.mjs';
 
 function makeFixture() {
@@ -162,6 +165,48 @@ test('path builders compose the expected locations', () => {
   assert.equal(configPath(root), path.join(root, '.compass', 'config.json'));
   assert.equal(saltPath(root), path.join(root, '.compass', '.salt'));
 });
+
+test('validateTaskId accepts ordinary ids', () => {
+  for (const id of ['NX-001', 'T-42', 'fix.login']) {
+    assert.equal(validateTaskId(id).ok, true, id);
+  }
+});
+
+test('validateTaskId rejects path separators and parent segments', () => {
+  for (const id of ['../escape', 'a/b', 'a\\b', '..']) {
+    assert.equal(validateTaskId(id).ok, false, id);
+  }
+});
+
+test('validateTaskId rejects characters Windows forbids in a filename', () => {
+  for (const id of ['a:b', 'a*b', 'a?b', 'a"b', 'a<b', 'a>b', 'a|b']) {
+    assert.equal(validateTaskId(id).ok, false, id);
+  }
+});
+
+test('validateTaskId rejects a trailing dot or space', () => {
+  assert.equal(validateTaskId('task.').ok, false);
+  assert.equal(validateTaskId('task ').ok, false);
+  assert.equal(validateTaskId(' task').ok, false);
+});
+
+test('validateTaskId rejects reserved device names', () => {
+  for (const id of ['CON', 'con', 'con.txt', 'LPT1', 'nul']) {
+    assert.equal(validateTaskId(id).ok, false, id);
+  }
+});
+
+test('validateTaskId rejects an empty or overlong id', () => {
+  assert.equal(validateTaskId('').ok, false);
+  assert.equal(validateTaskId('   ').ok, false);
+  assert.equal(validateTaskId('x'.repeat(65)).ok, false);
+});
+
+test('validateTaskId explains why it rejected', () => {
+  const result = validateTaskId('../escape');
+  assert.equal(result.ok, false);
+  assert.ok(result.reason.length > 0);
+});
 ```
 
 - [ ] **Step 4: Chạy test, xác nhận nó fail**
@@ -194,12 +239,42 @@ export const specPath    = (root, taskId) => path.join(root, COMPASS, taskId, 's
 export const gatePath    = (root, taskId) => path.join(root, COMPASS, taskId, 'evidence', 'gate.json');
 export const configPath  = (root) => path.join(root, COMPASS, 'config.json');
 export const saltPath    = (root) => path.join(root, COMPASS, '.salt');
+
+// eslint-disable-next-line no-control-regex
+const ILLEGAL = /[<>:"|?*\u0000-\u001f]/;
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
+
+export function validateTaskId(taskId) {
+  const bad = (reason) => ({ ok: false, reason });
+  if (typeof taskId !== 'string' || taskId.trim() === '') {
+    return bad('Task id không được để trống.');
+  }
+  if (taskId.length > 64) {
+    return bad('Task id quá dài (tối đa 64 ký tự).');
+  }
+  if (taskId.includes('/') || taskId.includes('\\')) {
+    return bad('Task id không được chứa dấu gạch chéo — nó là tên thư mục, không phải đường dẫn.');
+  }
+  if (taskId.split(/[/\\]/).includes('..') || taskId.includes('..')) {
+    return bad('Task id không được chứa ".." — mọi thứ Compass ghi phải nằm trong .compass/.');
+  }
+  if (ILLEGAL.test(taskId)) {
+    return bad('Task id chứa ký tự không hợp lệ cho tên thư mục: < > : " | ? *');
+  }
+  if (/^[. ]|[. ]$/.test(taskId)) {
+    return bad('Task id không được bắt đầu hoặc kết thúc bằng dấu chấm hay khoảng trắng.');
+  }
+  if (RESERVED.test(taskId)) {
+    return bad(`Task id "${taskId}" trùng tên thiết bị dành riêng của Windows.`);
+  }
+  return { ok: true };
+}
 ```
 
 - [ ] **Step 6: Chạy test, xác nhận pass**
 
 Run: `node --test test/paths.test.mjs`
-Expected: PASS — 4 test
+Expected: PASS — 11 test
 
 - [ ] **Step 7: Khởi tạo git và commit**
 
@@ -1887,6 +1962,48 @@ test('initCommand reuses an existing config', () => {
   const after = readFileSync(path.join(cwd, '.compass', 'config.json'), 'utf8');
   assert.equal(before, after);
 });
+
+test('initCommand refuses an id that would escape .compass', () => {
+  const cwd = makeDir();
+  const result = initCommand({ cwd, taskId: '../escape', type: 'fix' });
+  assert.equal(result.exitCode, 2);
+  assert.ok(!existsSync(path.join(cwd, 'escape')));
+  assert.ok(!existsSync(path.join(path.dirname(cwd), 'escape')));
+});
+
+test('initCommand refuses an id with an illegal character instead of throwing', () => {
+  const cwd = makeDir();
+  const result = initCommand({ cwd, taskId: 'x:y*z', type: 'fix' });
+  assert.equal(result.exitCode, 2);
+});
+
+test('initCommand announces a newly bootstrapped project', () => {
+  const cwd = makeDir();
+  const result = initCommand({ cwd, taskId: 'T-1', type: 'fix' });
+  assert.match(result.output, /Khởi tạo dự án Compass mới/);
+});
+
+test('initCommand stays quiet about the root when reusing one', () => {
+  const cwd = makeDir();
+  initCommand({ cwd, taskId: 'T-1', type: 'fix' });
+  const second = initCommand({ cwd, taskId: 'T-2', type: 'fix' });
+  assert.ok(!second.output.includes('Khởi tạo dự án Compass mới'));
+});
+
+test('the CLI exits 2 rather than 0 when an id would crash the filesystem call', () => {
+  const cwd = makeDir();
+  const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'cli.mjs');
+  const run = spawnSync(process.execPath, [cli, 'init', 'x:y*z', '--type=fix'], { cwd, encoding: 'utf8' });
+  assert.notEqual(run.status, 0);
+});
+```
+
+Test cuối cần thêm vào phần import của file test:
+
+```javascript
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 ```
 
 - [ ] **Step 3: Chạy test, xác nhận fail**
@@ -1900,7 +2017,7 @@ Expected: FAIL — module không tồn tại
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { findRoot, compassDir, taskDir, specPath, configPath } from '../lib/paths.mjs';
+import { findRoot, compassDir, taskDir, specPath, configPath, validateTaskId } from '../lib/paths.mjs';
 import { TASK_TYPES, rulesFor } from '../lib/task-types.mjs';
 import { DEFAULT_CONFIG } from '../lib/config.mjs';
 import { hint } from '../lib/report.mjs';
@@ -1926,7 +2043,15 @@ export function initCommand({ cwd, taskId, type }) {
     };
   }
 
-  const root = findRoot(cwd) ?? cwd;
+  const idCheck = validateTaskId(taskId);
+  if (!idCheck.ok) {
+    return { exitCode: 2, output: idCheck.reason };
+  }
+
+  const existingRoot = findRoot(cwd);
+  const root = existingRoot ?? cwd;
+  const bootstrapped = existingRoot === null;
+
   mkdirSync(compassDir(root), { recursive: true });
   if (!existsSync(configPath(root))) {
     writeFileSync(configPath(root), JSON.stringify(DEFAULT_CONFIG, null, 2));
@@ -1945,9 +2070,13 @@ export function initCommand({ cwd, taskId, type }) {
     .replaceAll('{{layers}}', rules.requiredLayers.join(', '));
   writeFileSync(spec, filled);
 
+  const lines = [];
+  if (bootstrapped) lines.push(`Khởi tạo dự án Compass mới tại: ${root}`, '');
+
   return {
     exitCode: 0,
     output: [
+      ...lines,
       `Đã tạo task ${taskId} (loại ${type})`,
       `  spec: ${spec}`,
       '',
@@ -1979,7 +2108,9 @@ function parseFlags(argv) {
   const rest = [];
   for (const arg of argv) {
     const match = arg.match(/^--([^=]+)(?:=(.*))?$/);
-    if (match) flags[match[1]] = match[2] ?? true;
+    // Cờ không có giá trị coi như KHÔNG truyền — nếu gán `true`, `--type` trần
+    // sẽ lọt qua kiểm "thiếu type" rồi báo `Loại task không hợp lệ: "true"`.
+    if (match) flags[match[1]] = match[2] ?? undefined;
     else rest.push(arg);
   }
   return { flags, rest };
@@ -1992,12 +2123,19 @@ function main() {
   const taskId = rest[0];
 
   let result;
-  switch (command) {
-    case 'init':
-      result = initCommand({ cwd, taskId, type: flags.type });
-      break;
-    default:
-      result = { exitCode: 2, output: USAGE };
+  try {
+    switch (command) {
+      case 'init':
+        result = initCommand({ cwd, taskId, type: flags.type });
+        break;
+      default:
+        result = { exitCode: 2, output: USAGE };
+    }
+  } catch (err) {
+    console.error('Lệnh thất bại ngoài dự kiến:');
+    console.error(`  ${err.message}`);
+    process.exitCode = 2;
+    return;
   }
 
   if (result.output) console.log(result.output);
@@ -2010,7 +2148,7 @@ main();
 - [ ] **Step 6: Chạy test, xác nhận pass**
 
 Run: `node --test test/init.test.mjs`
-Expected: PASS — 7 test
+Expected: PASS — 13 test
 
 - [ ] **Step 7: Thử tay để xác nhận CLI chạy**
 
