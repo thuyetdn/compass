@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { initCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
+import { testCommand } from './commands/test.mjs';
 
 const USAGE = `compass — quy trình có bằng chứng
 
@@ -42,6 +43,9 @@ function main() {
         break;
       case 'spec':
         result = specCommand({ cwd, taskId });
+        break;
+      case 'test':
+        result = testCommand({ cwd, taskId });
         break;
       default:
         result = { exitCode: 2, output: USAGE };
