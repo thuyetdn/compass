@@ -104,11 +104,19 @@ compass check <id>
 
 Chạy các gate áp dụng, dừng ngay khi fail. Gate `test` không chỉ xem suite xanh — nó còn đối chiếu **mọi test ID trong spec đã thực sự chạy chưa**.
 
-### Cách Compass quét test ID
+### Cách Compass đếm test ID
 
-Compass đọc output của lệnh test và tìm các test ID từ spec trên những dòng được báo cáo là PASS. Cụ thể: Compass coi test ID là chạy thành công chỉ khi nó xuất hiện trên dòng được đánh dấu pass (ví dụ: `ok N`, `✔`, `✓`, `PASS`). Nếu test ID xuất hiện trên dòng báo fail, skip, hoặc error, Compass báo cáo nó "đã xuất hiện nhưng không pass". Nếu Compass không nhận diện được định dạng báo cáo của test runner, nó liệt kê các dòng lạ và nói "không nhận diện được định dạng".
+**Chỉ dòng có dấu hiệu pass mới được tính.** Không phải cứ thấy ID trong output là xong.
 
-**Hạn chế:** Quét text output không thể chắc chắn 100% vì định dạng báo cáo không nằm dưới quyền kiểm soát của Compass. Gate này bắt được trường hợp bình thường (test bỏ sót, test fail) và tên rõ ràng những gì nó không thể phân loại. Nó không thay thế một hệ thống báo cáo structured.
+| ID xuất hiện ở | Compass kết luận |
+|---|---|
+| Dòng pass (`ok N`, `✔`, `✓`, `PASS`) | đã chạy |
+| Dòng fail / skip / error | "xuất hiện nhưng không pass" |
+| Dòng không nhận ra định dạng | "không nhận diện được định dạng" |
+
+Ba nhóm tách riêng vì chúng đòi bạn làm ba việc khác nhau: viết test mới, bỏ skip, hay kiểm lại reporter.
+
+**Giới hạn — phải biết:** quét text không bao giờ kín được. Định dạng reporter không nằm trong tay Compass, nên gate này bắt các ca thường gặp và **gọi tên thứ nó không phân loại được**, chứ không giả vờ chắc chắn. Đây là lưới chắn, không phải khóa.
 
 Fail → sửa → chạy lại. Không bỏ qua, không giải thích vòng vo.
 
