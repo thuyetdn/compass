@@ -10,9 +10,11 @@ dist/
 !.compass/*/
 .compass/*/*
 !.compass/*/spec.md
+!.compass/*/design-contract.json
 
 examples/*/.compass/*
 !examples/*/.compass/config.json
 !examples/*/.compass/*/
 examples/*/.compass/*/*
 !examples/*/.compass/*/spec.md
+!examples/*/.compass/*/design-contract.json
