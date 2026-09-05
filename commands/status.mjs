@@ -4,6 +4,8 @@ import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
 import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
 import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
+import { loadConfig } from '../lib/config.mjs';
+import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 
 
 
@@ -40,8 +42,24 @@ export function statusCommand({ cwd, taskId }) {
   const lines = [
     `Task ${taskId} — ${spec.title}`,
     `Loại: ${spec.type}   Test cases trong spec: ${spec.testCases.length}`,
-    '',
   ];
+
+  // With several repos declared, which ones a task touches is not obvious from
+  // the spec's scope line alone — show what Compass read out of it.
+  const cfg = loadConfig(root);
+  if (cfg.ok && cfg.config.repos) {
+    const resolved = resolveRepos(root, cfg.config);
+    if (resolved.ok) {
+      const applies = reposForScope(resolved.repos, spec.scope ?? '');
+      lines.push(applies.length
+        ? `Repo áp dụng: ${applies.map((r) => r.name).join(', ')}`
+        : `Repo áp dụng: không repo nào khớp "Phạm vi: ${spec.scope ?? ''}"`);
+    } else {
+      lines.push(`Cấu hình repo có lỗi: ${resolved.errors[0]}`);
+    }
+  }
+
+  lines.push('');
 
   for (const name of rules?.gates ?? []) {
     const record = gates[name];

@@ -6,6 +6,7 @@ import { specCommand } from './spec.mjs';
 import { testCommand } from './test.mjs';
 import { info } from '../lib/report.mjs';
 import { conventionCommand } from './convention.mjs';
+import { knowledgeCommand } from './knowledge.mjs';
 import { uiCommand } from './ui.mjs';
 import { visualCommand } from './visual.mjs';
 import { reviewCommand } from './review.mjs';
@@ -13,6 +14,7 @@ import { GATE_ORDER } from '../lib/gates.mjs';
 
 const IMPLEMENTED = {
   spec: specCommand,
+  knowledge: knowledgeCommand,
   convention: conventionCommand,
   test: testCommand,
   ui: uiCommand,

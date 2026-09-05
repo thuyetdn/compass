@@ -41,3 +41,22 @@ test('isImplemented says no to a gate that does not exist', () => {
   assert.equal(isImplemented('test'), true);
   assert.equal(isImplemented('khong-co-that'), false);
 });
+
+test('every gate that reads code is listed as source-dependent', async () => {
+  const { SOURCE_DEPENDENT_GATES } = await import('../lib/gates.mjs');
+  // spec and review judge documents, not the tree; everything else reads code.
+  // Forgetting one lets done close a task on evidence about older code — this
+  // has already shipped once, when knowledge was added.
+  const readsCode = IMPLEMENTED_GATES.filter((g) => g !== 'spec' && g !== 'review');
+  for (const gate of readsCode) {
+    assert.ok(SOURCE_DEPENDENT_GATES.includes(gate),
+      `${gate} đọc code nhưng không nằm trong SOURCE_DEPENDENT_GATES`);
+  }
+});
+
+test('no gate is source-dependent without being implemented', async () => {
+  const { SOURCE_DEPENDENT_GATES } = await import('../lib/gates.mjs');
+  for (const gate of SOURCE_DEPENDENT_GATES) {
+    assert.ok(IMPLEMENTED_GATES.includes(gate), `${gate} chưa cài mà đã bị đòi sourceHash`);
+  }
+});

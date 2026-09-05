@@ -52,9 +52,10 @@ Gate record có chữ ký — sửa tay là lộ.
 
 ## Trạng thái
 
-Sáu gate đã chạy được: `spec`, `convention`, `test`, `ui`, `visual`, `review` — 403 test.
+Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 504 test.
 
-Chưa có: knowledge base sinh tự động, lệnh `investigate`, multi-repo.
+Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
+Khai nhiều repo trong `config.json` nếu một task đụng nhiều nơi.
 
 ## Quy ước
 
@@ -87,7 +88,7 @@ Compass tìm test ID trong output, nên reporter phải in tên từng test:
 ## Test
 
 ```bash
-npm test        # 403 test, vài giây
+npm test        # 504 test, vài giây
 npm run test:deep  # 10 test qua CLI thật trên examples/todo, ~100 giây
 ```
 

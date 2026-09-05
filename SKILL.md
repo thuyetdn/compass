@@ -178,6 +178,26 @@ Gate nào áp dụng thì tùy loại task — xem bảng Phân loại. `fix` v�
 
 Gate `test` không chỉ xem suite xanh — nó còn đối chiếu **mọi test ID trong spec đã thực sự chạy chưa**.
 
+### Gate `knowledge` — tài liệu không được lỗi thời
+
+Tài liệu sai tệ hơn không có tài liệu: người đọc tin vào thông tin sai.
+
+`.knowledge/` chia hai:
+
+| Thư mục | Là gì | Ai viết |
+|---|---|---|
+| `decided/` | Quy ước, quyết định, bẫy đã sập — không suy ra được từ code | Người, git-tracked |
+| `derived/` | Component, props, ai dùng ở đâu — suy ra được | Máy sinh, gitignore |
+
+```
+compass knowledge          docs còn khớp code không?
+compass knowledge --sync   sinh lại
+```
+
+Gate đỏ khi file nguồn đổi sau lần sinh cuối, và `done` gọi nó — sửa component xong mà không regen thì không đóng được task.
+
+**Giới hạn:** trích bằng regex, không phân tích AST (Node không có parser TS/JSX sẵn, thêm một cái là phá zero-dependency). Component nào không đọc được prop thì đánh dấu `confident: false` — **đừng tin phần đó**. Nói không chắc còn hơn bịa cho chắc.
+
 ### Gate `convention` — quy ước viết một lần
 
 Luật nằm trong `.knowledge/decided/conventions.md`. Phần văn xuôi cho người đọc, khối ```` ```rule ```` cho máy chạy:
@@ -366,9 +386,55 @@ Gate nào đọc code mà thiếu `sourceHash` thì bị coi là bản ghi cũ v
 
 Hai điều này chặn được **sai sót vô tình**, không chặn được **cố ý gian lận**. Đó là ranh giới, và bạn nên biết nó ở đâu.
 
+## Điều tra — khi chưa biết vấn đề ở đâu
+
+Task BUILD giả định đã biết phải làm gì. Chưa biết thì mở điều tra, không phải mò rồi sửa bừa.
+
+```
+compass investigate INV-1          mở hồ sơ
+     ↓  điền giả thuyết, kiểm, ghi bằng chứng
+compass investigate INV-1 --close  đóng — chỉ khi đủ bằng chứng và pitfall
+```
+
+**Ba luật cứng:**
+
+1. **Không sửa code khi đang điều tra.** Sửa là task BUILD riêng.
+2. **Mỗi giả thuyết nêu cách kiểm TRƯỚC khi kiểm.** Không "để tôi xem thử".
+3. **Kết luận phải dẫn về bằng chứng**, không phải suy luận.
+
+`--close` chặn nếu thiếu bằng chứng, thiếu kết luận, thiếu pitfall, hay còn chữ mẫu. Đóng được thì pitfall tự chép vào `.knowledge/decided/pitfalls.md` — lần sau đọc được.
+
+### Thư viện script
+
+Script viết lúc điều tra lưu vào `.compass/scripts/`, mỗi cái mở đầu bằng một dòng comment nói nó làm gì.
+
+```
+compass scripts        liệt kê những gì đã có
+```
+
+Thư mục này git-tracked. Lần sau gặp lại câu hỏi cũ thì tìm thấy mà dùng, khỏi viết lại.
+
+## Nhiều repo
+
+Một task hay đụng cả backend lẫn frontend. Khai chúng trong `config.json`:
+
+```json
+{
+  "test": "npm test",
+  "repos": {
+    "backend":  { "test": "yarn test" },
+    "frontend": { "test": "pnpm test", "dev": "pnpm dev", "devUrl": "http://localhost:5173/" }
+  }
+}
+```
+
+Repo con đè lên phần chung theo từng trường — khai `test` mà không khai `dev` thì `dev` vẫn lấy từ chung.
+
+`Phạm vi` trong spec quyết định repo nào áp dụng, và `compass status` cho thấy Compass đọc ra gì.
+
 ## Giai đoạn hiện tại
 
-Sáu gate đã có đủ: `spec`, `convention`, `test`, `ui`, `visual`, `review`.
+Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review`.
 
 Chưa có: knowledge base sinh tự động, lệnh `investigate`, phân giải config đa repo.
 

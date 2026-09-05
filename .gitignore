@@ -1,22 +1,14 @@
 node_modules/
 dist/
-.knowledge/derived/
 *.log
 
-# Trạng thái Compass là cục bộ, trừ spec — nó là hồ sơ của task, đáng đọc lại.
-# Evidence và salt vẫn nằm ngoài: bằng chứng chỉ có nghĩa trên máy đã chạy gate.
-.compass/*
-!.compass/config.json
-!.compass/*/
-.compass/*/*
-!.compass/*/spec.md
-!.compass/*/design-contract.json
-!.compass/*/baseline/
+# Máy sinh: verify được nên không cần lưu, và nó đổi mỗi lần sync.
+**/.knowledge/derived/
 
-examples/*/.compass/*
-!examples/*/.compass/config.json
-!examples/*/.compass/*/
-examples/*/.compass/*/*
-!examples/*/.compass/*/spec.md
-!examples/*/.compass/*/design-contract.json
-!examples/*/.compass/*/baseline/
+# Trạng thái Compass phần lớn ĐÁNG giữ — spec, hợp đồng thiết kế, baseline ảnh,
+# hồ sơ điều tra, thư viện script — vì chúng nói task đã hứa gì và đã học được gì.
+#
+# Hai thứ không giữ: evidence chỉ có nghĩa trên máy đã chạy gate, và salt là bí mật
+# ký bản ghi — lộ nó là mọi chữ ký thành vô nghĩa.
+**/.compass/*/evidence/
+**/.compass/.salt

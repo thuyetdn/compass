@@ -76,7 +76,7 @@ test('mutating gates array does not affect later calls', () => {
   const result1 = rulesFor('bug');
   result1.gates.push('HACKED');
   const result2 = rulesFor('bug');
-  assert.equal(result2.gates.length, 2);
+  assert.equal(result2.gates.length, 3);
   assert.ok(!result2.gates.includes('HACKED'));
 });
 
@@ -92,7 +92,7 @@ test('removing gates entry does not affect later calls', () => {
   result1.gates.splice(result1.gates.indexOf('test'), 1);
   const result2 = rulesFor('bug');
   assert.ok(result2.gates.includes('test'));
-  assert.deepEqual(result2.gates, ['spec', 'test']);
+  assert.deepEqual(result2.gates, ['spec', 'knowledge', 'test']);
 });
 
 test('H1 feature-s requires the ui and visual gates', () => {
@@ -111,6 +111,7 @@ test('H2 feature-m and feature-l require ui, visual and review', () => {
 });
 
 test('V1 fix and bug stay free of frontend gates', () => {
-  assert.deepEqual(rulesFor('fix').gates, ['spec', 'test']);
-  assert.deepEqual(rulesFor('bug').gates, ['spec', 'test']);
+  // knowledge applies everywhere — stale docs mislead on a one-line fix too.
+  assert.deepEqual(rulesFor('fix').gates, ['spec', 'knowledge', 'test']);
+  assert.deepEqual(rulesFor('bug').gates, ['spec', 'knowledge', 'test']);
 });

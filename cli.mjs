@@ -3,18 +3,22 @@ import { initCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
 import { testCommand } from './commands/test.mjs';
 import { conventionCommand } from './commands/convention.mjs';
+import { knowledgeCommand } from './commands/knowledge.mjs';
 import { uiCommand } from './commands/ui.mjs';
 import { visualCommand } from './commands/visual.mjs';
 import { reviewCommand } from './commands/review.mjs';
 import { checkCommand } from './commands/check.mjs';
 import { doneCommand } from './commands/done.mjs';
 import { statusCommand } from './commands/status.mjs';
+import { investigateCommand } from './commands/investigate.mjs';
+import { scriptsCommand } from './commands/scripts.mjs';
 
 const USAGE = `compass — quy trình có bằng chứng
 
 Dùng:
   compass init <id> --type=<fix|bug|feature-s|feature-m|feature-l>
   compass spec <id>
+  compass knowledge [id] [--sync]
   compass convention <id>
   compass test <id>
   compass ui <id>
@@ -23,6 +27,9 @@ Dùng:
   compass check <id>
   compass done <id>
   compass status <id>
+
+  compass investigate <id> [--close]
+  compass scripts --list
 `;
 
 function parseFlags(argv) {
@@ -55,6 +62,9 @@ async function main() {
       case 'spec':
         result = specCommand({ cwd, taskId });
         break;
+      case 'knowledge':
+        result = knowledgeCommand({ cwd, taskId, sync: flags.sync === true });
+        break;
       case 'convention':
         result = conventionCommand({ cwd, taskId });
         break;
@@ -75,6 +85,12 @@ async function main() {
         break;
       case 'done':
         result = doneCommand({ cwd, taskId });
+        break;
+      case 'investigate':
+        result = investigateCommand({ cwd, taskId, close: flags.close === true });
+        break;
+      case 'scripts':
+        result = scriptsCommand({ cwd });
         break;
       case 'status':
         result = statusCommand({ cwd, taskId });
