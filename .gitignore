@@ -1,4 +1,13 @@
 node_modules/
-.compass/
+dist/
 .knowledge/derived/
 *.log
+
+# Trạng thái Compass là cục bộ — trừ spec của example, thứ đáng đọc khi xem demo
+.compass/
+!examples/*/.compass/
+examples/*/.compass/*
+!examples/*/.compass/config.json
+!examples/*/.compass/*/
+examples/*/.compass/*/*
+!examples/*/.compass/*/spec.md
