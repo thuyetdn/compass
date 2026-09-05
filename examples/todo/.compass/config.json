@@ -1,4 +1,6 @@
 {
   "test": "npx vitest run --reporter=tap",
-  "testReporter": "tap"
+  "testReporter": "tap",
+  "dev": "npm run dev",
+  "devUrl": "http://localhost:5173/"
 }

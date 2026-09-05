@@ -201,12 +201,12 @@ test('C4: check --only with an unknown gate name exits non-zero, not 0', () => {
 
 test('C4: check --only with a gate applicable but not yet implemented exits non-zero, not 0', () => {
   const cwd = makeWorkspace();
-  compass(cwd, ['init', 'T-UI', '--type=feature-s']);
+  compass(cwd, ['init', 'T-VS', '--type=feature-s']);
   writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: GREEN }));
-  writeFileSync(path.join(cwd, '.compass', 'T-UI', 'spec.md'),
-    FILLED_SPEC.replace('T-1', 'T-UI').replace('Loại: fix', 'Loại: feature-s'));
+  writeFileSync(path.join(cwd, '.compass', 'T-VS', 'spec.md'),
+    FILLED_SPEC.replace('T-1', 'T-VS').replace('Loại: fix', 'Loại: feature-s'));
 
-  const result = compass(cwd, ['check', 'T-UI', '--only=ui']);
+  const result = compass(cwd, ['check', 'T-VS', '--only=visual']);
   assert.equal(result.status, 2);
   assert.match(result.stdout, /chưa được xây dựng/);
 });

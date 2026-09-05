@@ -40,76 +40,76 @@ function makeTask(testCmd, specText = SPEC) {
   return root;
 }
 
-test('checkCommand runs every applicable gate and passes', () => {
+test('checkCommand runs every applicable gate and passes', async () => {
   const root = makeTask(GREEN);
-  const result = checkCommand({ cwd: root, taskId: 'T-1' });
+  const result = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0, result.output);
   assert.match(result.output, /spec/);
   assert.match(result.output, /test/);
 });
 
-test('checkCommand stops at the first failing gate', () => {
+test('checkCommand stops at the first failing gate', async () => {
   const badSpec = SPEC.replace('Không có.\n\n## Test cases', '\n\n## Test cases');
   const root = makeTask(GREEN, badSpec);
-  const result = checkCommand({ cwd: root, taskId: 'T-1' });
+  const result = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1);
   assert.ok(!result.output.includes('Gate test'));
 });
 
-test('checkCommand reports gates not yet implemented as skipped', () => {
+test('checkCommand reports gates not yet implemented as skipped', async () => {
   const root = makeTask(GREEN);
-  const result = checkCommand({ cwd: root, taskId: 'T-1' });
+  const result = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.doesNotMatch(result.output, /Gate convention FAILED/);
 });
 
-test('checkCommand honours --only', () => {
+test('checkCommand honours --only', async () => {
   const root = makeTask(RED);
-  const result = checkCommand({ cwd: root, taskId: 'T-1', only: 'spec' });
+  const result = await checkCommand({ cwd: root, taskId: 'T-1', only: 'spec' });
   assert.equal(result.exitCode, 0);
   assert.doesNotMatch(result.output, /Gate test/);
 });
 
-test('C4: checkCommand --only with an unknown gate exits non-zero and names valid gates', () => {
+test('C4: checkCommand --only with an unknown gate exits non-zero and names valid gates', async () => {
   const root = makeTask(GREEN);
-  const result = checkCommand({ cwd: root, taskId: 'T-1', only: 'bogus' });
+  const result = await checkCommand({ cwd: root, taskId: 'T-1', only: 'bogus' });
   assert.notEqual(result.exitCode, 0);
   assert.match(result.output, /không áp dụng/);
   assert.match(result.output, /spec/);
   assert.match(result.output, /test/);
 });
 
-test('C4: checkCommand --only with an applicable-but-unimplemented gate exits non-zero', () => {
+test('C4: checkCommand --only with an applicable-but-unimplemented gate exits non-zero', async () => {
   const featureSSpec = SPEC.replace('Loại: fix', 'Loại: feature-s');
   const root = makeTask(GREEN, featureSSpec);
-  const result = checkCommand({ cwd: root, taskId: 'T-1', only: 'ui' });
+  const result = await checkCommand({ cwd: root, taskId: 'T-1', only: 'visual' });
   assert.notEqual(result.exitCode, 0);
   assert.match(result.output, /chưa được xây dựng/);
 });
 
-test('doneCommand passes after a clean check', () => {
+test('doneCommand passes after a clean check', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
   const result = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0, result.output);
 });
 
-test('doneCommand fails when a required gate never ran', () => {
+test('doneCommand fails when a required gate never ran', async () => {
   const root = makeTask(GREEN);
   const result = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1);
   assert.match(result.output, /chưa chạy/);
 });
 
-test('doneCommand fails when a gate exited non-zero', () => {
+test('doneCommand fails when a gate exited non-zero', async () => {
   const root = makeTask(RED);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
   const result = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1);
 });
 
-test('doneCommand detects a hand-edited gate record', () => {
+test('doneCommand detects a hand-edited gate record', async () => {
   const root = makeTask(RED);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
   const file = gatePath(root, 'T-1');
   const data = JSON.parse(readFileSync(file, 'utf8'));
   data.test.exitCode = 0;
@@ -120,9 +120,9 @@ test('doneCommand detects a hand-edited gate record', () => {
   assert.match(result.output, /chữ ký/);
 });
 
-test('doneCommand says a pre-taskId record predates this version, not that it is tampered', () => {
+test('doneCommand says a pre-taskId record predates this version, not that it is tampered', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
 
   const file = gatePath(root, 'T-1');
   const data = JSON.parse(readFileSync(file, 'utf8'));
@@ -136,9 +136,9 @@ test('doneCommand says a pre-taskId record predates this version, not that it is
   assert.match(result.output, /bản Compass cũ|chưa có taskId/);
 });
 
-test('doneCommand detects a spec edited after the test gate ran', () => {
+test('doneCommand detects a spec edited after the test gate ran', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
   const spec = path.join(root, '.compass', 'T-1', 'spec.md');
   writeFileSync(spec, SPEC + '\n<!-- sửa sau khi test đã chạy -->\n');
   const result = doneCommand({ cwd: root, taskId: 'T-1' });
@@ -146,16 +146,16 @@ test('doneCommand detects a spec edited after the test gate ran', () => {
   assert.match(result.output, /Spec đã thay đổi/);
 });
 
-test('statusCommand lists gate state', () => {
+test('statusCommand lists gate state', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
   const result = statusCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0);
   assert.match(result.output, /spec/);
   assert.match(result.output, /test/);
 });
 
-test('doneCommand for feature-m reports unimplemented gates on pass', () => {
+test('doneCommand for feature-m reports unimplemented gates on pass', async () => {
   // Build a feature-m spec with 21 test cases spanning all 6 layers
   // Counts: Happy 4, Validation 4, Error 4, Edge 4, Security 3, Performance 2 = 21
   const rows = [
@@ -216,24 +216,24 @@ ${rows.join('\n')}
   writeFileSync(path.join(root, '.compass', 'config.json'), JSON.stringify({ test: greenForFeatureM }));
   writeFileSync(path.join(root, '.compass', 'T-FM', 'spec.md'), featureMSpec);
 
-  checkCommand({ cwd: root, taskId: 'T-FM' });
+  await checkCommand({ cwd: root, taskId: 'T-FM' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM' });
   assert.equal(result.exitCode, 0, result.output);
-  assert.match(result.output, /ui, visual, review/);
+  assert.match(result.output, /visual, review/);
   assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });
 });
 
-test('doneCommand for fix task does NOT report unimplemented gates on pass', () => {
+test('doneCommand for fix task does NOT report unimplemented gates on pass', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
   const result = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0);
   assert.doesNotMatch(result.output, /chưa xây dựng/);
 });
 
-test('doneCommand for feature-m reports unimplemented gates on fail', () => {
+test('doneCommand for feature-m reports unimplemented gates on fail', async () => {
   // Build a feature-m spec with 21 test cases spanning all 6 layers
   // Counts: Happy 4, Validation 4, Error 4, Edge 4, Security 3, Performance 2 = 21
   const layers = ['Happy', 'Validation', 'Error', 'Edge', 'Security', 'Performance'];
@@ -280,18 +280,18 @@ ${rows.join('\n')}
   writeFileSync(path.join(root, '.compass', 'config.json'), JSON.stringify({ test: RED }));
   writeFileSync(path.join(root, '.compass', 'T-FM2', 'spec.md'), featureMSpec);
 
-  checkCommand({ cwd: root, taskId: 'T-FM2' });
+  await checkCommand({ cwd: root, taskId: 'T-FM2' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM2' });
   assert.equal(result.exitCode, 1);
-  assert.match(result.output, /ui, visual, review/);
+  assert.match(result.output, /visual, review/);
   assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });
 });
 
-test('doneCommand with corrupt gate.json returns exit 2 with clean message', () => {
+test('doneCommand with corrupt gate.json returns exit 2 with clean message', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
 
   const gateFile = gatePath(root, 'T-1');
   writeFileSync(gateFile, 'not valid json {');
@@ -302,9 +302,9 @@ test('doneCommand with corrupt gate.json returns exit 2 with clean message', () 
   assert.doesNotMatch(result.output, /at readGates/);
 });
 
-test('statusCommand with corrupt gate.json returns exit 2 with clean message', () => {
+test('statusCommand with corrupt gate.json returns exit 2 with clean message', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
 
   const gateFile = gatePath(root, 'T-1');
   writeFileSync(gateFile, 'not valid json {');
@@ -315,9 +315,9 @@ test('statusCommand with corrupt gate.json returns exit 2 with clean message', (
   assert.doesNotMatch(result.output, /at readGates/);
 });
 
-test('doneCommand detects actual JSON corruption and claims it', () => {
+test('doneCommand detects actual JSON corruption and claims it', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
 
   const gateFile = gatePath(root, 'T-1');
   writeFileSync(gateFile, 'not valid json {');
@@ -328,9 +328,9 @@ test('doneCommand detects actual JSON corruption and claims it', () => {
   assert.doesNotMatch(result.output, /at /);
 });
 
-test('statusCommand detects actual JSON corruption and claims it', () => {
+test('statusCommand detects actual JSON corruption and claims it', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
 
   const gateFile = gatePath(root, 'T-1');
   writeFileSync(gateFile, 'not valid json {');
@@ -341,9 +341,9 @@ test('statusCommand detects actual JSON corruption and claims it', () => {
   assert.doesNotMatch(result.output, /at /);
 });
 
-test('doneCommand where gate.json is a directory reports read error, not corruption', () => {
+test('doneCommand where gate.json is a directory reports read error, not corruption', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
 
   const gateFile = gatePath(root, 'T-1');
   rmSync(gateFile);
@@ -357,9 +357,9 @@ test('doneCommand where gate.json is a directory reports read error, not corrupt
   assert.doesNotMatch(result.output, /at /);
 });
 
-test('statusCommand where gate.json is a directory reports read error, not corruption', () => {
+test('statusCommand where gate.json is a directory reports read error, not corruption', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
 
   const gateFile = gatePath(root, 'T-1');
   rmSync(gateFile);
@@ -373,9 +373,9 @@ test('statusCommand where gate.json is a directory reports read error, not corru
   assert.doesNotMatch(result.output, /at /);
 });
 
-test('doneCommand rejects a test gate that recorded no configHash', () => {
+test('doneCommand rejects a test gate that recorded no configHash', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
 
   // Dựng lại bản ghi kiểu phiên bản cũ: bỏ configHash rồi ký lại hợp lệ.
   const file = gatePath(root, 'T-1');
@@ -390,8 +390,8 @@ test('doneCommand rejects a test gate that recorded no configHash', () => {
   assert.match(result.output, /phiên bản cũ/);
 });
 
-test('doneCommand still passes when the test gate carries its configHash', () => {
+test('doneCommand still passes when the test gate carries its configHash', async () => {
   const root = makeTask(GREEN);
-  checkCommand({ cwd: root, taskId: 'T-1' });
+  await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
 });

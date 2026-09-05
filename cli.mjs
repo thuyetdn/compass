@@ -3,6 +3,7 @@ import { initCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
 import { testCommand } from './commands/test.mjs';
 import { conventionCommand } from './commands/convention.mjs';
+import { uiCommand } from './commands/ui.mjs';
 import { checkCommand } from './commands/check.mjs';
 import { doneCommand } from './commands/done.mjs';
 import { statusCommand } from './commands/status.mjs';
@@ -14,6 +15,7 @@ Dùng:
   compass spec <id>
   compass convention <id>
   compass test <id>
+  compass ui <id>
   compass check <id>
   compass done <id>
   compass status <id>
@@ -34,7 +36,7 @@ function parseFlags(argv) {
   return { flags, rest };
 }
 
-function main() {
+async function main() {
   try {
     const [command, ...args] = process.argv.slice(2);
     const { flags, rest } = parseFlags(args);
@@ -55,8 +57,11 @@ function main() {
       case 'test':
         result = testCommand({ cwd, taskId });
         break;
+      case 'ui':
+        result = await uiCommand({ cwd, taskId });
+        break;
       case 'check':
-        result = checkCommand({ cwd, taskId, only: flags.only });
+        result = await checkCommand({ cwd, taskId, only: flags.only });
         break;
       case 'done':
         result = doneCommand({ cwd, taskId });

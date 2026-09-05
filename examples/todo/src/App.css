@@ -1,0 +1,70 @@
+:root {
+  --text-primary: #111827;
+  --accent: #2563eb;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--surface);
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+h1 {
+  color: var(--text-primary);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  margin-bottom: 24px;
+}
+
+form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+form label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+form input {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+form button {
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--surface);
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+
+li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}

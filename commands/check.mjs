@@ -6,16 +6,18 @@ import { specCommand } from './spec.mjs';
 import { testCommand } from './test.mjs';
 import { info } from '../lib/report.mjs';
 import { conventionCommand } from './convention.mjs';
+import { uiCommand } from './ui.mjs';
 import { GATE_ORDER } from '../lib/gates.mjs';
 
 const IMPLEMENTED = {
   spec: specCommand,
   convention: conventionCommand,
   test: testCommand,
+  ui: uiCommand,
 };
 
 
-export function checkCommand({ cwd, taskId, only }) {
+export async function checkCommand({ cwd, taskId, only }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass check <id>' };
 
   const root = findRoot(cwd);
@@ -55,7 +57,8 @@ export function checkCommand({ cwd, taskId, only }) {
     const run = IMPLEMENTED[gate];
     if (!run) { skipped.push(gate); continue; }
 
-    const result = run({ cwd: root, taskId });
+    // A gate may be async (ui drives a browser); awaiting a sync return is harmless.
+    const result = await run({ cwd: root, taskId });
     lines.push(result.output);
     if (result.exitCode !== 0) {
       return { exitCode: result.exitCode, output: lines.join('\n') };
