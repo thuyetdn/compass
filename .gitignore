@@ -2,6 +2,9 @@ node_modules/
 dist/
 *.log
 
+# Thư mục thăm dò tạm của agent soi code — không thuộc dự án.
+.probe-tmp/
+
 # Máy sinh: verify được nên không cần lưu, và nó đổi mỗi lần sync.
 **/.knowledge/derived/
 
