@@ -108,3 +108,50 @@ test('verifyAllGates reports corruption after writing a gate and corrupting the 
   assert.equal(result.ok, false);
   assert.deepEqual(result.tampered, ['<gate.json hỏng>']);
 });
+
+test('readGates throws with COMPASS_GATE_CORRUPT code for unparseable JSON', () => {
+  const root = makeTask();
+  const file = gatePath(root, 'T-1');
+  writeFileSync(file, '{ not valid json');
+  let error;
+  try {
+    readGates(root, 'T-1');
+  } catch (err) {
+    error = err;
+  }
+  assert(error, 'should throw');
+  assert.equal(error.code, 'COMPASS_GATE_CORRUPT');
+  assert.match(error.message, /gate.json hỏng/);
+  assert(error.cause, 'should have cause property');
+});
+
+test('readGates throws for directory at gate.json path with non-corrupt code', () => {
+  const root = makeTask();
+  const file = gatePath(root, 'T-1');
+  mkdirSync(file);
+  let error;
+  try {
+    readGates(root, 'T-1');
+  } catch (err) {
+    error = err;
+  }
+  assert(error, 'should throw');
+  assert.notEqual(error.code, 'COMPASS_GATE_CORRUPT');
+  assert(error.code, 'should have a code');
+  // On Windows, code is EISDIR; on Unix as well
+  assert.match(error.code, /EISDIR|EACCES|EPERM/);
+});
+
+test('readGates corruption error carries the original error as cause', () => {
+  const root = makeTask();
+  const file = gatePath(root, 'T-1');
+  writeFileSync(file, 'not json');
+  let error;
+  try {
+    readGates(root, 'T-1');
+  } catch (err) {
+    error = err;
+  }
+  assert(error.cause, 'cause should exist');
+  assert(error.cause instanceof SyntaxError, 'cause should be SyntaxError from JSON.parse');
+});

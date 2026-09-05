@@ -306,3 +306,35 @@ test('statusCommand detects actual JSON corruption and claims it', () => {
   assert.match(result.output, /Bản ghi có thể bị hỏng/);
   assert.doesNotMatch(result.output, /at /);
 });
+
+test('doneCommand where gate.json is a directory reports read error, not corruption', () => {
+  const root = makeTask(GREEN);
+  checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const gateFile = gatePath(root, 'T-1');
+  rmSync(gateFile);
+  mkdirSync(gateFile);
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.doesNotMatch(result.output, /Bản ghi có thể bị hỏng/);
+  assert.match(result.output, /Lỗi:/);
+  assert.match(result.output, /EISDIR/);
+  assert.doesNotMatch(result.output, /at /);
+});
+
+test('statusCommand where gate.json is a directory reports read error, not corruption', () => {
+  const root = makeTask(GREEN);
+  checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const gateFile = gatePath(root, 'T-1');
+  rmSync(gateFile);
+  mkdirSync(gateFile);
+
+  const result = statusCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.doesNotMatch(result.output, /Bản ghi có thể bị hỏng/);
+  assert.match(result.output, /Lỗi:/);
+  assert.match(result.output, /EISDIR/);
+  assert.doesNotMatch(result.output, /at /);
+});

@@ -1440,13 +1440,15 @@ import { getSalt, signRecord, verifyRecord } from './signature.mjs';
 export function readGates(root, taskId) {
   const file = gatePath(root, taskId);
   if (!existsSync(file)) return {};
+  // Đọc và parse phải tách riêng. Bọc chung một try rồi gắn nhãn "hỏng" cho mọi
+  // lỗi là sai: gate.json là thư mục (EISDIR), thiếu quyền (EACCES), đĩa lỗi —
+  // đều bị báo thành "bản ghi hỏng", đẩy người dùng đi sửa file không hề hỏng.
+  // Lỗi đọc cứ để nguyên với code gốc của OS; chỉ lỗi parse mới là hỏng thật.
+  const raw = readFileSync(file, 'utf8');
   try {
-    return JSON.parse(readFileSync(file, 'utf8'));
-  } catch {
-    // Đánh dấu lỗi để lệnh gọi phân biệt được "file hỏng" với mọi lỗi khác
-    // (quyền truy cập, đĩa lỗi). Không có dấu này, mọi trục trặc đều bị báo
-    // thành "bản ghi hỏng" — đẩy người dùng đi sửa file không hề hỏng.
-    const err = new Error(`gate.json hỏng, không đọc được: ${file}`);
+    return JSON.parse(raw);
+  } catch (cause) {
+    const err = new Error(`gate.json hỏng, không đọc được: ${file}`, { cause });
     err.code = 'COMPASS_GATE_CORRUPT';
     throw err;
   }
