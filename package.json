@@ -9,6 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "test:deep": "node --test --test-timeout=600000 \"test/deep-integration.deep.mjs\""
   }
 }

@@ -84,6 +84,15 @@ Compass tìm test ID trong output, nên reporter phải in tên từng test:
 | Vitest | `vitest run --reporter=tap` |
 | Jest | `jest --verbose` |
 
+## Test
+
+```bash
+npm test        # 403 test, vài giây
+npm run test:deep  # 10 test qua CLI thật trên examples/todo, ~100 giây
+```
+
+Suite sâu cần Playwright ở `examples/todo`; thiếu thì nó skip kèm hướng dẫn cài, không fail.
+
 ## Ví dụ
 
 [examples/todo](examples/todo/) — todo list React, task `feature-s` 13 test case.
