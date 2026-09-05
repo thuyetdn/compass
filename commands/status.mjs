@@ -17,7 +17,17 @@ export function statusCommand({ cwd, taskId }) {
 
   const spec = parseSpec(readFileSync(file, 'utf8'));
   const rules = rulesFor(spec.type);
-  const gates = readGates(root, taskId);
+
+  let gates;
+  try {
+    gates = readGates(root, taskId);
+  } catch (err) {
+    return {
+      exitCode: 2,
+      output: `Không thể đọc ledger gate tại ${file.replace(/spec\.md$/, 'evidence/gate.json')}.\nBản ghi có thể bị hỏng. Không thể tin tưởng kết quả gate.`,
+    };
+  }
+
   const integrity = verifyAllGates(root, taskId);
 
   const lines = [

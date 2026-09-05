@@ -2697,6 +2697,10 @@ git commit -m "feat: add test gate command with spec id reconciliation"
 
 `done` kiểm ba điều: mọi gate bắt buộc đã chạy · mọi gate exit 0 · mọi chữ ký còn nguyên. Thêm một kiểm nữa: `specHash` trong gate `test` phải khớp spec hiện tại — bắt được trường hợp sửa spec sau khi test đã chạy.
 
+**`done` phải nói rõ phạm vi nó đã kiểm.** `feature-m` đòi 4 gate, GĐ 1 mới cài 2. `done` không thể đòi gate chưa tồn tại — đó là đúng. Nhưng in `✓ done PASSED — 2 gate đã pass` rồi im lặng thì người đọc hiểu thành "đã đủ". Phải kèm dòng nói rõ gate nào chưa kiểm, ở **cả** trường hợp pass lẫn fail.
+
+Đây chính là kiểu hiểu nhầm Compass tồn tại để chống: một báo cáo **đúng về mặt kỹ thuật nhưng gây hiểu sai**. Loại task không đòi gì ngoài phần đã cài (`fix`, `bug`) thì không in gì thêm — im lặng đúng khi không giấu gì.
+
 - [ ] **Step 1: Viết test thất bại**
 
 Tạo `test/check-done.test.mjs`:
@@ -2944,10 +2948,17 @@ export function doneCommand({ cwd, taskId }) {
     }
   }
 
+  // Gate mà loại task đòi nhưng giai đoạn này chưa cài. `done` không thể đòi thứ
+  // chưa tồn tại — nhưng phải NÓI RÕ, nếu không "done PASSED" bị đọc thành "đã đủ".
+  const notBuilt = rules.gates.filter((g) => !IMPLEMENTED_GATES.includes(g));
+  const caveat = notBuilt.length
+    ? [`Chưa kiểm (chưa cài ở giai đoạn này): ${notBuilt.join(', ')}`]
+    : [];
+
   if (problems.length) {
     return {
       exitCode: 1,
-      output: [fail('done', problems), '', hint('Chạy: compass check ' + taskId)].join('\n'),
+      output: [fail('done', problems), ...caveat, '', hint('Chạy: compass check ' + taskId)].join('\n'),
     };
   }
 
@@ -2955,6 +2966,7 @@ export function doneCommand({ cwd, taskId }) {
     exitCode: 0,
     output: [
       pass('done', `${required.length} gate đã pass`),
+      ...caveat,
       '',
       `Task ${taskId} hoàn thành. Bằng chứng: .compass/${taskId}/evidence/`,
     ].join('\n'),

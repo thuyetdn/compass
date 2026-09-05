@@ -28,8 +28,18 @@ export function doneCommand({ cwd, taskId }) {
     problems.push(`chữ ký không khớp ở gate: ${integrity.tampered.join(', ')} — bản ghi đã bị sửa tay.`);
   }
 
-  const gates = readGates(root, taskId);
+  let gates;
+  try {
+    gates = readGates(root, taskId);
+  } catch (err) {
+    return {
+      exitCode: 2,
+      output: `Không thể đọc ledger gate tại ${file.replace(/spec\.md$/, 'evidence/gate.json')}.\nBản ghi có thể bị hỏng. Không thể tin tưởng kết quả gate.`,
+    };
+  }
+
   const required = rules.gates.filter((g) => IMPLEMENTED_GATES.includes(g));
+  const unimplemented = rules.gates.filter((g) => !IMPLEMENTED_GATES.includes(g));
 
   for (const name of required) {
     const record = gates[name];
@@ -51,18 +61,25 @@ export function doneCommand({ cwd, taskId }) {
   }
 
   if (problems.length) {
+    const lines = [fail('done', problems), '', hint('Chạy: compass check ' + taskId)];
+    if (unimplemented.length) {
+      lines.push('');
+      lines.push(`Ghi chú: Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này.`);
+    }
     return {
       exitCode: 1,
-      output: [fail('done', problems), '', hint('Chạy: compass check ' + taskId)].join('\n'),
+      output: lines.join('\n'),
     };
   }
 
+  const lines = [pass('done', `${required.length} gate đã pass`)];
+  if (unimplemented.length) {
+    lines.push(`Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này và không được kiểm tra.`);
+  }
+  lines.push('', `Task ${taskId} hoàn thành. Bằng chứng: .compass/${taskId}/evidence/`);
+
   return {
     exitCode: 0,
-    output: [
-      pass('done', `${required.length} gate đã pass`),
-      '',
-      `Task ${taskId} hoàn thành. Bằng chứng: .compass/${taskId}/evidence/`,
-    ].join('\n'),
+    output: lines.join('\n'),
   };
 }
