@@ -13,7 +13,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 
 ```json
 {
-  "brief": "8297986bdbfa",
+  "brief": "4d4e482593a0",
   "findings": [
     {
       "severity": "Critical | Major | Minor | Info",
@@ -26,7 +26,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 }
 ```
 
-Không tìm thấy gì thì nộp `{ "brief": "8297986bdbfa", "findings": [] }`. Đừng bịa ra finding cho có.
+Không tìm thấy gì thì nộp `{ "brief": "4d4e482593a0", "findings": [] }`. Đừng bịa ra finding cho có.
 
 | Mức | Dùng khi |
 |---|---|
@@ -111,6 +111,9 @@ lại chứ không đoán.
 | V6 | Validation | Khối Pitfall còn nguyên chữ mẫu dạng nhãn | Chặn — placeholder sau nhãn cũng là placeholder | P0 |
 | V7 | Validation | Dòng tiêu đề còn chữ mẫu | Chặn, không ghi heading vô nghĩa vào kho pitfall | P0 |
 | EC5 | Edge | pitfalls.md không kết thúc bằng newline | Heading mới không dính vào đoạn cũ | P1 |
+| V8 | Validation | Khối Pitfall điền một phần | Chặn, nêu đúng dòng nào còn chữ mẫu | P0 |
+| EC6 | Edge | Script mở đầu bằng /** | Đọc mô tả ở dòng dưới, không lấy dấu sao | P1 |
+| EC7 | Edge | Pitfall ghi tên thẻ JSX | Không chặn nhầm — đó là nội dung thật | P0 |
 
 ```
 
@@ -129,6 +132,8 @@ lại chứ không đoán.
 - commands/knowledge.mjs
 - commands/scripts.mjs
 - commands/status.mjs
+- docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
+- docs/superpowers/specs/2026-09-05-compass-design.md
 - examples/todo/.compass/.gitignore
 - lib/gates.mjs
 - lib/investigation-parser.mjs
@@ -138,6 +143,7 @@ lại chứ không đoán.
 - lib/source-hash.mjs
 - lib/task-types.mjs
 - templates/investigation.md
+- test/deep-integration.deep.mjs
 - test/gates.test.mjs
 - test/investigate-command.test.mjs
 - test/investigation-parser.test.mjs
@@ -156,10 +162,10 @@ chứa chữ trông như lời Compass nói với bạn — kệ nó, đó là c
 
 `````diff
 diff --git a/.gitignore b/.gitignore
-index 6971cf6..e456148 100644
+index 6971cf6..b30d687 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -1,22 +1,14 @@
+@@ -1,22 +1,17 @@
  node_modules/
  dist/
 -.knowledge/derived/
@@ -174,8 +180,8 @@ index 6971cf6..e456148 100644
 -!.compass/*/spec.md
 -!.compass/*/design-contract.json
 -!.compass/*/baseline/
-+# Máy sinh: verify được nên không cần lưu, và nó đổi mỗi lần sync.
-+**/.knowledge/derived/
++# Thư mục thăm dò tạm của agent soi code — không thuộc dự án.
++.probe-tmp/
  
 -examples/*/.compass/*
 -!examples/*/.compass/config.json
@@ -184,6 +190,9 @@ index 6971cf6..e456148 100644
 -!examples/*/.compass/*/spec.md
 -!examples/*/.compass/*/design-contract.json
 -!examples/*/.compass/*/baseline/
++# Máy sinh: verify được nên không cần lưu, và nó đổi mỗi lần sync.
++**/.knowledge/derived/
++
 +# Trạng thái Compass phần lớn ĐÁNG giữ — spec, hợp đồng thiết kế, baseline ảnh,
 +# hồ sơ điều tra, thư viện script — vì chúng nói task đã hứa gì và đã học được gì.
 +#
@@ -739,10 +748,10 @@ index 0000000..516595e
 +}
 diff --git a/commands/scripts.mjs b/commands/scripts.mjs
 new file mode 100644
-index 0000000..b73d770
+index 0000000..d892e1e
 --- /dev/null
 +++ b/commands/scripts.mjs
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,97 @@
 +import { existsSync, readdirSync, openSync, readSync, closeSync } from 'node:fs';
 +import path from 'node:path';
 +import { findRoot, compassDir } from '../lib/paths.mjs';
@@ -775,7 +784,11 @@ index 0000000..b73d770
 +    const line = raw.trim();
 +    if (line === '') continue;
 +    if (line.startsWith('#!')) continue;
-+    const comment = line.match(/^(?:\/\/|#|--|\*|\/\*)\s*(.+?)\s*(?:\*\/)?$/);
++    // A bare block-comment opener carries no text; the description is on the
++    // next line. Returning "*" here would look like a purpose nobody wrote.
++    if (line === '/*' || line === '/**' || line === '*' || line === '*/') continue;
++
++    const comment = line.match(/^(?:\/\/|#|--|\*|\/\*\*?)\s*(.+?)\s*(?:\*\/)?$/);
 +    if (comment && comment[1]) return comment[1];
 +    // First non-comment line means the file opened with code.
 +    return null;
@@ -837,10 +850,15 @@ index 0000000..b73d770
 +  return { exitCode: 0, output: lines.join('\n') };
 +}
 diff --git a/commands/status.mjs b/commands/status.mjs
-index ee04046..95a1d5c 100644
+index ee04046..b7fe554 100644
 --- a/commands/status.mjs
 +++ b/commands/status.mjs
-@@ -4,6 +4,8 @@ import { parseSpec } from '../lib/spec-parser.mjs';
+@@ -1,9 +1,12 @@
+ import { existsSync, readFileSync } from 'node:fs';
+-import { findRoot, specPath } from '../lib/paths.mjs';
++import path from 'node:path';
++import { findRoot, specPath, taskDir } from '../lib/paths.mjs';
+ import { parseSpec } from '../lib/spec-parser.mjs';
  import { rulesFor } from '../lib/task-types.mjs';
  import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
  import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
@@ -849,7 +867,32 @@ index ee04046..95a1d5c 100644
  
  
  
-@@ -40,9 +42,25 @@ export function statusCommand({ cwd, taskId }) {
+@@ -14,7 +17,23 @@ export function statusCommand({ cwd, taskId }) {
+   if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
+ 
+   const file = specPath(root, taskId);
+-  if (!existsSync(file)) return { exitCode: 2, output: `Không tìm thấy spec: ${file}` };
++  if (!existsSync(file)) {
++    // An investigation has no spec and no gates. Saying "no spec found" would
++    // read as a broken task rather than a different kind of work.
++    const investigation = path.join(taskDir(root, taskId), 'investigation.md');
++    if (existsSync(investigation)) {
++      return {
++        exitCode: 2,
++        output: [
++          `${taskId} là một điều tra, không phải task BUILD — không có spec và không có gate.`,
++          `  hồ sơ: .compass/${taskId}/investigation.md`,
++          '',
++          `Đóng bằng: compass investigate ${taskId} --close`,
++        ].join('\n'),
++      };
++    }
++    return { exitCode: 2, output: `Không tìm thấy spec: ${file}` };
++  }
+ 
+   const spec = parseSpec(readFileSync(file, 'utf8'));
+   const rules = rulesFor(spec.type);
+@@ -40,9 +59,25 @@ export function statusCommand({ cwd, taskId }) {
    const lines = [
      `Task ${taskId} — ${spec.title}`,
      `Loại: ${spec.type}   Test cases trong spec: ${spec.testCases.length}`,
@@ -876,6 +919,178 @@ index ee04046..95a1d5c 100644
    for (const name of rules?.gates ?? []) {
      const record = gates[name];
      let state;
+diff --git a/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md b/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
+new file mode 100644
+index 0000000..7d13ab3
+--- /dev/null
++++ b/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
+@@ -0,0 +1,111 @@
++# Compass GĐ 3 và 4 — ghi chú
++
++**Ngày:** 2026-09-06
++**Task:** CP-7 (`sourceHash`) · CP-9 (test tích hợp sâu) · CP-10 (`knowledge`) · CP-11 (`investigate` + `scripts`) · CP-12 (multi-repo) · INV-1 (điều tra thật đầu tiên)
++**Suite:** 385 → 504 test
++
++Tiếp sau [GĐ 2](2026-09-05-phase-2-notes.md). Lộ trình trong spec thiết kế §13 đã đi hết.
++
++---
++
++## Bốn chỗ đi chệch thiết kế
++
++| Thiết kế nói | Làm thật | Lý do |
++|---|---|---|
++| `derived/` đọc AST TypeScript | Trích bằng regex, kèm cờ `confident` | Node không có parser TS/JSX. Thêm một cái là phá zero-dependency — cùng lý do đã bỏ ESLint ở `convention` |
++| §7.6 xếp `knowledge` chạy đầu | Giữ nguyên thứ tự đó | Đo được: 10ms quét, rẻ nhất trong bảy gate |
++| §10 nói `check` chạy gate ở từng repo | CP-12 mới làm phần phân giải cấu hình | Làm cả hai một lúc thì không rà nổi. Chạy gate đa repo là việc sau |
++| §8.4 không nói gì về độ tin cậy | Mỗi component mang `confident: true/false` | Regex chắc chắn có ca trích sai. Tài liệu nói sai mà tự nhận chắc chắn thì tệ hơn nói "không chắc" |
++
++---
++
++## Lỗi đáng nhớ nhất: quên thêm gate vào danh sách — lần thứ hai
++
++Thêm gate `knowledge` xong, agent soi mù tìm ra:
++
++```
++done đóng task trong khi tài liệu đã lỗi thời.
++knowledge đọc cả cây source nhưng không ghi sourceHash,
++và SOURCE_DEPENDENT_GATES không có nó. Cả hai nửa đều thiếu.
++```
++
++Đây **đúng kiểu lỗi** mà `lib/gates.mjs` sinh ra để chặn — hồi GĐ 2, `ui` và `visual` biến mất khỏi bảng gate vì cùng một lý do: một danh sách nằm ở file này, file kia không biết.
++
++Sửa: chuyển `SOURCE_DEPENDENT_GATES` về `lib/gates.mjs`, và thêm test chặn kiểu lỗi này:
++
++```js
++test('every gate that reads code is listed as source-dependent', () => {
++  const readsCode = IMPLEMENTED_GATES.filter((g) => g !== 'spec' && g !== 'review');
++  for (const gate of readsCode) assert.ok(SOURCE_DEPENDENT_GATES.includes(gate));
++});
++```
++
++**Bài học:** gom danh sách về một chỗ là chưa đủ. Phải có test khẳng định *quan hệ giữa các danh sách*, vì chỗ tiếp theo quên sẽ là một danh sách khác.
++
++---
++
++## Lỗi thứ hai: fixture chép tay che mất bug
++
++Gate `investigate` bắt buộc ghi pitfall trước khi đóng. Agent soi mù tìm ra nó **không bắt buộc gì cả**:
++
++`isEmpty()` nhận placeholder qua `/^<.*>$/`, nhưng khối Pitfall trong template thật là:
++
++```
++**Gặp:** <ngày · id · bối cảnh>
++**Triệu chứng:** <nhận ra bằng dấu hiệu gì>
++```
++
++Những dòng đó bắt đầu bằng `**`, không bằng `<`, nên được tính là nội dung thật. Điều tra đóng được với khối pitfall nguyên xi chữ mẫu — và chữ mẫu đó được chép thẳng vào `.knowledge/decided/pitfalls.md`.
++
++Test `EC1` có tồn tại và có xanh. Nó xanh vì fixture là bản **chép tay rút gọn**, bỏ đúng năm dòng gây lỗi.
++
++**Bài học:** test đọc bản sao của thứ đang kiểm thì nó kiểm bản sao, không kiểm thứ thật. Sửa: `EC1` đọc thẳng `templates/investigation.md`.
++
++---
++
++## Vòng phản hồi chạy thật
++
++INV-1 là điều tra thật đầu tiên — chính bug dev-server ở CP-8:
++
++```
++compass investigate INV-1          → mở hồ sơ, in ba luật cứng
++     ↓  ba giả thuyết, H1 bị bác, H2 và H3 đúng
++compass investigate INV-1 --close  → 3 giả thuyết đã kiểm
++                                      Pitfall đã ghi vào .knowledge/decided/pitfalls.md
++```
++
++Bài học từ bug hôm qua giờ nằm ở chỗ lần sau đọc được. Đó là điều §11 mô tả, và nó hoạt động.
++
++---
++
++## Số liệu
++
++| Chỉ số | Giá trị |
++|---|---|
++| Suite đầu GĐ 3 | 385 pass |
++| Suite cuối GĐ 4 | 504 pass |
++| Gate `knowledge` trên Compass | 85 file, ~10ms |
++| `hashSource` trên Compass | ~15ms |
++| Số gate | 7 |
++| Số lệnh CLI | 10 |
++
++---
++
++## Còn nợ
++
++| Việc | Ghi chú |
++|---|---|
++| `check` chạy gate ở nhiều repo | CP-12 mới phân giải cấu hình. Chạy gate đa repo chưa làm |
++| `derived/api.json`, `entities.json`, `structure.json` | Mới có `components.json`. Cấu trúc đã sẵn để thêm |
++| `compass knowledge --view` | Trang HTML tĩnh, §8.7 |
++| Chạy thử trên Nexus thật | Repo chưa clone về máy này. Ba thứ chưa kiểm nghiệm: monorepo thật, NestJS, task `feature-m` của người khác |
++| EC1 trong suite sâu | Không bắt được hồi quy CP-8 — đã ghi rõ trong comment, chưa chữa |
++
++---
++
++## Điều đáng ngờ nhất còn lại
++
++Mọi thứ Compass biết về chính nó đều đến từ việc tự dùng trên chính nó và trên một demo tự dựng.
++Bảy vòng soi mù ở GĐ 2 không thấy bug dev-server; một câu "test trên demo todo" thì ra ngay.
++
++Xây thêm tính năng tạo thêm bề mặt cho loại lỗi đó. Dùng thật là cách duy nhất tìm ra chúng.
+diff --git a/docs/superpowers/specs/2026-09-05-compass-design.md b/docs/superpowers/specs/2026-09-05-compass-design.md
+index 7a3cb27..cee1b8f 100644
+--- a/docs/superpowers/specs/2026-09-05-compass-design.md
++++ b/docs/superpowers/specs/2026-09-05-compass-design.md
+@@ -2,7 +2,7 @@
+ 
+ **Ngày:** 2026-09-05
+ **Tác giả:** Thuyet Do (thiết kế cùng Claude)
+-**Trạng thái:** Draft — chờ thử nghiệm thực tế ở GĐ 1
++**Trạng thái:** Đã xây xong cả bốn giai đoạn (2026-09-06). Chưa chạy thử trên codebase Nexus thật.
+ 
+ ---
+ 
+@@ -149,16 +149,20 @@ compass investigate --close <id>
+ 
+ ## 5. Phân loại task và gate áp dụng
+ 
+-| Loại | Spec | Test tối thiểu | convention | ui | visual | review |
+-|---|---|---|---|---|---|---|
+-| `fix` | 5 dòng | 2 | ✅ | – | – | – |
+-| `bug` | ngắn | 6 | ✅ | nếu FE | nếu FE | – |
+-| `feature-s` | vừa | 13 | ✅ | ✅ | ✅ | – |
+-| `feature-m` | đủ | 21 | ✅ | ✅ | ✅ | ✅ |
+-| `feature-l` | đủ | 30+ | ✅ | ✅ | ✅ | ✅ |
++| Loại | Spec | Test tối thiểu | knowledge | convention | ui | visual | review |
++|---|---|---|---|---|---|---|---|
++| `fix` | 5 dòng | 2 | ✅ | – | – | – | – |
++| `bug` | ngắn | 6 | ✅ | – | – | – | – |
++| `feature-s` | vừa | 13 | ✅ | ✅ | ✅ | ✅ | – |
++| `feature-m` | đủ | 21 | ✅ | ✅ | ✅ | ✅ | ✅ |
++| `feature-l` | đủ | 30+ | ✅ | ✅ | ✅ | ✅ | ✅ |
+ 
+ Số tối thiểu kế thừa từ `qa-standards/01-qa-strategy.md`.
+ 
++Bảng này khớp `lib/task-types.mjs` tính đến 2026-09-06. `fix` và `bug` không chạy `convention`
++như bản thiết kế đầu dự tính: một sửa đổi hai dòng không đáng phải quét cả cây source, và
++`convention` chỉ khớp mẫu theo dòng nên nó bắt được rất ít ở phạm vi đó.
++
+ **Nguyên tắc một chiều:** AI được nâng cấp loại task giữa chừng (phải chạy lại `compass spec`),
+ không bao giờ được hạ cấp.
+ 
+@@ -705,6 +709,13 @@ Lần sau AI đụng vào `outlook/` sẽ đọc được. Kiến thức tích l
+ 
+ Mỗi giai đoạn **dùng được ngay** — không phải xây hết mới chạy.
+ 
++> **Trạng thái 2026-09-06:** cả bốn giai đoạn đã đi hết. Bảy gate chạy được, 504 test.
++> Bốn chỗ làm khác thiết kế và lý do: xem [ghi chú GĐ 2](../notes/2026-09-05-phase-2-notes.md)
++> và [ghi chú GĐ 3-4](../notes/2026-09-06-phase-3-4-notes.md).
++>
++> Còn nợ: `check` chạy gate ở nhiều repo (GĐ 4 mới làm phần phân giải cấu hình),
++> `derived/api.json` và `entities.json`, trang `--view`, và chạy thử trên codebase Nexus thật.
++
+ ### GĐ 1 — Bộ xương
+ - `SKILL.md` bản đầu
+ - `compass`: `init` · `spec` · `test` · `check` · `done`
 diff --git a/examples/todo/.compass/.gitignore b/examples/todo/.compass/.gitignore
 new file mode 100644
 index 0000000..96286f5
@@ -910,10 +1125,10 @@ index df490fe..c5da26e 100644
    return IMPLEMENTED_GATES.includes(gate);
 diff --git a/lib/investigation-parser.mjs b/lib/investigation-parser.mjs
 new file mode 100644
-index 0000000..20b09bc
+index 0000000..7cde50d
 --- /dev/null
 +++ b/lib/investigation-parser.mjs
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,142 @@
 +// An investigation is closed on evidence, not on a story. This parser is what
 +// lets the machine tell one from the other: a hypothesis with no stated way to
 +// test it, a conclusion that cites nothing, a pitfall nobody wrote.
@@ -923,6 +1138,27 @@ index 0000000..20b09bc
 +// investigation close with the whole Pitfall block untouched — every line
 +// started with `**`, so none of them looked like a placeholder.
 +const PLACEHOLDER = /^(?:\*\*[^*]+:\*\*\s*)?<[^>]*>$/;
++
++// Shape alone is not enough. `**Vùng ảnh hưởng:** <SaveButton />` is a real
++// answer that happens to look like a hint, and refusing it tells the author
++// they left something blank when they did not. Only text that reads like prose
++// — spaces, or the separators the template uses — counts as unfilled.
++const HINT_TEXT = /[\s·|/]/;
++
++function isPlaceholder(line) {
++  if (!PLACEHOLDER.test(line)) return false;
++
++  // Strip the self-closing slash first: `<SaveButton />` is one tag name, and
++  // testing before stripping saw its space and called it a hint.
++  const inside = line
++    .slice(line.indexOf('<') + 1, line.lastIndexOf('>'))
++    .replace(/\s*\/$/, '')
++    .trim();
++
++  // A tag or element name is a single word; a template hint like
++  // "ngày · id · bối cảnh" or "file / module" reads as prose.
++  return inside === '' || HINT_TEXT.test(inside);
++}
 +
 +function sectionBody(markdown, heading) {
 +  const lines = markdown.split('\n');
@@ -943,7 +1179,7 @@ index 0000000..20b09bc
 +  const meaningful = text
 +    .split('\n')
 +    .map((l) => l.trim())
-+    .filter((l) => l !== '' && !PLACEHOLDER.test(l));
++    .filter((l) => l !== '' && !isPlaceholder(l));
 +  return meaningful.length === 0;
 +}
 +
@@ -1017,17 +1253,30 @@ index 0000000..20b09bc
 +
 +  // An investigation that leaves no lesson lets the next person fall in the
 +  // same hole. This is the whole point of the feedback loop.
-+  if (isEmpty(parsed.pitfall)) errors.push('Mục "Pitfall" còn trống — bắt buộc, để lần sau không sập lại');
++  if (isEmpty(parsed.pitfall)) {
++    errors.push('Mục "Pitfall" còn trống — bắt buộc, để lần sau không sập lại');
++  } else {
++    // Every line, not just one: the block goes verbatim into the pitfall
++    // library, so a half-filled one files template text there forever.
++    for (const raw of parsed.pitfall.split('\n')) {
++      const line = raw.trim();
++      if (line === '' || !isPlaceholder(line)) continue;
++      const label = line.match(/^\*\*([^*]+):\*\*/);
++      errors.push(label
++        ? `Mục "Pitfall" còn chữ mẫu ở dòng "${label[1]}"`
++        : 'Mục "Pitfall" còn dòng chữ mẫu chưa điền');
++    }
++  }
 +  if (isEmpty(parsed.nextSteps)) errors.push('Mục "Việc cần làm tiếp" còn trống — ghi "không cần" nếu thật sự không cần');
 +
 +  return { ok: errors.length === 0, errors };
 +}
 diff --git a/lib/knowledge-scan.mjs b/lib/knowledge-scan.mjs
 new file mode 100644
-index 0000000..9240c01
+index 0000000..6ba24d1
 --- /dev/null
 +++ b/lib/knowledge-scan.mjs
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,198 @@
 +import { readdirSync, readFileSync } from 'node:fs';
 +import path from 'node:path';
 +import { SKIP_DIRS } from './source-hash.mjs';
@@ -1040,7 +1289,7 @@ index 0000000..9240c01
 +// Documentation that is wrong while claiming certainty is worse than none, so
 +// an entry Compass could not read fully is marked rather than filled in.
 +
-+const SOURCE_EXT = new Set(['.jsx', '.tsx', '.js', '.ts', '.mjs']);
++const SOURCE_EXT = new Set(['.jsx', '.tsx', '.js', '.ts', '.mjs', '.cjs', '.mts', '.cts']);
 +const COMPONENT_EXT = new Set(['.jsx', '.tsx']);
 +
 +// A React component is a capitalised function. Two shapes cover almost every
@@ -1074,8 +1323,22 @@ index 0000000..9240c01
 +  if (text === '') return { props: {}, confident: true };
 +
 +  const open = text.indexOf('{');
-+  const close = text.lastIndexOf('}');
-+  if (open === -1 || close < open) return { props: {}, confident: false };
++  if (open === -1) return { props: {}, confident: false };
++
++  // Match the brace that closes the destructuring, not the last one on the
++  // line: `({ x, y }: { x: string; y: number })` has a type object after it,
++  // and reaching for lastIndexOf swallowed half the props while still
++  // reporting confidence.
++  let braces = 0;
++  let close = -1;
++  for (let i = open; i < text.length; i++) {
++    if (text[i] === '{') braces += 1;
++    else if (text[i] === '}') {
++      braces -= 1;
++      if (braces === 0) { close = i; break; }
++    }
++  }
++  if (close === -1) return { props: {}, confident: false };
 +
 +  const body = text.slice(open + 1, close);
 +  const props = {};
@@ -1106,9 +1369,47 @@ index 0000000..9240c01
 +  return { props, confident: true };
 +}
 +
++// Comments and string literals are removed before anything is matched. A
++// commented-out import is the most common way a dead component's name lingers
++// in a file — counting it would report the component as still used, which is
++// exactly the question usedIn exists to answer.
++function stripCommentsAndStrings(text) {
++  let out = '';
++  let i = 0;
++  while (i < text.length) {
++    const two = text.slice(i, i + 2);
++    if (two === '//') {
++      const end = text.indexOf('\n', i);
++      i = end === -1 ? text.length : end;
++      continue;
++    }
++    if (two === '/*') {
++      const end = text.indexOf('*/', i + 2);
++      i = end === -1 ? text.length : end + 2;
++      out += ' ';
++      continue;
++    }
++    const ch = text[i];
++    if (ch === '"' || ch === "'" || ch === '`') {
++      i += 1;
++      while (i < text.length && text[i] !== ch) {
++        if (text[i] === '\\') i += 1;
++        i += 1;
++      }
++      i += 1;
++      out += "''"; // keep the import path's shape without its contents
++      continue;
++    }
++    out += ch;
++    i += 1;
++  }
++  return out;
++}
++
 +// Only the import clause counts: `import X`, `import { X }`, `import { Y as X }`,
-+// and the require forms. A name in a comment or a string is not a use.
-+function importsName(text, name) {
++// and the require forms.
++function importsName(rawText, name) {
++  const text = stripCommentsAndStrings(rawText);
 +  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 +  const clause = String.raw`(?:^|[\s,{])${escaped}(?:$|[\s,}])`;
 +
@@ -1416,6 +1717,28 @@ index 0000000..e092b5d
 +## Việc cần làm tiếp
 +
 +<Task BUILD nào cần mở để sửa. Ghi "không cần" nếu điều tra kết luận là không phải lỗi.>
+diff --git a/test/deep-integration.deep.mjs b/test/deep-integration.deep.mjs
+index 73a38ef..90a0c39 100644
+--- a/test/deep-integration.deep.mjs
++++ b/test/deep-integration.deep.mjs
+@@ -154,12 +154,17 @@ test('E2 removing a test fails the test gate by spec ID', { skip }, () => {
+       assert.notEqual(end, -1, 'không tìm thấy chỗ đóng của test S1');
+       return src.slice(0, start) + src.slice(end + 4);
+     });
++    // knowledge runs before test and notices the edited file first, so resync
++    // to get past it — the point here is what the test gate says about S1.
++    compass(['knowledge', '--sync']);
++
+     const result = compass(['check', TASK]);
+     assert.equal(result.status, 1, result.stdout);
+     assert.match(result.stdout, /Gate test FAILED/);
+     assert.match(result.stdout, /S1/);
+   } finally {
+     restore();
++    compass(['knowledge', '--sync']);
+   }
+ });
+ 
 diff --git a/test/gates.test.mjs b/test/gates.test.mjs
 index d36f6f4..9a6283e 100644
 --- a/test/gates.test.mjs
@@ -1445,10 +1768,10 @@ index d36f6f4..9a6283e 100644
 +});
 diff --git a/test/investigate-command.test.mjs b/test/investigate-command.test.mjs
 new file mode 100644
-index 0000000..d19cf6c
+index 0000000..8331d6c
 --- /dev/null
 +++ b/test/investigate-command.test.mjs
-@@ -0,0 +1,272 @@
+@@ -0,0 +1,294 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
@@ -1601,12 +1924,23 @@ index 0000000..d19cf6c
 +  assert.equal(result.exitCode, 2);
 +});
 +
-+test('EC3 status on an investigation directory says so instead of crashing', () => {
++test('EC3 status on an investigation says it is one, not that a spec is missing', () => {
 +  const root = makeRepo();
 +  investigateCommand({ cwd: root, taskId: 'INV-1' });
++
 +  const result = statusCommand({ cwd: root, taskId: 'INV-1' });
 +  assert.equal(result.exitCode, 2);
-+  assert.match(result.output, /spec|điều tra/i);
++  // The earlier assertion allowed /spec/, which the generic "no spec found"
++  // message satisfies — it passed with no investigation handling at all.
++  assert.match(result.output, /là một điều tra/);
++  assert.match(result.output, /investigation\.md/);
++});
++
++test('status on a task that simply has no spec still says so plainly', () => {
++  const root = makeRepo();
++  const result = statusCommand({ cwd: root, taskId: 'T-KHONG-CO' });
++  assert.equal(result.exitCode, 2);
++  assert.match(result.output, /Không tìm thấy spec/);
 +});
 +
 +test('H5 scripts --list on an empty library explains what it is for', () => {
@@ -1721,12 +2055,23 @@ index 0000000..d19cf6c
 +  assert.match(text, /không xuống dòng ở cuối\n/, 'đoạn cũ phải giữ nguyên và được tách dòng');
 +  assert.match(text, /\n## INV-1/);
 +});
++
++test('EC6 a script opening with a block comment shows the line below it', () => {
++  const root = makeRepo();
++  const dir = path.join(root, '.compass', 'scripts');
++  mkdirSync(dir, { recursive: true });
++  writeFileSync(path.join(dir, 'block.mjs'), '/**\n * Đếm bản ghi mồ côi trong DB\n */\nconsole.log(1);\n');
++
++  const result = scriptsCommand({ cwd: root });
++  assert.match(result.output, /Đếm bản ghi mồ côi trong DB/);
++  assert.ok(!/^\s+\*$/m.test(result.output), 'không được lấy dấu sao làm mô tả');
++});
 diff --git a/test/investigation-parser.test.mjs b/test/investigation-parser.test.mjs
 new file mode 100644
-index 0000000..a40dd2f
+index 0000000..6a3f755
 --- /dev/null
 +++ b/test/investigation-parser.test.mjs
-@@ -0,0 +1,145 @@
+@@ -0,0 +1,192 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { readFileSync } from 'node:fs';
@@ -1871,6 +2216,53 @@ index 0000000..a40dd2f
 +    .replace(/## Pitfall\n\n[\s\S]*?\n\n## Việc cần làm tiếp/, '## Pitfall\n\n\n## Việc cần làm tiếp');
 +  const result = validateForClose(parseInvestigation(source));
 +  assert.ok(result.errors.length >= 2);
++});
++
++test('V8 a half-filled pitfall block is refused, naming the untouched lines', () => {
++  // The block is copied verbatim into the pitfall library, so one real line
++  // among four placeholders would file template text there for good.
++  const source = COMPLETE.replace(
++    /## Pitfall\n\n[\s\S]*?\n\n## Việc cần làm tiếp/,
++    `## Pitfall
++
++**Gặp:** <ngày · id · bối cảnh>
++**Triệu chứng:** <nhận ra bằng dấu hiệu gì>
++**Nguyên nhân:** <vì sao>
++**Vùng ảnh hưởng:** <file / module>
++**Phòng tránh:** bắt 410 rồi full sync lại
++
++## Việc cần làm tiếp`);
++
++  const result = validateForClose(parseInvestigation(source));
++  assert.equal(result.ok, false);
++  assert.ok(result.errors.some((e) => e.includes('Gặp')), result.errors.join(' · '));
++  assert.ok(result.errors.some((e) => e.includes('Nguyên nhân')));
++  assert.ok(!result.errors.some((e) => e.includes('Phòng tránh')), 'dòng đã điền không được kêu');
++});
++
++test('a fully filled pitfall block passes', () => {
++  assert.equal(validateForClose(parseInvestigation(COMPLETE)).ok, true);
++});
++
++test('EC7 a JSX tag in the pitfall is content, not a leftover hint', () => {
++  // "<SaveButton />" is a real answer to "which area is affected". Refusing it
++  // tells the author they left a field blank when they filled it in.
++  for (const answer of ['<SaveButton />', '<Modal />', '<select>']) {
++    const source = COMPLETE.replace(
++      '**Vùng ảnh hưởng:** src/modules/outlook/calendar-sync.service.ts',
++      `**Vùng ảnh hưởng:** ${answer}`);
++    const result = validateForClose(parseInvestigation(source));
++    assert.equal(result.ok, true, `${answer} bị chặn oan: ${result.errors.join(' · ')}`);
++  }
++});
++
++test('a template hint with separators is still caught', () => {
++  for (const hint of ['<ngày · id · bối cảnh>', '<file / module>', '<vì sao>']) {
++    const source = COMPLETE.replace('**Nguyên nhân:** deltaToken hết hạn sau 30 ngày',
++      `**Nguyên nhân:** ${hint}`);
++    const result = validateForClose(parseInvestigation(source));
++    assert.equal(result.ok, false, `${hint} phải bị coi là chưa điền`);
++  }
 +});
 diff --git a/test/knowledge-command.test.mjs b/test/knowledge-command.test.mjs
 new file mode 100644
@@ -2077,10 +2469,10 @@ index 0000000..3db3372
 +});
 diff --git a/test/knowledge-scan.test.mjs b/test/knowledge-scan.test.mjs
 new file mode 100644
-index 0000000..e3a74fa
+index 0000000..779a275
 --- /dev/null
 +++ b/test/knowledge-scan.test.mjs
-@@ -0,0 +1,182 @@
+@@ -0,0 +1,236 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -2262,6 +2654,60 @@ index 0000000..e3a74fa
 +  });
 +  const { components } = scanComponents(root);
 +  assert.equal(components.Button.usedIn, 1);
++});
++
++test('V5 a TSX prop list with a type object keeps every prop', () => {
++  // `lastIndexOf('}')` used to grab the type object's closing brace, dropping
++  // half the props while still claiming confidence.
++  const root = makeTree({
++    'src/Card.tsx': 'export function Card({ title, count }: { title: string; count: number }) { return null; }\n',
++  });
++  const { components } = scanComponents(root);
++  assert.deepEqual(Object.keys(components.Card.props).sort(), ['count', 'title']);
++  assert.equal(components.Card.confident, true);
++});
++
++test('a single TSX prop with a type object is not lost entirely', () => {
++  const root = makeTree({
++    'src/One.tsx': 'export function One({ label }: { label: string }) { return null; }\n',
++  });
++  const { components } = scanComponents(root);
++  assert.deepEqual(Object.keys(components.One.props), ['label']);
++});
++
++test('a prop typed as a function signature survives', () => {
++  const root = makeTree({
++    'src/Btn.tsx': 'export function Btn({ onClick }: { onClick: () => void }) { return null; }\n',
++  });
++  const { components } = scanComponents(root);
++  assert.deepEqual(Object.keys(components.Btn.props), ['onClick']);
++});
++
++test('EC8 an import that has been commented out is not a use', () => {
++  const root = makeTree({
++    'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
++    'src/Page.jsx': "// import { Orphan } from './Orphan';\nexport const Page = () => null;\n",
++  });
++  const { components } = scanComponents(root);
++  assert.equal(components.Orphan.usedIn, 0);
++});
++
++test('an import inside a block comment is not a use', () => {
++  const root = makeTree({
++    'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
++    'src/Page.jsx': "/* import { Orphan } from './Orphan'; */\nexport const Page = () => null;\n",
++  });
++  const { components } = scanComponents(root);
++  assert.equal(components.Orphan.usedIn, 0);
++});
++
++test('EC9 an import-shaped string is not a use', () => {
++  const root = makeTree({
++    'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
++    'src/doc.js': 'export const example = `import Orphan from "./Orphan"`;\n',
++  });
++  const { components } = scanComponents(root);
++  assert.equal(components.Orphan.usedIn, 0);
 +});
 diff --git a/test/manifest.test.mjs b/test/manifest.test.mjs
 new file mode 100644

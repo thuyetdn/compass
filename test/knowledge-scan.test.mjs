@@ -180,3 +180,57 @@ test('a require call counts as a use', () => {
   const { components } = scanComponents(root);
   assert.equal(components.Button.usedIn, 1);
 });
+
+test('V5 a TSX prop list with a type object keeps every prop', () => {
+  // `lastIndexOf('}')` used to grab the type object's closing brace, dropping
+  // half the props while still claiming confidence.
+  const root = makeTree({
+    'src/Card.tsx': 'export function Card({ title, count }: { title: string; count: number }) { return null; }\n',
+  });
+  const { components } = scanComponents(root);
+  assert.deepEqual(Object.keys(components.Card.props).sort(), ['count', 'title']);
+  assert.equal(components.Card.confident, true);
+});
+
+test('a single TSX prop with a type object is not lost entirely', () => {
+  const root = makeTree({
+    'src/One.tsx': 'export function One({ label }: { label: string }) { return null; }\n',
+  });
+  const { components } = scanComponents(root);
+  assert.deepEqual(Object.keys(components.One.props), ['label']);
+});
+
+test('a prop typed as a function signature survives', () => {
+  const root = makeTree({
+    'src/Btn.tsx': 'export function Btn({ onClick }: { onClick: () => void }) { return null; }\n',
+  });
+  const { components } = scanComponents(root);
+  assert.deepEqual(Object.keys(components.Btn.props), ['onClick']);
+});
+
+test('EC8 an import that has been commented out is not a use', () => {
+  const root = makeTree({
+    'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
+    'src/Page.jsx': "// import { Orphan } from './Orphan';\nexport const Page = () => null;\n",
+  });
+  const { components } = scanComponents(root);
+  assert.equal(components.Orphan.usedIn, 0);
+});
+
+test('an import inside a block comment is not a use', () => {
+  const root = makeTree({
+    'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
+    'src/Page.jsx': "/* import { Orphan } from './Orphan'; */\nexport const Page = () => null;\n",
+  });
+  const { components } = scanComponents(root);
+  assert.equal(components.Orphan.usedIn, 0);
+});
+
+test('EC9 an import-shaped string is not a use', () => {
+  const root = makeTree({
+    'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
+    'src/doc.js': 'export const example = `import Orphan from "./Orphan"`;\n',
+  });
+  const { components } = scanComponents(root);
+  assert.equal(components.Orphan.usedIn, 0);
+});

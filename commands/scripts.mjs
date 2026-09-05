@@ -30,7 +30,11 @@ function purposeOf(head) {
     const line = raw.trim();
     if (line === '') continue;
     if (line.startsWith('#!')) continue;
-    const comment = line.match(/^(?:\/\/|#|--|\*|\/\*)\s*(.+?)\s*(?:\*\/)?$/);
+    // A bare block-comment opener carries no text; the description is on the
+    // next line. Returning "*" here would look like a purpose nobody wrote.
+    if (line === '/*' || line === '/**' || line === '*' || line === '*/') continue;
+
+    const comment = line.match(/^(?:\/\/|#|--|\*|\/\*\*?)\s*(.+?)\s*(?:\*\/)?$/);
     if (comment && comment[1]) return comment[1];
     // First non-comment line means the file opened with code.
     return null;

@@ -62,3 +62,6 @@ Quét cả cây source ở repo lớn có thể chậm. Phải đo.
 | EC5 | Edge | Tên component xuất hiện trong comment | Không tính là dùng | P0 |
 | EC6 | Edge | Tên component nằm trong chuỗi | Không tính là dùng | P0 |
 | EC7 | Edge | Import đổi tên: { X as Y } | Tính là dùng X | P1 |
+| V5 | Validation | Prop TSX có type object đi kèm | Trích đủ prop, không mất cái nào | P0 |
+| EC8 | Edge | Import bị comment-out | Không tính là dùng | P0 |
+| EC9 | Edge | Chuỗi chứa chữ "import" | Không tính là dùng | P0 |

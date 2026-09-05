@@ -150,12 +150,23 @@ test('E3 a deleted file mid-investigation is reported, not crashed on', () => {
   assert.equal(result.exitCode, 2);
 });
 
-test('EC3 status on an investigation directory says so instead of crashing', () => {
+test('EC3 status on an investigation says it is one, not that a spec is missing', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
+
   const result = statusCommand({ cwd: root, taskId: 'INV-1' });
   assert.equal(result.exitCode, 2);
-  assert.match(result.output, /spec|điều tra/i);
+  // The earlier assertion allowed /spec/, which the generic "no spec found"
+  // message satisfies — it passed with no investigation handling at all.
+  assert.match(result.output, /là một điều tra/);
+  assert.match(result.output, /investigation\.md/);
+});
+
+test('status on a task that simply has no spec still says so plainly', () => {
+  const root = makeRepo();
+  const result = statusCommand({ cwd: root, taskId: 'T-KHONG-CO' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /Không tìm thấy spec/);
 });
 
 test('H5 scripts --list on an empty library explains what it is for', () => {
@@ -269,4 +280,15 @@ test('EC5 an existing pitfalls file with no trailing newline stays readable', ()
   const text = readFileSync(pitfalls, 'utf8');
   assert.match(text, /không xuống dòng ở cuối\n/, 'đoạn cũ phải giữ nguyên và được tách dòng');
   assert.match(text, /\n## INV-1/);
+});
+
+test('EC6 a script opening with a block comment shows the line below it', () => {
+  const root = makeRepo();
+  const dir = path.join(root, '.compass', 'scripts');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, 'block.mjs'), '/**\n * Đếm bản ghi mồ côi trong DB\n */\nconsole.log(1);\n');
+
+  const result = scriptsCommand({ cwd: root });
+  assert.match(result.output, /Đếm bản ghi mồ côi trong DB/);
+  assert.ok(!/^\s+\*$/m.test(result.output), 'không được lấy dấu sao làm mô tả');
 });

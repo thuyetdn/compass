@@ -65,3 +65,6 @@ lại chứ không đoán.
 | V6 | Validation | Khối Pitfall còn nguyên chữ mẫu dạng nhãn | Chặn — placeholder sau nhãn cũng là placeholder | P0 |
 | V7 | Validation | Dòng tiêu đề còn chữ mẫu | Chặn, không ghi heading vô nghĩa vào kho pitfall | P0 |
 | EC5 | Edge | pitfalls.md không kết thúc bằng newline | Heading mới không dính vào đoạn cũ | P1 |
+| V8 | Validation | Khối Pitfall điền một phần | Chặn, nêu đúng dòng nào còn chữ mẫu | P0 |
+| EC6 | Edge | Script mở đầu bằng /** | Đọc mô tả ở dòng dưới, không lấy dấu sao | P1 |
+| EC7 | Edge | Pitfall ghi tên thẻ JSX | Không chặn nhầm — đó là nội dung thật | P0 |

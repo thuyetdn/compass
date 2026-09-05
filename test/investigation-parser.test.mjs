@@ -143,3 +143,50 @@ test('every gap is reported at once, not one per run', () => {
   const result = validateForClose(parseInvestigation(source));
   assert.ok(result.errors.length >= 2);
 });
+
+test('V8 a half-filled pitfall block is refused, naming the untouched lines', () => {
+  // The block is copied verbatim into the pitfall library, so one real line
+  // among four placeholders would file template text there for good.
+  const source = COMPLETE.replace(
+    /## Pitfall\n\n[\s\S]*?\n\n## Việc cần làm tiếp/,
+    `## Pitfall
+
+**Gặp:** <ngày · id · bối cảnh>
+**Triệu chứng:** <nhận ra bằng dấu hiệu gì>
+**Nguyên nhân:** <vì sao>
+**Vùng ảnh hưởng:** <file / module>
+**Phòng tránh:** bắt 410 rồi full sync lại
+
+## Việc cần làm tiếp`);
+
+  const result = validateForClose(parseInvestigation(source));
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('Gặp')), result.errors.join(' · '));
+  assert.ok(result.errors.some((e) => e.includes('Nguyên nhân')));
+  assert.ok(!result.errors.some((e) => e.includes('Phòng tránh')), 'dòng đã điền không được kêu');
+});
+
+test('a fully filled pitfall block passes', () => {
+  assert.equal(validateForClose(parseInvestigation(COMPLETE)).ok, true);
+});
+
+test('EC7 a JSX tag in the pitfall is content, not a leftover hint', () => {
+  // "<SaveButton />" is a real answer to "which area is affected". Refusing it
+  // tells the author they left a field blank when they filled it in.
+  for (const answer of ['<SaveButton />', '<Modal />', '<select>']) {
+    const source = COMPLETE.replace(
+      '**Vùng ảnh hưởng:** src/modules/outlook/calendar-sync.service.ts',
+      `**Vùng ảnh hưởng:** ${answer}`);
+    const result = validateForClose(parseInvestigation(source));
+    assert.equal(result.ok, true, `${answer} bị chặn oan: ${result.errors.join(' · ')}`);
+  }
+});
+
+test('a template hint with separators is still caught', () => {
+  for (const hint of ['<ngày · id · bối cảnh>', '<file / module>', '<vì sao>']) {
+    const source = COMPLETE.replace('**Nguyên nhân:** deltaToken hết hạn sau 30 ngày',
+      `**Nguyên nhân:** ${hint}`);
+    const result = validateForClose(parseInvestigation(source));
+    assert.equal(result.ok, false, `${hint} phải bị coi là chưa điền`);
+  }
+});

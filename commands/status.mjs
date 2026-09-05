@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { findRoot, specPath } from '../lib/paths.mjs';
+import path from 'node:path';
+import { findRoot, specPath, taskDir } from '../lib/paths.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
 import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
@@ -16,7 +17,23 @@ export function statusCommand({ cwd, taskId }) {
   if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
 
   const file = specPath(root, taskId);
-  if (!existsSync(file)) return { exitCode: 2, output: `Không tìm thấy spec: ${file}` };
+  if (!existsSync(file)) {
+    // An investigation has no spec and no gates. Saying "no spec found" would
+    // read as a broken task rather than a different kind of work.
+    const investigation = path.join(taskDir(root, taskId), 'investigation.md');
+    if (existsSync(investigation)) {
+      return {
+        exitCode: 2,
+        output: [
+          `${taskId} là một điều tra, không phải task BUILD — không có spec và không có gate.`,
+          `  hồ sơ: .compass/${taskId}/investigation.md`,
+          '',
+          `Đóng bằng: compass investigate ${taskId} --close`,
+        ].join('\n'),
+      };
+    }
+    return { exitCode: 2, output: `Không tìm thấy spec: ${file}` };
+  }
 
   const spec = parseSpec(readFileSync(file, 'utf8'));
   const rules = rulesFor(spec.type);

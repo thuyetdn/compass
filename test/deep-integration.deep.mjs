@@ -154,12 +154,17 @@ test('E2 removing a test fails the test gate by spec ID', { skip }, () => {
       assert.notEqual(end, -1, 'không tìm thấy chỗ đóng của test S1');
       return src.slice(0, start) + src.slice(end + 4);
     });
+    // knowledge runs before test and notices the edited file first, so resync
+    // to get past it — the point here is what the test gate says about S1.
+    compass(['knowledge', '--sync']);
+
     const result = compass(['check', TASK]);
     assert.equal(result.status, 1, result.stdout);
     assert.match(result.stdout, /Gate test FAILED/);
     assert.match(result.stdout, /S1/);
   } finally {
     restore();
+    compass(['knowledge', '--sync']);
   }
 });
 
