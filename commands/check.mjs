@@ -5,13 +5,15 @@ import { rulesFor } from '../lib/task-types.mjs';
 import { specCommand } from './spec.mjs';
 import { testCommand } from './test.mjs';
 import { info } from '../lib/report.mjs';
+import { conventionCommand } from './convention.mjs';
+import { GATE_ORDER } from '../lib/gates.mjs';
 
 const IMPLEMENTED = {
   spec: specCommand,
+  convention: conventionCommand,
   test: testCommand,
 };
 
-const ORDER = ['spec', 'convention', 'test', 'ui', 'visual', 'review'];
 
 export function checkCommand({ cwd, taskId, only }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass check <id>' };
@@ -28,7 +30,7 @@ export function checkCommand({ cwd, taskId, only }) {
     return { exitCode: 2, output: `Loại task không hợp lệ trong spec: "${spec.type}"` };
   }
 
-  let gates = ORDER.filter((g) => rules.gates.includes(g));
+  let gates = GATE_ORDER.filter((g) => rules.gates.includes(g));
 
   if (only) {
     if (!gates.includes(only)) {

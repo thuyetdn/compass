@@ -52,11 +52,29 @@ Gate record có chữ ký — sửa tay là lộ.
 
 ## Trạng thái
 
-GĐ 1 xong: gate `spec` và `test`, 218 test.
-GĐ 2-4: `convention`, `ui`, `visual`, `review`, knowledge base, điều tra, multi-repo.
+Gate đã có: `spec`, `convention`, `test` — 253 test.
+Còn thiếu: `ui`, `visual`, `review`, knowledge base, điều tra, multi-repo.
 
 Task `feature-s` trở lên đóng xanh **mà chưa ai đo giao diện** — `done` liệt kê rõ gate nào
 chưa được kiểm. Đọc dòng đó.
+
+## Quy ước
+
+Viết luật một lần vào `.knowledge/decided/conventions.md` — vừa là tài liệu, vừa là gate:
+
+    ## Không hardcode mã màu
+
+    Màu phải đi qua CSS variable.
+
+    ```rule
+    id: no-hex-color
+    type: forbid-pattern
+    pattern: "#[0-9a-fA-F]{3,8}"
+    scope: src/**/*.jsx
+    severity: error
+    ```
+
+Không có file này thì gate pass và nói rõ là chưa có luật nào.
 
 ## Reporter
 

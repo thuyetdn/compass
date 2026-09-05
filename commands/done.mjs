@@ -5,8 +5,9 @@ import { rulesFor } from '../lib/task-types.mjs';
 import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
+import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
 
-const IMPLEMENTED_GATES = ['spec', 'test'];
+
 
 export function doneCommand({ cwd, taskId }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass done <id>' };

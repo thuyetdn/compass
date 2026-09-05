@@ -2,6 +2,7 @@
 import { initCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
 import { testCommand } from './commands/test.mjs';
+import { conventionCommand } from './commands/convention.mjs';
 import { checkCommand } from './commands/check.mjs';
 import { doneCommand } from './commands/done.mjs';
 import { statusCommand } from './commands/status.mjs';
@@ -11,6 +12,7 @@ const USAGE = `compass — quy trình có bằng chứng
 Dùng:
   compass init <id> --type=<fix|bug|feature-s|feature-m|feature-l>
   compass spec <id>
+  compass convention <id>
   compass test <id>
   compass check <id>
   compass done <id>
@@ -46,6 +48,9 @@ function main() {
         break;
       case 'spec':
         result = specCommand({ cwd, taskId });
+        break;
+      case 'convention':
+        result = conventionCommand({ cwd, taskId });
         break;
       case 'test':
         result = testCommand({ cwd, taskId });

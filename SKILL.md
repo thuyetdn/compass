@@ -168,7 +168,43 @@ Pass → **dừng lại, đưa người duyệt**. Đây là điểm dừng bắ
 compass check <id>
 ```
 
-Chạy các gate áp dụng, dừng ngay khi fail. Gate `test` không chỉ xem suite xanh — nó còn đối chiếu **mọi test ID trong spec đã thực sự chạy chưa**.
+Chạy các gate áp dụng, dừng ngay khi fail. Rẻ trước, đắt sau: `spec` → `convention` → `test`.
+
+Gate `test` không chỉ xem suite xanh — nó còn đối chiếu **mọi test ID trong spec đã thực sự chạy chưa**.
+
+### Gate `convention` — quy ước viết một lần
+
+Luật nằm trong `.knowledge/decided/conventions.md`. Phần văn xuôi cho người đọc, khối ```` ```rule ```` cho máy chạy:
+
+````markdown
+## Không hardcode mã màu
+
+Màu phải đi qua CSS variable để đổi theme được.
+
+```rule
+id: no-hex-color
+type: forbid-pattern
+pattern: "#[0-9a-fA-F]{3,8}\b"
+scope: src/**/*.jsx
+severity: error
+message: Dùng CSS variable thay vì mã màu
+```
+````
+
+| Trường | Nghĩa |
+|---|---|
+| `id` | Tên luật, hiện trong báo lỗi. Không trùng nhau |
+| `type` | Hiện chỉ có `forbid-pattern` |
+| `pattern` | Regex. Khớp là vi phạm |
+| `scope` | Glob: `**`, `*`, `?` |
+| `severity` | `error` chặn gate, `warn` chỉ hiện ra |
+| `message` | Tùy chọn — câu nhắc kèm mỗi vi phạm |
+
+Không có `conventions.md` thì gate pass và nói rõ là chưa có luật nào. Luật khai sai — thiếu trường, regex hỏng, `type` chưa hỗ trợ — thì gate **fail**, vì luật chạy không được trông như có bảo vệ mà thật ra không bảo vệ gì.
+
+`node_modules`, `dist`, `build`, `coverage`, `.git` không bị quét.
+
+**Giới hạn:** chỉ khớp mẫu theo dòng, không phân tích AST. Luật kiểu "component này phải nhận prop kia" chưa làm được. Quy ước mềm cứ để dạng văn xuôi — vẫn đọc được, chỉ không có gate.
 
 ### Cách Compass đếm test ID
 
@@ -239,7 +275,7 @@ Ba điều này chặn được **sai sót vô tình**, không chặn được *
 
 ## Giai đoạn hiện tại
 
-GĐ 1 có gate `spec` và `test`. Các gate `convention`, `ui`, `visual`, `review` thuộc giai đoạn sau — `check` báo chúng là bỏ qua, không tính fail, và `done` liệt kê rõ gate nào chưa được kiểm.
+Đã có: `spec`, `convention`, `test`. Còn thiếu: `ui`, `visual`, `review` — `check` báo chúng là bỏ qua, không tính fail, và `done` liệt kê rõ gate nào chưa được kiểm.
 
 Task frontend `feature-s` trở lên vì thế đóng xanh **mà chưa ai đo giao diện**. Dòng "chưa xây dựng ở giai đoạn này" trong output `done` là thứ phải đọc, không phải ghi chú cho vui.
 

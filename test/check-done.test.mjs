@@ -81,7 +81,7 @@ test('C4: checkCommand --only with an unknown gate exits non-zero and names vali
 test('C4: checkCommand --only with an applicable-but-unimplemented gate exits non-zero', () => {
   const featureSSpec = SPEC.replace('Loại: fix', 'Loại: feature-s');
   const root = makeTask(GREEN, featureSSpec);
-  const result = checkCommand({ cwd: root, taskId: 'T-1', only: 'convention' });
+  const result = checkCommand({ cwd: root, taskId: 'T-1', only: 'ui' });
   assert.notEqual(result.exitCode, 0);
   assert.match(result.output, /chưa được xây dựng/);
 });
@@ -219,7 +219,7 @@ ${rows.join('\n')}
   checkCommand({ cwd: root, taskId: 'T-FM' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM' });
   assert.equal(result.exitCode, 0, result.output);
-  assert.match(result.output, /convention, ui, visual, review/);
+  assert.match(result.output, /ui, visual, review/);
   assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });
@@ -283,7 +283,7 @@ ${rows.join('\n')}
   checkCommand({ cwd: root, taskId: 'T-FM2' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM2' });
   assert.equal(result.exitCode, 1);
-  assert.match(result.output, /convention, ui, visual, review/);
+  assert.match(result.output, /ui, visual, review/);
   assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });
