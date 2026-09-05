@@ -786,15 +786,30 @@ git commit -m "feat: add config loading and validation"
 **Interfaces:**
 - Consumes: (không)
 - Produces:
-  - `parseSpec(markdown: string): {taskId, title, type, scope, sections: Map<string,string>, testCases: TestCase[]}`
+  - `parseSpec(markdown: string): {taskId, title, type, scope, sections: Map<string,string>, testCases: TestCase[], malformedRows: MalformedRow[]}`
   - `TestCase = {id: string, layer: string, description: string, expected: string, priority: string}`
+  - `MalformedRow = {line: number, text: string, cellCount: number}`
 
 Parser đọc:
 - Dòng `# <taskId>: <title>`
-- Dòng `Loại: <type>`
-- Dòng `Phạm vi: <scope>`
+- Dòng `Loại: <type>` — lấy lần xuất hiện **đầu tiên**, ở bất kỳ đâu trong file
+- Dòng `Phạm vi: <scope>` — tương tự
 - Các heading `## <tên>` → nội dung vào `sections`
 - Bảng dưới `## Test cases` → mảng `testCases` (bỏ qua dòng header và dòng phân cách `|---|`)
+
+**Nguyên tắc: parser phải to tiếng, không được im lặng.** Hàng nào trong bảng test case không đọc được thành đúng 5 ô thì vào `malformedRows` kèm số dòng — không được bỏ qua.
+
+Ba cách hàng bị hỏng mà bản đầu tiên nuốt im lặng:
+
+| Đầu vào | Bản im lặng làm gì | Phải làm gì |
+|---|---|---|
+| `\| H1 \| Happy \| a \| b \|` (4 ô) | biến mất khỏi `testCases` | vào `malformedRows` |
+| `\| H1 \| Happy \| a \| b \| P0 \| x \|` (6 ô) | nhận, vứt ô thứ 6 | vào `malformedRows` |
+| `\| H1 \| Happy \| a\|b \| c \| P0 \|` | mọi trường dịch chuyển, `priority` = `"c"` | vào `malformedRows` |
+
+Vì sao nghiêm trọng: Task 13 đối chiếu ID trong bảng này với test đã chạy. Một hàng biến mất khỏi bản đếm nghĩa là spec khai 21 case nhưng ngưỡng tụt còn 20 — mà không ai biết. Công cụ im lặng trước dữ liệu nó không hiểu chính là thứ Compass tồn tại để chống.
+
+Tương tự, `Loại:`/`Phạm vi:` phải đọc được ở mọi vị trí. Bản đầu chỉ đọc trước heading đầu tiên, nên đặt sai chỗ là `type` rỗng, rồi validator báo "loại không hợp lệ" — che mất nguyên nhân thật.
 
 - [ ] **Step 1: Viết test thất bại**
 
@@ -870,6 +885,46 @@ test('parseSpec returns empty test cases when the table is absent', () => {
   const spec = parseSpec('# T-002: Không có bảng\nLoại: fix\n');
   assert.deepEqual(spec.testCases, []);
 });
+
+const TABLE_HEAD = '| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |\n|----|-----|-------|---------|---------|';
+const withRows = (rows) =>
+  `# T-1: X\nLoại: fix\nPhạm vi: src/\n\n## Test cases\n${TABLE_HEAD}\n${rows}\n`;
+
+test('parseSpec records a row with too few cells as malformed', () => {
+  const spec = parseSpec(withRows('| H1 | Happy | a | b |'));
+  assert.deepEqual(spec.testCases, []);
+  assert.equal(spec.malformedRows.length, 1);
+  assert.equal(spec.malformedRows[0].cellCount, 4);
+});
+
+test('parseSpec records a row with too many cells as malformed', () => {
+  const spec = parseSpec(withRows('| H1 | Happy | a | b | P0 | thừa |'));
+  assert.deepEqual(spec.testCases, []);
+  assert.equal(spec.malformedRows.length, 1);
+});
+
+test('parseSpec refuses to shift fields when a cell contains a pipe', () => {
+  const spec = parseSpec(withRows('| H1 | Happy | a|b | c | P0 |'));
+  assert.ok(!spec.testCases.some((c) => c.priority === 'c'));
+  assert.equal(spec.malformedRows.length, 1);
+});
+
+test('parseSpec reports no malformed rows for a clean table', () => {
+  const spec = parseSpec(withRows('| H1 | Happy | a | b | P0 |'));
+  assert.equal(spec.testCases.length, 1);
+  assert.deepEqual(spec.malformedRows, []);
+});
+
+test('parseSpec reads metadata placed after a heading', () => {
+  const spec = parseSpec('# T-1: X\n\n## Mục tiêu\nLoại: fix\nPhạm vi: src/\n');
+  assert.equal(spec.type, 'fix');
+  assert.equal(spec.scope, 'src/');
+});
+
+test('parseSpec keeps the first value when metadata appears twice', () => {
+  const spec = parseSpec('# T-1: X\nLoại: fix\n\n## Mục tiêu\nLoại: feature-l\n');
+  assert.equal(spec.type, 'fix');
+});
 ```
 
 - [ ] **Step 2: Chạy test, xác nhận fail**
@@ -897,6 +952,7 @@ export function parseSpec(markdown) {
   let scope = '';
   const sections = new Map();
   const testCases = [];
+  const malformedRows = [];
 
   let currentSection = null;
   let buffer = [];
@@ -909,12 +965,12 @@ export function parseSpec(markdown) {
     buffer = [];
   };
 
-  for (const line of lines) {
+  lines.forEach((line, index) => {
     const heading1 = line.match(/^#\s+([^:]+):\s*(.+)$/);
     if (heading1) {
       taskId = heading1[1].trim();
       title = heading1[2].trim();
-      continue;
+      return;
     }
 
     const heading2 = line.match(/^##\s+(.+)$/);
@@ -922,42 +978,43 @@ export function parseSpec(markdown) {
       flush();
       currentSection = heading2[1].trim();
       inTestTable = currentSection === 'Test cases';
-      continue;
+      return;
     }
 
-    if (currentSection === null) {
-      const typeLine = line.match(/^Loại:\s*(.+)$/);
-      if (typeLine) { type = typeLine[1].trim(); continue; }
-      const scopeLine = line.match(/^Phạm vi:\s*(.+)$/);
-      if (scopeLine) { scope = scopeLine[1].trim(); continue; }
-    }
+    const typeLine = line.match(/^Loại:\s*(.+)$/);
+    if (typeLine && type === '') { type = typeLine[1].trim(); return; }
+    const scopeLine = line.match(/^Phạm vi:\s*(.+)$/);
+    if (scopeLine && scope === '') { scope = scopeLine[1].trim(); return; }
 
     if (inTestTable && line.trim().startsWith('|')) {
       const cells = splitRow(line);
-      if (cells.length >= 5 && !isSeparator(cells) && cells[0] !== 'ID') {
-        testCases.push({
-          id: cells[0],
-          layer: cells[1],
-          description: cells[2],
-          expected: cells[3],
-          priority: cells[4],
-        });
+      if (isSeparator(cells) || cells[0] === 'ID') return;
+      if (cells.length !== 5) {
+        malformedRows.push({ line: index + 1, text: line.trim(), cellCount: cells.length });
+        return;
       }
-      continue;
+      testCases.push({
+        id: cells[0],
+        layer: cells[1],
+        description: cells[2],
+        expected: cells[3],
+        priority: cells[4],
+      });
+      return;
     }
 
     buffer.push(line);
-  }
+  });
   flush();
 
-  return { taskId, title, type, scope, sections, testCases };
+  return { taskId, title, type, scope, sections, testCases, malformedRows };
 }
 ```
 
 - [ ] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/spec-parser.test.mjs`
-Expected: PASS — 8 test
+Expected: PASS — 14 test
 
 - [ ] **Step 5: Commit**
 
@@ -1089,6 +1146,19 @@ test('validateSpec does not fire the empty-table error when cases exist', () => 
   const result = validateSpec(buildSpec({ type: 'fix', rows: [happy(1), happy(2)] }));
   assert.ok(!result.errors.some((e) => e.includes('ít nhất 1 test case')));
 });
+
+test('validateSpec rejects a malformed table row and names its line', () => {
+  const rows = [happy(1), happy(2), '| H3 | Happy | thiếu cột | P0 |'];
+  const result = validateSpec(buildSpec({ type: 'fix', rows }));
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('không đúng định dạng')));
+  assert.ok(result.errors.some((e) => /Dòng \d+/.test(e)));
+});
+
+test('validateSpec reports no format error for a clean table', () => {
+  const result = validateSpec(buildSpec({ type: 'fix', rows: [happy(1), happy(2)] }));
+  assert.ok(!result.errors.some((e) => e.includes('không đúng định dạng')));
+});
 ```
 
 - [ ] **Step 2: Chạy test, xác nhận fail**
@@ -1127,6 +1197,12 @@ export function validateSpec(markdown) {
     errors.push('Spec phải có ít nhất 1 test case');
   }
 
+  for (const row of spec.malformedRows) {
+    errors.push(
+      `Dòng ${row.line} trong bảng Test cases không đúng định dạng (có ${row.cellCount} cột, cần 5): ${row.text}`
+    );
+  }
+
   const seen = new Set();
   for (const c of spec.testCases) {
     if (seen.has(c.id)) errors.push(`Test case ID bị trùng: ${c.id}`);
@@ -1156,7 +1232,7 @@ export function validateSpec(markdown) {
 - [ ] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/spec-validator.test.mjs`
-Expected: PASS — 11 test
+Expected: PASS — 13 test
 
 - [ ] **Step 5: Commit**
 
