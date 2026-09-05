@@ -64,3 +64,48 @@ test('P2 stopping a server twice is harmless', async () => {
   server.stop(); // must not throw
   assert.equal(server.exited, true);
 });
+
+test('EC3 a shell that exits early still has its children killed', async () => {
+  const { startDevServer } = await import('../lib/dev-server.mjs');
+  const { createServer } = await import('node:http');
+  const { writeFileSync, mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const path = (await import('node:path')).default;
+
+  // A server whose launching shell goes away while it keeps the port: the
+  // shape npm run dev has, and the one killTree used to skip.
+  const dir = mkdtempSync(path.join(tmpdir(), 'compass-kill-'));
+  const script = path.join(dir, 'server.js');
+  writeFileSync(script, `
+    const { createServer } = require('node:http');
+    createServer((req, res) => { res.writeHead(200); res.end('ok'); }).listen(0, '127.0.0.1', function () {
+      console.log('PORT=' + this.address().port);
+    });
+  `);
+
+  const server = startDevServer(`node "${script}"`, dir);
+  const port = await new Promise((resolve) => {
+    const timer = setInterval(() => {
+      const found = server.output.match(/PORT=(\d+)/);
+      if (found) { clearInterval(timer); resolve(Number(found[1])); }
+    }, 50);
+  });
+
+  const url = `http://127.0.0.1:${port}/`;
+  assert.equal((await waitForUrl(url, { timeoutMs: 5000 })).ok, true, 'server phải lên trước đã');
+
+  await server.stop();
+
+  // stop() must not return until the port is actually free.
+  const stillUp = await waitForUrl(url, { timeoutMs: 400, intervalMs: 100 });
+  assert.equal(stillUp.ok, false, 'cổng phải được nhả ngay khi stop trả về');
+});
+
+test('P1 stop resolves only after the process is gone', async () => {
+  const { startDevServer } = await import('../lib/dev-server.mjs');
+  const server = startDevServer('node -e "setInterval(() => {}, 1000)"', process.cwd());
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  await server.stop();
+  assert.equal(server.exited, true, 'stop trả về thì tiến trình phải chết rồi');
+});

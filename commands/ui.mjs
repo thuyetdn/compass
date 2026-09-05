@@ -225,6 +225,6 @@ export async function uiCommand({ cwd, taskId }) {
     // The dev server outlives an exception unless it is killed here, and a held
     // port makes the next run hang on a page from the previous one.
     if (browser) await browser.close().catch(() => {});
-    server.stop();
+    await server.stop();
   }
 }

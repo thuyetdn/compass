@@ -222,6 +222,6 @@ export async function visualCommand({ cwd, taskId }) {
     return { exitCode: 2, output: fail('visual', [`Không chụp được: ${err.message}`]) };
   } finally {
     if (browser) await browser.close().catch(() => {});
-    server.stop();
+    await server.stop();
   }
 }

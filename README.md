@@ -52,7 +52,7 @@ Gate record có chữ ký — sửa tay là lộ.
 
 ## Trạng thái
 
-Sáu gate đã chạy được: `spec`, `convention`, `test`, `ui`, `visual`, `review` — 401 test.
+Sáu gate đã chạy được: `spec`, `convention`, `test`, `ui`, `visual`, `review` — 403 test.
 
 Chưa có: knowledge base sinh tự động, lệnh `investigate`, multi-repo.
 
