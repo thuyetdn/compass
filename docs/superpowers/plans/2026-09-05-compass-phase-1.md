@@ -227,7 +227,9 @@ git commit -m "feat: add path resolution module"
   - `signRecord(record: object, salt: string): string` — trả chữ ký `"sha256:<hex>"`
   - `verifyRecord(record: object, salt: string): boolean` — record phải có trường `sig`
 
-**Lưu ý thiết kế:** `signRecord` bỏ trường `sig` ra khỏi record trước khi ký, và serialize với key đã sắp xếp — nếu không, thứ tự key thay đổi sẽ làm chữ ký sai dù nội dung y hệt.
+**Lưu ý thiết kế:** `signRecord` bỏ trường `sig` ra khỏi record trước khi ký, và serialize với key đã sắp xếp ở **mọi tầng** — nếu không, thứ tự key thay đổi sẽ làm chữ ký sai dù nội dung y hệt.
+
+**Cạm bẫy đã gặp:** không được dùng `JSON.stringify(obj, keysArray)` để sắp key. Mảng key trong `JSON.stringify` là **bộ lọc đệ quy**, không phải thứ tự sắp xếp — mọi object lồng sẽ bị rỗng hóa thành `{}`, khiến hai record khác nhau cho ra cùng chữ ký. Gate record có `missingIds` là mảng, nên lỗi này phá hỏng đúng thứ module cần bảo vệ. Phải viết serializer đệ quy như dưới.
 
 - [ ] **Step 1: Viết test thất bại cho hash.mjs**
 
@@ -377,6 +379,42 @@ test('verifyRecord rejects a record signed with a different salt', () => {
 test('verifyRecord rejects a record without a signature', () => {
   assert.equal(verifyRecord({ gate: 'test' }, 'abc'), false);
 });
+
+test('signRecord distinguishes records differing only inside a nested object', () => {
+  const salt = 'abc';
+  const a = signRecord({ gate: 'test', evidence: { exitCode: 0, log: 'clean' } }, salt);
+  const b = signRecord({ gate: 'test', evidence: { exitCode: 1, log: 'FAILED' } }, salt);
+  assert.notEqual(a, b);
+});
+
+test('signRecord ignores key order inside a nested object', () => {
+  const salt = 'abc';
+  const a = signRecord({ gate: 't', evidence: { exitCode: 0, log: 'x' } }, salt);
+  const b = signRecord({ gate: 't', evidence: { log: 'x', exitCode: 0 } }, salt);
+  assert.equal(a, b);
+});
+
+test('signRecord distinguishes records differing only in array contents', () => {
+  const salt = 'abc';
+  const a = signRecord({ gate: 'test', missingIds: ['EC3', 'S2'] }, salt);
+  const b = signRecord({ gate: 'test', missingIds: ['EC3'] }, salt);
+  assert.notEqual(a, b);
+});
+
+test('signRecord treats array order as significant', () => {
+  const salt = 'abc';
+  const a = signRecord({ gate: 'test', missingIds: ['a', 'b'] }, salt);
+  const b = signRecord({ gate: 'test', missingIds: ['b', 'a'] }, salt);
+  assert.notEqual(a, b);
+});
+
+test('verifyRecord rejects a tampered nested value', () => {
+  const salt = 'abc';
+  const record = { gate: 'test', evidence: { exitCode: 1 } };
+  record.sig = signRecord(record, salt);
+  record.evidence.exitCode = 0;
+  assert.equal(verifyRecord(record, salt), false);
+});
 ```
 
 - [ ] **Step 6: Chạy test, xác nhận fail**
@@ -400,10 +438,17 @@ export function getSalt(root) {
   return salt;
 }
 
+function canonicalize(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return '[' + value.map(canonicalize).join(',') + ']';
+  const keys = Object.keys(value).sort();
+  const pairs = keys.map((k) => JSON.stringify(k) + ':' + canonicalize(value[k]));
+  return '{' + pairs.join(',') + '}';
+}
+
 function canonical(record) {
   const { sig, ...rest } = record;
-  const keys = Object.keys(rest).sort();
-  return JSON.stringify(rest, keys);
+  return canonicalize(rest);
 }
 
 export function signRecord(record, salt) {
@@ -419,7 +464,7 @@ export function verifyRecord(record, salt) {
 - [ ] **Step 8: Chạy test, xác nhận pass**
 
 Run: `node --test test/signature.test.mjs`
-Expected: PASS — 7 test
+Expected: PASS — 12 test
 
 - [ ] **Step 9: Commit**
 
