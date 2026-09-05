@@ -82,3 +82,15 @@ test('validateSpec reports every problem at once', () => {
   const result = validateSpec(buildSpec({ type: 'huge', regression: '', rows: [] }));
   assert.ok(result.errors.length >= 3);
 });
+
+test('validateSpec rejects empty test table with valid type', () => {
+  const result = validateSpec(buildSpec({ type: 'fix', regression: 'Không có', rows: [] }));
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('ít nhất 1 test case')));
+});
+
+test('validateSpec accepts spec with valid type and at least one test case', () => {
+  const result = validateSpec(buildSpec({ type: 'fix', regression: 'Không có', rows: [happy(1), happy(2)] }));
+  assert.equal(result.ok, true, result.errors.join('; '));
+  assert.ok(!result.errors.some((e) => e.includes('ít nhất 1 test case')));
+});
