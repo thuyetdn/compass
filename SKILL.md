@@ -128,6 +128,14 @@ compass done <id>
 
 Exit 0 mới được báo hoàn thành. Dán output của lệnh này khi báo cáo.
 
+### Gate xanh ≠ mục tiêu đạt
+
+Compass chứng minh **test đã chạy và xanh**. Nó không chứng minh **test đo đúng thứ cần đo**.
+
+Một task có mục tiêu "không còn để lại file rác" có thể pass mọi gate trong khi rác vẫn còn — nếu test case chỉ kiểm hàm dọn chạy được, chứ không kiểm kết quả cuối. Gate không biết điều đó.
+
+Nên: sau khi `done` xanh, **tự kiểm mục tiêu gốc một lần**. Nếu spec nói "sau khi chạy không còn X", thì đi đếm X. Trách nhiệm chọn test case đo đúng mục tiêu vẫn nằm ở người viết spec — công cụ chỉ đảm bảo bạn không nói dối về việc đã chạy chúng.
+
 ## Giai đoạn hiện tại
 
 GĐ 1 có gate `spec` và `test`. Các gate `convention`, `ui`, `visual`, `review` thuộc giai đoạn sau — `check` sẽ báo chúng là bỏ qua, không tính fail. Khi chạy `done`, nếu task type yêu cầu gate chưa được xây dựng, Compass sẽ thông báo rõ chúng là giai đoạn tới.
@@ -143,3 +151,4 @@ GĐ 1 có gate `spec` và `test`. Các gate `convention`, `ui`, `visual`, `revie
 | "Còn 1 test fail nhưng không liên quan" | Fail là fail |
 | "Tôi sẽ sửa gate.json cho nhanh" | Chữ ký sẽ lộ. Và đó là gian lận. |
 | "Người duyệt chắc sẽ đồng ý thôi" | Chờ họ nói. Đoán ý là bỏ qua checkpoint. |
+| "compass done xanh rồi, xong" | Gate chứng minh test đã chạy, không chứng minh test đo đúng thứ. Tự kiểm mục tiêu gốc một lần. |

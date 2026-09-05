@@ -1,4 +1,4 @@
 node_modules/
-.compass/.salt
+.compass/
 .knowledge/derived/
 *.log
