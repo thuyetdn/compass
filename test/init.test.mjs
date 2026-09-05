@@ -59,3 +59,30 @@ test('initCommand reuses an existing config', () => {
   const after = readFileSync(path.join(cwd, '.compass', 'config.json'), 'utf8');
   assert.equal(before, after);
 });
+
+test('initCommand rejects id with .. escape', () => {
+  const cwd = makeDir();
+  const result = initCommand({ cwd, taskId: '../thoat', type: 'fix' });
+  assert.equal(result.exitCode, 2);
+  assert.ok(!existsSync(path.join(cwd, 'thoat', 'spec.md')));
+});
+
+test('initCommand rejects id with illegal character and does not throw', () => {
+  const cwd = makeDir();
+  const result = initCommand({ cwd, taskId: 'x:y*z', type: 'fix' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /ký tự/);
+});
+
+test('initCommand includes new project message when bootstrapping', () => {
+  const cwd = makeDir();
+  const result = initCommand({ cwd, taskId: 'T-1', type: 'fix' });
+  assert.match(result.output, /Khởi tạo dự án Compass mới tại/);
+});
+
+test('initCommand reuses existing root without new project message', () => {
+  const cwd = makeDir();
+  initCommand({ cwd, taskId: 'T-1', type: 'fix' });
+  const result2 = initCommand({ cwd, taskId: 'T-2', type: 'fix' });
+  assert.ok(!result2.output.includes('Khởi tạo dự án Compass mới tại'));
+});

@@ -17,29 +17,39 @@ function parseFlags(argv) {
   const rest = [];
   for (const arg of argv) {
     const match = arg.match(/^--([^=]+)(?:=(.*))?$/);
-    if (match) flags[match[1]] = match[2] ?? true;
+    if (match) {
+      const value = match[2];
+      if (value !== undefined) flags[match[1]] = value;
+      else if (match[1] !== 'type') flags[match[1]] = true;
+    }
     else rest.push(arg);
   }
   return { flags, rest };
 }
 
 function main() {
-  const [command, ...args] = process.argv.slice(2);
-  const { flags, rest } = parseFlags(args);
-  const cwd = process.cwd();
-  const taskId = rest[0];
+  try {
+    const [command, ...args] = process.argv.slice(2);
+    const { flags, rest } = parseFlags(args);
+    const cwd = process.cwd();
+    const taskId = rest[0];
 
-  let result;
-  switch (command) {
-    case 'init':
-      result = initCommand({ cwd, taskId, type: flags.type });
-      break;
-    default:
-      result = { exitCode: 2, output: USAGE };
+    let result;
+    switch (command) {
+      case 'init':
+        result = initCommand({ cwd, taskId, type: flags.type });
+        break;
+      default:
+        result = { exitCode: 2, output: USAGE };
+    }
+
+    if (result.output) console.log(result.output);
+    process.exitCode = result.exitCode;
+  } catch (err) {
+    console.log(`Lệnh thất bại: ${err.message}`);
+    if (err.stack) console.log(err.stack);
+    process.exitCode = 2;
   }
-
-  if (result.output) console.log(result.output);
-  process.exitCode = result.exitCode;
 }
 
 main();

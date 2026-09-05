@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { findRoot, compassDir, taskDir, specPath, configPath } from '../lib/paths.mjs';
+import { findRoot, compassDir, taskDir, specPath, configPath, validateTaskId } from '../lib/paths.mjs';
 import { TASK_TYPES, rulesFor } from '../lib/task-types.mjs';
 import { DEFAULT_CONFIG } from '../lib/config.mjs';
 import { hint } from '../lib/report.mjs';
@@ -13,6 +13,12 @@ export function initCommand({ cwd, taskId, type }) {
   if (!taskId) {
     return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass init <id> --type=<loại>' };
   }
+
+  const validation = validateTaskId(taskId);
+  if (!validation.ok) {
+    return { exitCode: 2, output: validation.reason };
+  }
+
   if (!type) {
     return {
       exitCode: 2,
@@ -27,7 +33,10 @@ export function initCommand({ cwd, taskId, type }) {
     };
   }
 
-  const root = findRoot(cwd) ?? cwd;
+  const found = findRoot(cwd);
+  const root = found ?? cwd;
+  const isNewProject = !found;
+
   mkdirSync(compassDir(root), { recursive: true });
   if (!existsSync(configPath(root))) {
     writeFileSync(configPath(root), JSON.stringify(DEFAULT_CONFIG, null, 2));
@@ -46,13 +55,19 @@ export function initCommand({ cwd, taskId, type }) {
     .replaceAll('{{layers}}', rules.requiredLayers.join(', '));
   writeFileSync(spec, filled);
 
+  const lines = [];
+  if (isNewProject) {
+    lines.push(`Khởi tạo dự án Compass mới tại: ${root}`);
+  }
+  lines.push(
+    `Đã tạo task ${taskId} (loại ${type})`,
+    `  spec: ${spec}`,
+    '',
+    hint('Điền spec, rồi chạy: compass spec ' + taskId)
+  );
+
   return {
     exitCode: 0,
-    output: [
-      `Đã tạo task ${taskId} (loại ${type})`,
-      `  spec: ${spec}`,
-      '',
-      hint('Điền spec, rồi chạy: compass spec ' + taskId),
-    ].join('\n'),
+    output: lines.join('\n'),
   };
 }
