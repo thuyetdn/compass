@@ -493,6 +493,13 @@ git commit -m "feat: add hashing and gate record signing"
 
 **Số liệu lấy từ spec §5** (kế thừa `qa-standards/01-qa-strategy.md`). GĐ 1 chỉ có gate `spec` và `test`; các gate khác khai báo sẵn nhưng chưa cài — `check` sẽ bỏ qua gate chưa cài và ghi rõ trong output.
 
+**Lưu ý thiết kế:** `rulesFor` trả về **bản sao sâu một tầng** — cả `requiredLayers` lẫn `gates` đều là mảng mới. Bảng `RULES` quyết định gate pass hay fail, nên không được để ai sửa được nó lúc chạy.
+
+Ba lối rò nếu trả tham chiếu trực tiếp:
+- `rulesFor('bug').minTests = 999` → hỏng ngưỡng cho mọi lời gọi sau
+- `requiredLayers` của `feature-m`/`feature-l` dùng chung đúng mảng `LAYERS` → sửa tại chỗ hỏng cả hằng số xuất khẩu
+- `gates` là **nguy hiểm nhất**: nó là danh sách gate bắt buộc. Xóa `'test'` khỏi đó là bỏ hẳn cổng chứng minh công việc đã làm — sửa `minTests` chỉ làm yếu ngưỡng, sửa `gates` xóa luôn phép kiểm.
+
 - [ ] **Step 1: Viết test thất bại**
 
 Tạo `test/task-types.test.mjs`:
@@ -543,6 +550,38 @@ test('isUpgrade rejects moving to a lighter type', () => {
 test('isUpgrade rejects staying the same', () => {
   assert.equal(isUpgrade('bug', 'bug'), false);
 });
+
+test('rulesFor returns a copy that callers cannot use to corrupt the table', () => {
+  rulesFor('bug').minTests = 999;
+  assert.equal(rulesFor('bug').minTests, 6);
+});
+
+test('mutating requiredLayers of a result leaves LAYERS intact', () => {
+  rulesFor('feature-m').requiredLayers.push('Bogus');
+  assert.equal(LAYERS.length, 6);
+  assert.equal(rulesFor('feature-m').requiredLayers.length, 6);
+});
+
+test('two calls for the same type return distinct objects and arrays', () => {
+  const a = rulesFor('feature-l');
+  const b = rulesFor('feature-l');
+  assert.notEqual(a, b);
+  assert.notEqual(a.requiredLayers, b.requiredLayers);
+  assert.notEqual(a.gates, b.gates);
+});
+
+test('pushing to gates of a result cannot add a gate for later callers', () => {
+  const before = rulesFor('bug').gates.length;
+  rulesFor('bug').gates.push('HACKED');
+  assert.ok(!rulesFor('bug').gates.includes('HACKED'));
+  assert.equal(rulesFor('bug').gates.length, before);
+});
+
+test('removing from gates of a result cannot drop a gate for later callers', () => {
+  const gates = rulesFor('bug').gates;
+  gates.splice(gates.indexOf('test'), 1);
+  assert.ok(rulesFor('bug').gates.includes('test'));
+});
 ```
 
 - [ ] **Step 2: Chạy test, xác nhận fail**
@@ -571,7 +610,9 @@ const RULES = {
 };
 
 export function rulesFor(type) {
-  return RULES[type] ?? null;
+  const rules = RULES[type];
+  if (!rules) return null;
+  return { ...rules, requiredLayers: [...rules.requiredLayers], gates: [...rules.gates] };
 }
 
 export function isUpgrade(from, to) {
@@ -585,7 +626,7 @@ export function isUpgrade(from, to) {
 - [ ] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/task-types.test.mjs`
-Expected: PASS — 9 test
+Expected: PASS — 14 test
 
 - [ ] **Step 5: Commit**
 
