@@ -92,3 +92,31 @@ test('testCommand reports an invalid config', () => {
   assert.equal(result.exitCode, 2);
   assert.match(result.output, /config/);
 });
+
+test('testCommand: bare IDs on unclassified lines fail the gate and mention them', () => {
+  const root = makeTask('node -e "console.log(\'H1 H2\')"');
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /không rõ định dạng/i);
+  assert.match(result.output, /H1/);
+  assert.match(result.output, /H2/);
+});
+
+test('testCommand: skipped test ID fails the gate, distinguished from missing', () => {
+  const root = makeTask('node -e "console.log(\'ok 1 - test_H1_a # SKIP\\nok 2 - test_H2_b\')"');
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /không pass.*skip/i);
+  assert.match(result.output, /H1/);
+});
+
+test('testCommand: when process is killed by signal, shows in gate', () => {
+  // On Windows with shell: true, we cannot easily kill a process by signal,
+  // so we test that the gate records the signal/failure fields when present
+  const root = makeTask(printBoth);
+  testCommand({ cwd: root, taskId: 'T-1' });
+  const gate = readGate(root, 'T-1', 'test');
+  // Verify the gate has these fields even if null in normal runs
+  assert.ok('signal' in gate);
+  assert.ok('suiteFailure' in gate);
+});

@@ -32,13 +32,17 @@ export function testCommand({ cwd, taskId }) {
   const run = runCommand(cfg.config.test, root);
 
   const dir = evidenceDir(root, taskId);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(path.join(dir, 'test.log'), run.output);
+  try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, 'test.log'), run.output);
+  } catch (err) {
+    return { exitCode: 2, output: `Không thể ghi evidence: ${err.message}` };
+  }
 
-  const ranIds = extractRanIds(run.output, specIds);
-  const comparison = compareWithSpec(specIds, ranIds);
+  const extracted = extractRanIds(run.output, specIds);
+  const comparison = compareWithSpec(specIds, extracted.ran);
 
-  const suiteOk = run.exitCode === 0;
+  const suiteOk = run.exitCode === 0 && run.failure === null;
   const ok = suiteOk && comparison.ok;
 
   writeGate(root, taskId, {
@@ -46,31 +50,51 @@ export function testCommand({ cwd, taskId }) {
     command: cfg.config.test,
     exitCode: ok ? 0 : 1,
     suiteExitCode: run.exitCode,
+    suiteFailure: run.failure,
+    signal: run.signal,
     startedAt: new Date(Date.now() - run.durationMs).toISOString(),
     durationMs: run.durationMs,
     outputHash: sha256(run.output),
     outputFile: 'evidence/test.log',
     specHash: hashFile(file),
     specIdCount: specIds.length,
-    ranIdCount: ranIds.length,
+    ranIdCount: extracted.ran.length,
     missingIds: comparison.missing,
+    seenOnNonPassLines: extracted.seenOnNonPassLines,
+    seenOnUnknownLines: extracted.seenOnUnknownLines,
   });
 
   if (ok) {
     return {
       exitCode: 0,
-      output: pass('test', `${ranIds.length}/${specIds.length} test cases đã chạy`),
+      output: pass('test', `${extracted.ran.length}/${specIds.length} test cases đã chạy`),
     };
   }
 
   const lines = [];
   if (!suiteOk) {
-    lines.push(`Test suite trả về exit code ${run.exitCode}.`);
+    if (run.failure) {
+      lines.push(`Quá trình không hoàn thành: ${run.failure}`);
+    } else {
+      lines.push(`Test suite trả về exit code ${run.exitCode}.`);
+    }
     lines.push(`Xem output đầy đủ: ${path.join('.compass', taskId, 'evidence', 'test.log')}`);
   }
   if (!comparison.ok) {
-    lines.push(`Spec khai báo ${specIds.length} test cases, chỉ tìm thấy ${ranIds.length} đã chạy.`);
-    lines.push(`Thiếu: ${comparison.missing.join(', ')}`);
+    lines.push(`Spec khai báo ${specIds.length} test cases, chỉ tìm thấy ${extracted.ran.length} đã chạy.`);
+
+    if (extracted.seenOnNonPassLines.length > 0) {
+      lines.push(`Xuất hiện nhưng không pass (skip/fail/error): ${extracted.seenOnNonPassLines.join(', ')}`);
+    }
+    if (extracted.seenOnUnknownLines.length > 0) {
+      lines.push(`Xuất hiện trên dòng không rõ định dạng (có thể dùng reporter khác): ${extracted.seenOnUnknownLines.join(', ')}`);
+    }
+    const neverSeen = comparison.missing.filter(
+      (id) => !extracted.seenOnNonPassLines.includes(id) && !extracted.seenOnUnknownLines.includes(id)
+    );
+    if (neverSeen.length > 0) {
+      lines.push(`Không tìm thấy dấu vết: ${neverSeen.join(', ')}`);
+    }
   }
 
   return {
