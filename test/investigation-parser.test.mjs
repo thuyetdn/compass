@@ -190,3 +190,31 @@ test('a template hint with separators is still caught', () => {
     assert.equal(result.ok, false, `${hint} phải bị coi là chưa điền`);
   }
 });
+
+test('V9 every hint the template ships is recognised, however short', () => {
+  // Guessing by shape let one-word hints through: `<ngày>`, `<vì sao>`, `<...>`
+  // all lack the whitespace an earlier rule looked for. Drive the check off
+  // every hint in the real template rather than off a heuristic.
+  const template = readFileSync(TEMPLATE_PATH, 'utf8');
+  const hints = [...new Set(template.match(/<[^>]*>/g) ?? [])];
+  assert.ok(hints.length >= 10, `template phải có nhiều gợi ý, thấy ${hints.length}`);
+
+  for (const hint of hints) {
+    if (hint === '<INV-ID>') continue; // replaced at creation, never left behind
+    const source = COMPLETE.replace('**Nguyên nhân:** deltaToken hết hạn sau 30 ngày',
+      `**Nguyên nhân:** ${hint}`);
+    const result = validateForClose(parseInvestigation(source));
+    assert.equal(result.ok, false, `gợi ý ${hint} phải bị coi là chưa điền`);
+  }
+});
+
+test('V9 a hypothesis whose method is the template hint is caught', () => {
+  // The rule "state how you will test before you test" was going unenforced
+  // whenever the author left the shorter of the two template hints in place.
+  const source = COMPLETE.replace('**Cách kiểm:** đọc log scheduler 7 ngày gần nhất',
+    '**Cách kiểm:** <...>');
+  const result = validateForClose(parseInvestigation(source));
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('H2') && e.includes('cách kiểm')),
+    result.errors.join(' · '));
+});

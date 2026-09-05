@@ -13,7 +13,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 
 ```json
 {
-  "brief": "5652db60d7f8",
+  "brief": "f86f69f5b32d",
   "findings": [
     {
       "severity": "Critical | Major | Minor | Info",
@@ -26,7 +26,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 }
 ```
 
-Không tìm thấy gì thì nộp `{ "brief": "5652db60d7f8", "findings": [] }`. Đừng bịa ra finding cho có.
+Không tìm thấy gì thì nộp `{ "brief": "f86f69f5b32d", "findings": [] }`. Đừng bịa ra finding cho có.
 
 | Mức | Dùng khi |
 |---|---|
@@ -111,6 +111,8 @@ Quét cả cây source ở repo lớn có thể chậm. Phải đo.
 | V5 | Validation | Prop TSX có type object đi kèm | Trích đủ prop, không mất cái nào | P0 |
 | EC8 | Edge | Import bị comment-out | Không tính là dùng | P0 |
 | EC9 | Edge | Chuỗi chứa chữ "import" | Không tính là dùng | P0 |
+| EC10 | Edge | File có regex literal chứa dấu nháy | Vẫn đọc được import ở dưới | P0 |
+| V6 | Validation | Tham số dạng props: { a: string } | confident=false, không bịa prop từ type | P0 |
 
 ```
 
@@ -215,7 +217,7 @@ index 0000000..d238733
 +**Vùng ảnh hưởng:** lib/dev-server.mjs
 +**Phòng tránh:** giết theo cây (`taskkill /t`), và **đợi** nó chết trước khi trả về. Đừng suy ra trạng thái cây tiến trình từ exit code của tiến trình gốc.
 diff --git a/README.md b/README.md
-index d9ae78c..dce69bd 100644
+index d9ae78c..118b5c1 100644
 --- a/README.md
 +++ b/README.md
 @@ -52,9 +52,10 @@ Gate record có chữ ký — sửa tay là lộ.
@@ -223,7 +225,7 @@ index d9ae78c..dce69bd 100644
  ## Trạng thái
  
 -Sáu gate đã chạy được: `spec`, `convention`, `test`, `ui`, `visual`, `review` — 403 test.
-+Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 504 test.
++Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 516 test.
  
 -Chưa có: knowledge base sinh tự động, lệnh `investigate`, multi-repo.
 +Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
@@ -236,7 +238,7 @@ index d9ae78c..dce69bd 100644
  
  ```bash
 -npm test        # 403 test, vài giây
-+npm test        # 504 test, vài giây
++npm test        # 516 test, vài giây
  npm run test:deep  # 10 test qua CLI thật trên examples/todo, ~100 giây
  ```
  
@@ -918,15 +920,15 @@ index ee04046..b7fe554 100644
      let state;
 diff --git a/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md b/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
 new file mode 100644
-index 0000000..7d13ab3
+index 0000000..ca668d5
 --- /dev/null
 +++ b/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
-@@ -0,0 +1,111 @@
+@@ -0,0 +1,150 @@
 +# Compass GĐ 3 và 4 — ghi chú
 +
 +**Ngày:** 2026-09-06
 +**Task:** CP-7 (`sourceHash`) · CP-9 (test tích hợp sâu) · CP-10 (`knowledge`) · CP-11 (`investigate` + `scripts`) · CP-12 (multi-repo) · INV-1 (điều tra thật đầu tiên)
-+**Suite:** 385 → 504 test
++**Suite:** 385 → 516 test
 +
 +Tiếp sau [GĐ 2](2026-09-05-phase-2-notes.md). Lộ trình trong spec thiết kế §13 đã đi hết.
 +
@@ -987,6 +989,45 @@ index 0000000..7d13ab3
 +
 +---
 +
++## Lỗi thứ ba: `usedIn` đếm nhầm, hai lần
++
++Gate `knowledge` khai `usedIn` để lộ code chết. Vòng soi thứ nhất tìm ra nó đếm **mọi lần xuất
++hiện tên**, kể cả trong comment và chuỗi — một component không ai import báo `usedIn: 2`.
++
++Sửa xong, vòng soi thứ hai tìm ra bản sửa vẫn hở ở ca thực tế nhất:
++
++```js
++// import { Orphan } from './Orphan';   ← vẫn tính là dùng
++```
++
++Import bị comment-out **chính là cách phổ biến nhất** khiến tên còn sót lại. Bản sửa vòng một
++chỉ chặn được tên trần, không chặn được import trong comment.
++
++Sửa lần hai: tháo comment và chuỗi trước khi dò.
++
++Cùng vòng đó lộ thêm một lỗi nặng hơn — `readProps` dùng `lastIndexOf('}')`:
++
++| Khai báo | Trích được | Đúng phải là |
++|---|---|---|
++| `({ x, y }: { x: string; y: number })` | `x` | `x, y` |
++| `({ x }: { x: string })` | *(rỗng)* | `x` |
++
++Cả hai đều mang `confident: true` — **tài liệu nói sai trong khi tự nhận là chắc chắn**, đúng
++thứ ràng buộc của spec cấm. Nguyên nhân: dấu `}` cuối dòng thuộc về type object, không phải
++khối destructuring. Sửa: đếm cặp ngoặc để tìm đúng dấu đóng.
++
++## Bài học chung của ba lỗi trên
++
++Cả ba đều là **bản sửa chưa đủ, lộ ra ở vòng soi sau**. Không vòng nào thừa:
++
++| Vòng | Tìm ra |
++|---|---|
++| 1 | `usedIn` đếm tên trần trong comment |
++| 2 | Bản sửa vòng 1 vẫn để lọt import bị comment-out; và `readProps` mất prop |
++| 3 | Bản sửa Pitfall chặn nhầm `<SaveButton />` |
++
++Nếu dừng ở vòng một, hai lỗi Major vẫn còn nguyên.
++
 +## Vòng phản hồi chạy thật
 +
 +INV-1 là điều tra thật đầu tiên — chính bug dev-server ở CP-8:
@@ -1007,11 +1048,11 @@ index 0000000..7d13ab3
 +| Chỉ số | Giá trị |
 +|---|---|
 +| Suite đầu GĐ 3 | 385 pass |
-+| Suite cuối GĐ 4 | 504 pass |
++| Suite cuối GĐ 4 | 516 pass |
 +| Gate `knowledge` trên Compass | 85 file, ~10ms |
 +| `hashSource` trên Compass | ~15ms |
 +| Số gate | 7 |
-+| Số lệnh CLI | 10 |
++| Số lệnh CLI | 13 |
 +
 +---
 +
@@ -1122,10 +1163,14 @@ index df490fe..c5da26e 100644
    return IMPLEMENTED_GATES.includes(gate);
 diff --git a/lib/investigation-parser.mjs b/lib/investigation-parser.mjs
 new file mode 100644
-index 0000000..7cde50d
+index 0000000..58a87af
 --- /dev/null
 +++ b/lib/investigation-parser.mjs
-@@ -0,0 +1,142 @@
+@@ -0,0 +1,156 @@
++import { readFileSync } from 'node:fs';
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++
 +// An investigation is closed on evidence, not on a story. This parser is what
 +// lets the machine tell one from the other: a hypothesis with no stated way to
 +// test it, a conclusion that cites nothing, a pitfall nobody wrote.
@@ -1136,25 +1181,35 @@ index 0000000..7cde50d
 +// started with `**`, so none of them looked like a placeholder.
 +const PLACEHOLDER = /^(?:\*\*[^*]+:\*\*\s*)?<[^>]*>$/;
 +
-+// Shape alone is not enough. `**Vùng ảnh hưởng:** <SaveButton />` is a real
-+// answer that happens to look like a hint, and refusing it tells the author
-+// they left something blank when they did not. Only text that reads like prose
-+// — spaces, or the separators the template uses — counts as unfilled.
-+const HINT_TEXT = /[\s·|/]/;
++// Shape alone cannot tell a hint from an answer. `**Vùng ảnh hưởng:**
++// <SaveButton />` is a real answer that looks like a hint, and guessing by
++// shape got it wrong in both directions: first refusing real content, then —
++// with a "contains whitespace" rule — accepting every one-word hint the
++// template ships, `<ngày>` and `<vì sao>` among them.
++//
++// The template wrote the hints, so they can be known exactly instead of
++// inferred. Read them from the file and compare.
++const HINTS = loadTemplateHints();
++
++function loadTemplateHints() {
++  const file = path.join(
++    path.dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'investigation.md',
++  );
++  try {
++    const matches = readFileSync(file, 'utf8').match(/<[^>]*>/g) ?? [];
++    return new Set(matches);
++  } catch {
++    // No template to compare against: fall back to treating any bracketed text
++    // as unfilled. Over-strict beats letting template text into the knowledge
++    // base, and the author can always rephrase.
++    return null;
++  }
++}
 +
 +function isPlaceholder(line) {
 +  if (!PLACEHOLDER.test(line)) return false;
-+
-+  // Strip the self-closing slash first: `<SaveButton />` is one tag name, and
-+  // testing before stripping saw its space and called it a hint.
-+  const inside = line
-+    .slice(line.indexOf('<') + 1, line.lastIndexOf('>'))
-+    .replace(/\s*\/$/, '')
-+    .trim();
-+
-+  // A tag or element name is a single word; a template hint like
-+  // "ngày · id · bối cảnh" or "file / module" reads as prose.
-+  return inside === '' || HINT_TEXT.test(inside);
++  const bracketed = line.slice(line.indexOf('<'), line.lastIndexOf('>') + 1);
++  return HINTS === null || HINTS.has(bracketed);
 +}
 +
 +function sectionBody(markdown, heading) {
@@ -1270,10 +1325,10 @@ index 0000000..7cde50d
 +}
 diff --git a/lib/knowledge-scan.mjs b/lib/knowledge-scan.mjs
 new file mode 100644
-index 0000000..6ba24d1
+index 0000000..2ad1c7f
 --- /dev/null
 +++ b/lib/knowledge-scan.mjs
-@@ -0,0 +1,198 @@
+@@ -0,0 +1,232 @@
 +import { readdirSync, readFileSync } from 'node:fs';
 +import path from 'node:path';
 +import { SKIP_DIRS } from './source-hash.mjs';
@@ -1321,6 +1376,11 @@ index 0000000..6ba24d1
 +
 +  const open = text.indexOf('{');
 +  if (open === -1) return { props: {}, confident: false };
++
++  // The brace has to start the parameter. In `props: { alpha: string }` it
++  // opens the *type*, and mining it invented `alpha` as a prop of a parameter
++  // actually named `props` — while still claiming confidence.
++  if (text.slice(0, open).trim() !== '') return { props: {}, confident: false };
 +
 +  // Match the brace that closes the destructuring, not the last one on the
 +  // line: `({ x, y }: { x: string; y: number })` has a type object after it,
@@ -1387,6 +1447,27 @@ index 0000000..6ba24d1
 +      continue;
 +    }
 +    const ch = text[i];
++
++    // A regex literal can hold a lone quote — `/['"]/g` does, and Compass's own
++    // paths.mjs has one. Skipping it opened a phantom string that swallowed the
++    // import line below, so a live component reported usedIn: 0.
++    if (ch === '/' && startsRegex(out)) {
++      i += 1;
++      let inClass = false;
++      while (i < text.length) {
++        const c = text[i];
++        if (c === '\\') { i += 2; continue; }
++        if (c === '[') inClass = true;
++        else if (c === ']') inClass = false;
++        else if (c === '/' && !inClass) break;
++        else if (c === '\n') break; // unterminated: stop rather than run away
++        i += 1;
++      }
++      i += 1;
++      out += ' ';
++      continue;
++    }
++
 +    if (ch === '"' || ch === "'" || ch === '`') {
 +      i += 1;
 +      while (i < text.length && text[i] !== ch) {
@@ -1401,6 +1482,14 @@ index 0000000..6ba24d1
 +    i += 1;
 +  }
 +  return out;
++}
++
++// `/` opens a regex only where a value may begin. After an identifier, a
++// number, or a closing bracket it is division.
++function startsRegex(before) {
++  const prev = before.replace(/\s+$/, '').slice(-1);
++  if (prev === '') return true;
++  return !/[A-Za-z0-9_$)\]]/.test(prev);
 +}
 +
 +// Only the import clause counts: `import X`, `import { X }`, `import { Y as X }`,
@@ -2065,10 +2154,10 @@ index 0000000..8331d6c
 +});
 diff --git a/test/investigation-parser.test.mjs b/test/investigation-parser.test.mjs
 new file mode 100644
-index 0000000..6a3f755
+index 0000000..2950a67
 --- /dev/null
 +++ b/test/investigation-parser.test.mjs
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,220 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { readFileSync } from 'node:fs';
@@ -2260,6 +2349,34 @@ index 0000000..6a3f755
 +    const result = validateForClose(parseInvestigation(source));
 +    assert.equal(result.ok, false, `${hint} phải bị coi là chưa điền`);
 +  }
++});
++
++test('V9 every hint the template ships is recognised, however short', () => {
++  // Guessing by shape let one-word hints through: `<ngày>`, `<vì sao>`, `<...>`
++  // all lack the whitespace an earlier rule looked for. Drive the check off
++  // every hint in the real template rather than off a heuristic.
++  const template = readFileSync(TEMPLATE_PATH, 'utf8');
++  const hints = [...new Set(template.match(/<[^>]*>/g) ?? [])];
++  assert.ok(hints.length >= 10, `template phải có nhiều gợi ý, thấy ${hints.length}`);
++
++  for (const hint of hints) {
++    if (hint === '<INV-ID>') continue; // replaced at creation, never left behind
++    const source = COMPLETE.replace('**Nguyên nhân:** deltaToken hết hạn sau 30 ngày',
++      `**Nguyên nhân:** ${hint}`);
++    const result = validateForClose(parseInvestigation(source));
++    assert.equal(result.ok, false, `gợi ý ${hint} phải bị coi là chưa điền`);
++  }
++});
++
++test('V9 a hypothesis whose method is the template hint is caught', () => {
++  // The rule "state how you will test before you test" was going unenforced
++  // whenever the author left the shorter of the two template hints in place.
++  const source = COMPLETE.replace('**Cách kiểm:** đọc log scheduler 7 ngày gần nhất',
++    '**Cách kiểm:** <...>');
++  const result = validateForClose(parseInvestigation(source));
++  assert.equal(result.ok, false);
++  assert.ok(result.errors.some((e) => e.includes('H2') && e.includes('cách kiểm')),
++    result.errors.join(' · '));
 +});
 diff --git a/test/knowledge-command.test.mjs b/test/knowledge-command.test.mjs
 new file mode 100644
@@ -2466,10 +2583,10 @@ index 0000000..3db3372
 +});
 diff --git a/test/knowledge-scan.test.mjs b/test/knowledge-scan.test.mjs
 new file mode 100644
-index 0000000..779a275
+index 0000000..0cecda4
 --- /dev/null
 +++ b/test/knowledge-scan.test.mjs
-@@ -0,0 +1,236 @@
+@@ -0,0 +1,287 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -2705,6 +2822,57 @@ index 0000000..779a275
 +  });
 +  const { components } = scanComponents(root);
 +  assert.equal(components.Orphan.usedIn, 0);
++});
++
++test('EC10 a regex literal containing a quote does not swallow the import below it', () => {
++  // `/['"]/g` has a lone quote. Treating it as a string opened a phantom one
++  // that ran to the next quote — usually the import path on the line after —
++  // and a live component came back as used by nobody.
++  const root = makeTree({
++    'src/A.jsx': 'export function A({ x }) { return <i>{x}</i>; }\n',
++    'src/Page.jsx': `const quoteRe = /['"]/g;\nimport { A } from './A';\nexport const Page = () => <A/>;\n`,
++  });
++  const { components } = scanComponents(root);
++  assert.equal(components.A.usedIn, 1);
++});
++
++test('a character class holding a slash does not end the regex early', () => {
++  const root = makeTree({
++    'src/A.jsx': 'export function A({ x }) { return <i>{x}</i>; }\n',
++    'src/Page.jsx': `const sep = /[/\\]/;\nimport { A } from './A';\nexport const Page = () => <A/>;\n`,
++  });
++  const { components } = scanComponents(root);
++  assert.equal(components.A.usedIn, 1);
++});
++
++test('division is not mistaken for a regex', () => {
++  const root = makeTree({
++    'src/A.jsx': 'export function A({ x }) { return <i>{x}</i>; }\n',
++    'src/Page.jsx': `const ratio = width / height;\nimport { A } from './A';\nexport const Page = () => <A/>;\n`,
++  });
++  const { components } = scanComponents(root);
++  assert.equal(components.A.usedIn, 1);
++});
++
++test('V6 a typed non-destructured parameter yields no props and admits it', () => {
++  // `props: { alpha: string; beta: number }` — that brace opens the type, not a
++  // binding pattern. Mining it invented `alpha` as a prop of a parameter named
++  // `props`, and called the result confident.
++  const root = makeTree({
++    'src/Bare.tsx': 'export function Bare(props: { alpha: string; beta: number }) { return null; }\n',
++  });
++  const { components } = scanComponents(root);
++  assert.deepEqual(components.Bare.props, {});
++  assert.equal(components.Bare.confident, false);
++});
++
++test('a destructured parameter with an inline type is still read', () => {
++  const root = makeTree({
++    'src/Ok.tsx': 'export function Ok({ alpha, beta }: { alpha: string; beta: number }) { return null; }\n',
++  });
++  const { components } = scanComponents(root);
++  assert.deepEqual(Object.keys(components.Ok.props).sort(), ['alpha', 'beta']);
++  assert.equal(components.Ok.confident, true);
 +});
 diff --git a/test/manifest.test.mjs b/test/manifest.test.mjs
 new file mode 100644

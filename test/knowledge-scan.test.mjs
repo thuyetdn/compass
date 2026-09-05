@@ -234,3 +234,54 @@ test('EC9 an import-shaped string is not a use', () => {
   const { components } = scanComponents(root);
   assert.equal(components.Orphan.usedIn, 0);
 });
+
+test('EC10 a regex literal containing a quote does not swallow the import below it', () => {
+  // `/['"]/g` has a lone quote. Treating it as a string opened a phantom one
+  // that ran to the next quote — usually the import path on the line after —
+  // and a live component came back as used by nobody.
+  const root = makeTree({
+    'src/A.jsx': 'export function A({ x }) { return <i>{x}</i>; }\n',
+    'src/Page.jsx': `const quoteRe = /['"]/g;\nimport { A } from './A';\nexport const Page = () => <A/>;\n`,
+  });
+  const { components } = scanComponents(root);
+  assert.equal(components.A.usedIn, 1);
+});
+
+test('a character class holding a slash does not end the regex early', () => {
+  const root = makeTree({
+    'src/A.jsx': 'export function A({ x }) { return <i>{x}</i>; }\n',
+    'src/Page.jsx': `const sep = /[/\\]/;\nimport { A } from './A';\nexport const Page = () => <A/>;\n`,
+  });
+  const { components } = scanComponents(root);
+  assert.equal(components.A.usedIn, 1);
+});
+
+test('division is not mistaken for a regex', () => {
+  const root = makeTree({
+    'src/A.jsx': 'export function A({ x }) { return <i>{x}</i>; }\n',
+    'src/Page.jsx': `const ratio = width / height;\nimport { A } from './A';\nexport const Page = () => <A/>;\n`,
+  });
+  const { components } = scanComponents(root);
+  assert.equal(components.A.usedIn, 1);
+});
+
+test('V6 a typed non-destructured parameter yields no props and admits it', () => {
+  // `props: { alpha: string; beta: number }` — that brace opens the type, not a
+  // binding pattern. Mining it invented `alpha` as a prop of a parameter named
+  // `props`, and called the result confident.
+  const root = makeTree({
+    'src/Bare.tsx': 'export function Bare(props: { alpha: string; beta: number }) { return null; }\n',
+  });
+  const { components } = scanComponents(root);
+  assert.deepEqual(components.Bare.props, {});
+  assert.equal(components.Bare.confident, false);
+});
+
+test('a destructured parameter with an inline type is still read', () => {
+  const root = makeTree({
+    'src/Ok.tsx': 'export function Ok({ alpha, beta }: { alpha: string; beta: number }) { return null; }\n',
+  });
+  const { components } = scanComponents(root);
+  assert.deepEqual(Object.keys(components.Ok.props).sort(), ['alpha', 'beta']);
+  assert.equal(components.Ok.confident, true);
+});

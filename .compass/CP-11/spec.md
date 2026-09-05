@@ -68,3 +68,4 @@ lại chứ không đoán.
 | V8 | Validation | Khối Pitfall điền một phần | Chặn, nêu đúng dòng nào còn chữ mẫu | P0 |
 | EC6 | Edge | Script mở đầu bằng /** | Đọc mô tả ở dòng dưới, không lấy dấu sao | P1 |
 | EC7 | Edge | Pitfall ghi tên thẻ JSX | Không chặn nhầm — đó là nội dung thật | P0 |
+| V9 | Validation | Gợi ý template một từ, không khoảng trắng | Vẫn bị chặn — mọi gợi ý trong template đều phải bắt được | P0 |
