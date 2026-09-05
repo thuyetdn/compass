@@ -136,6 +136,12 @@ Một task có mục tiêu "không còn để lại file rác" có thể pass m�
 
 Nên: sau khi `done` xanh, **tự kiểm mục tiêu gốc một lần**. Nếu spec nói "sau khi chạy không còn X", thì đi đếm X. Trách nhiệm chọn test case đo đúng mục tiêu vẫn nằm ở người viết spec — công cụ chỉ đảm bảo bạn không nói dối về việc đã chạy chúng.
 
+### Hai giới hạn chưa đóng được
+
+Compass không hash source code. Test xanh xong, code implementation vẫn có thể bị đổi sau đó mà `done` không biết — việc này còn mở ở giai đoạn này.
+
+`config.json` khai báo lệnh test và Compass tin nó. Compass phát hiện được lệnh test **đổi** sau khi gate đã chạy (qua `configHash`), nhưng không phán được lệnh đó có phải một test suite thật hay không.
+
 ## Giai đoạn hiện tại
 
 GĐ 1 có gate `spec` và `test`. Các gate `convention`, `ui`, `visual`, `review` thuộc giai đoạn sau — `check` sẽ báo chúng là bỏ qua, không tính fail. Khi chạy `done`, nếu task type yêu cầu gate chưa được xây dựng, Compass sẽ thông báo rõ chúng là giai đoạn tới.

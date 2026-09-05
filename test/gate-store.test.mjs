@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { writeGate, readGates, readGate, verifyAllGates } from '../lib/gate-store.mjs';
 import { gatePath } from '../lib/paths.mjs';
+import { getSalt, signRecord } from '../lib/signature.mjs';
 
 function makeTask() {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-gate-'));
@@ -54,7 +55,9 @@ test('verifyAllGates passes for untouched records', () => {
   const root = makeTask();
   writeGate(root, 'T-1', { gate: 'spec', exitCode: 0 });
   writeGate(root, 'T-1', { gate: 'test', exitCode: 0 });
-  assert.deepEqual(verifyAllGates(root, 'T-1'), { ok: true, tampered: [] });
+  assert.deepEqual(verifyAllGates(root, 'T-1'), {
+    ok: true, tampered: [], misslotted: [], wrongTask: [], outdated: [],
+  });
 });
 
 test('verifyAllGates detects a hand-edited exitCode', () => {
@@ -107,6 +110,59 @@ test('verifyAllGates reports corruption after writing a gate and corrupting the 
   const result = verifyAllGates(root, 'T-1');
   assert.equal(result.ok, false);
   assert.deepEqual(result.tampered, ['<gate.json hỏng>']);
+});
+
+test('writeGate stamps the record with the given taskId', () => {
+  const root = makeTask();
+  const record = writeGate(root, 'T-1', { gate: 'test', exitCode: 0 });
+  assert.equal(record.taskId, 'T-1');
+});
+
+// C1 — a genuinely-signed record moved onto a different gate's key must be caught.
+test('verifyAllGates detects a record copied onto a different gate key (misslotted)', () => {
+  const root = makeTask();
+  writeGate(root, 'T-1', { gate: 'spec', exitCode: 0 });
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  data.test = data.spec; // still signed correctly, but its own "gate" field says "spec"
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const result = verifyAllGates(root, 'T-1');
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.misslotted, ['test']);
+  assert.deepEqual(result.tampered, []);
+});
+
+// C2 — a record signed for a different task must be caught even though its signature verifies.
+test('verifyAllGates detects a record belonging to a different taskId (wrongTask)', () => {
+  const root = makeTask();
+  writeGate(root, 'T-OTHER', { gate: 'test', exitCode: 0 });
+  const otherFile = gatePath(root, 'T-OTHER');
+  const otherRecord = JSON.parse(readFileSync(otherFile, 'utf8')).test;
+
+  mkdirSync(path.join(root, '.compass', 'T-1', 'evidence'), { recursive: true });
+  writeFileSync(gatePath(root, 'T-1'), JSON.stringify({ test: otherRecord }, null, 2));
+
+  const result = verifyAllGates(root, 'T-1');
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.wrongTask, ['test']);
+  assert.deepEqual(result.tampered, []);
+});
+
+test('verifyAllGates flags a genuinely-signed record with no taskId as outdated, not tampered', () => {
+  const root = makeTask();
+  // Simulate evidence written by a version before taskId existed: sign a record
+  // that never had the field, so the signature is genuinely valid for its content.
+  const salt = getSalt(root);
+  const oldStyleRecord = { gate: 'test', exitCode: 0 };
+  const signed = { ...oldStyleRecord, sig: signRecord(oldStyleRecord, salt) };
+  mkdirSync(path.join(root, '.compass', 'T-1', 'evidence'), { recursive: true });
+  writeFileSync(gatePath(root, 'T-1'), JSON.stringify({ test: signed }, null, 2));
+
+  const result = verifyAllGates(root, 'T-1');
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.tampered, []);
+  assert.deepEqual(result.outdated, ['test']);
 });
 
 test('readGates throws with COMPASS_GATE_CORRUPT code for unparseable JSON', () => {

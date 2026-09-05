@@ -7,6 +7,7 @@ import { checkCommand } from '../commands/check.mjs';
 import { doneCommand } from '../commands/done.mjs';
 import { statusCommand } from '../commands/status.mjs';
 import { gatePath } from '../lib/paths.mjs';
+import { getSalt, signRecord } from '../lib/signature.mjs';
 
 const SPEC = `# T-1: Tiêu đề
 Loại: fix
@@ -68,6 +69,23 @@ test('checkCommand honours --only', () => {
   assert.doesNotMatch(result.output, /Gate test/);
 });
 
+test('C4: checkCommand --only with an unknown gate exits non-zero and names valid gates', () => {
+  const root = makeTask(GREEN);
+  const result = checkCommand({ cwd: root, taskId: 'T-1', only: 'bogus' });
+  assert.notEqual(result.exitCode, 0);
+  assert.match(result.output, /không áp dụng/);
+  assert.match(result.output, /spec/);
+  assert.match(result.output, /test/);
+});
+
+test('C4: checkCommand --only with an applicable-but-unimplemented gate exits non-zero', () => {
+  const featureSSpec = SPEC.replace('Loại: fix', 'Loại: feature-s');
+  const root = makeTask(GREEN, featureSSpec);
+  const result = checkCommand({ cwd: root, taskId: 'T-1', only: 'convention' });
+  assert.notEqual(result.exitCode, 0);
+  assert.match(result.output, /chưa được xây dựng/);
+});
+
 test('doneCommand passes after a clean check', () => {
   const root = makeTask(GREEN);
   checkCommand({ cwd: root, taskId: 'T-1' });
@@ -100,6 +118,22 @@ test('doneCommand detects a hand-edited gate record', () => {
   const result = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1);
   assert.match(result.output, /chữ ký/);
+});
+
+test('doneCommand says a pre-taskId record predates this version, not that it is tampered', () => {
+  const root = makeTask(GREEN);
+  checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const salt = getSalt(root);
+  const oldStyle = { gate: 'test', exitCode: 0 };
+  data.test = { ...oldStyle, sig: signRecord(oldStyle, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /bản Compass cũ|chưa có taskId/);
 });
 
 test('doneCommand detects a spec edited after the test gate ran', () => {

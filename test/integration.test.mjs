@@ -1,7 +1,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -122,4 +122,129 @@ test('test_H2_every workspace created in one run is removed together', () => {
   for (const d of dirs) assert.ok(existsSync(d));
   cleanupWorkspaces();
   for (const d of dirs) assert.ok(!existsSync(d), `còn sót: ${d}`);
+});
+
+// C1 — a signed record copied onto a different gate's key must not be accepted.
+test('C1: a signed spec record copied onto the test key is rejected, not accepted', () => {
+  const cwd = makeWorkspace();
+  compass(cwd, ['init', 'T5', '--type=fix']);
+  writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: GREEN }));
+  writeFileSync(path.join(cwd, '.compass', 'T5', 'spec.md'), FILLED_SPEC.replace('T-1', 'T5'));
+
+  const spec = compass(cwd, ['spec', 'T5']);
+  assert.equal(spec.status, 0, spec.stdout + spec.stderr);
+
+  const gateFile = path.join(cwd, '.compass', 'T5', 'evidence', 'gate.json');
+  const gates = JSON.parse(readFileSync(gateFile, 'utf8'));
+  gates.test = gates.spec; // copy the genuinely-signed "spec" record onto the "test" key
+  writeFileSync(gateFile, JSON.stringify(gates, null, 2));
+
+  const done = compass(cwd, ['done', 'T5']);
+  assert.notEqual(done.status, 0, done.stdout + done.stderr);
+  assert.match(done.stdout, /không thuộc slot này|gian lận/);
+});
+
+// C2 — a whole gate.json copied from one task to another must not validate.
+test('C2: a gate.json copied from another task is rejected as belonging to a different task', () => {
+  const cwd = makeWorkspace();
+  compass(cwd, ['init', 'T3', '--type=fix']);
+  compass(cwd, ['init', 'T6', '--type=fix']);
+  writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: GREEN }));
+  writeFileSync(path.join(cwd, '.compass', 'T3', 'spec.md'), FILLED_SPEC.replace('T-1', 'T3'));
+  writeFileSync(path.join(cwd, '.compass', 'T6', 'spec.md'), FILLED_SPEC.replace('T-1', 'T6'));
+
+  const check = compass(cwd, ['check', 'T3']);
+  assert.equal(check.status, 0, check.stdout + check.stderr);
+
+  const src = path.join(cwd, '.compass', 'T3', 'evidence', 'gate.json');
+  const dst = path.join(cwd, '.compass', 'T6', 'evidence', 'gate.json');
+  mkdirSync(path.dirname(dst), { recursive: true });
+  writeFileSync(dst, readFileSync(src, 'utf8'));
+
+  const done = compass(cwd, ['done', 'T6']);
+  assert.notEqual(done.status, 0, done.stdout + done.stderr);
+  assert.match(done.stdout, /thuộc task khác|bị copy sang task/);
+});
+
+// C3 — a gate record's evidence must not outlive a change to the test command it ran under.
+test('C3: done rejects test-gate evidence after the test command in config.json changed', () => {
+  const cwd = makeWorkspace();
+  compass(cwd, ['init', 'T7', '--type=fix']);
+  writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: GREEN }));
+  writeFileSync(path.join(cwd, '.compass', 'T7', 'spec.md'), FILLED_SPEC.replace('T-1', 'T7'));
+
+  const check = compass(cwd, ['check', 'T7']);
+  assert.equal(check.status, 0, check.stdout + check.stderr);
+
+  // Config changes after the gate ran — evidence no longer describes what would run now.
+  const differentCmd = 'node -e "console.log(\'ok 1 - test_H1_x\'); console.log(\'ok 2 - test_H2_y\')"';
+  writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: differentCmd }));
+
+  const done = compass(cwd, ['done', 'T7']);
+  assert.notEqual(done.status, 0, done.stdout + done.stderr);
+  assert.match(done.stdout, /Lệnh test đã đổi/);
+});
+
+// C4 — check --only=<unknown or unimplemented> must never exit 0 having run nothing.
+test('C4: check --only with an unknown gate name exits non-zero, not 0', () => {
+  const cwd = makeWorkspace();
+  compass(cwd, ['init', 'T-1', '--type=fix']);
+  writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: GREEN }));
+  writeFileSync(path.join(cwd, '.compass', 'T-1', 'spec.md'), FILLED_SPEC);
+
+  const result = compass(cwd, ['check', 'T-1', '--only=bogus']);
+  assert.equal(result.status, 2);
+  assert.match(result.stdout, /không áp dụng/);
+  assert.match(result.stdout, /spec/);
+  assert.match(result.stdout, /test/);
+});
+
+test('C4: check --only with a gate applicable but not yet implemented exits non-zero, not 0', () => {
+  const cwd = makeWorkspace();
+  compass(cwd, ['init', 'T-CV', '--type=feature-s']);
+  writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: GREEN }));
+  writeFileSync(path.join(cwd, '.compass', 'T-CV', 'spec.md'),
+    FILLED_SPEC.replace('T-1', 'T-CV').replace('Loại: fix', 'Loại: feature-s'));
+
+  const result = compass(cwd, ['check', 'T-CV', '--only=convention']);
+  assert.equal(result.status, 2);
+  assert.match(result.stdout, /chưa được xây dựng/);
+});
+
+// I2 — one pass line naming several spec IDs must not satisfy all of them.
+test('I2: one shared pass line covering two spec IDs blocks done for both', () => {
+  const cwd = makeWorkspace();
+  compass(cwd, ['init', 'T-1', '--type=fix']);
+  const sharedLine = 'node -e "console.log(\'ok 1 - test covers H1 and H2 together\')"';
+  writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: sharedLine }));
+  writeFileSync(path.join(cwd, '.compass', 'T-1', 'spec.md'), FILLED_SPEC);
+
+  const check = compass(cwd, ['check', 'T-1']);
+  assert.notEqual(check.status, 0, check.stdout + check.stderr);
+  assert.match(check.stdout, /không tách được ai chạy ai|mỗi ca cần một test riêng/);
+  assert.match(check.stdout, /H1/);
+  assert.match(check.stdout, /H2/);
+
+  const done = compass(cwd, ['done', 'T-1']);
+  assert.notEqual(done.status, 0);
+});
+
+// A legitimate full run must still pass end to end after all the above fixes.
+test('a full happy path still runs green from init to done after the C1-C4/I2 fixes', () => {
+  const cwd = makeWorkspace();
+  const init = compass(cwd, ['init', 'T-OK', '--type=fix']);
+  assert.equal(init.status, 0, init.stdout + init.stderr);
+
+  writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: GREEN }));
+  writeFileSync(path.join(cwd, '.compass', 'T-OK', 'spec.md'), FILLED_SPEC.replace('T-1', 'T-OK'));
+
+  const check = compass(cwd, ['check', 'T-OK']);
+  assert.equal(check.status, 0, check.stdout + check.stderr);
+
+  const done = compass(cwd, ['done', 'T-OK']);
+  assert.equal(done.status, 0, done.stdout + done.stderr);
+
+  const status = compass(cwd, ['status', 'T-OK']);
+  assert.equal(status.status, 0, status.stdout + status.stderr);
+  assert.doesNotMatch(status.stdout, /⚠/);
 });

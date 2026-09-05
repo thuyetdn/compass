@@ -136,3 +136,26 @@ test('compareWithSpec tolerates extra ids as long as none are missing', () => {
   const result = compareWithSpec(['H1'], ['H1', 'H2']);
   assert.equal(result.ok, true);
 });
+
+// I2 — a single pass line naming multiple spec IDs must not count as any of them ran.
+test('extractRanIds: a pass line naming two spec IDs counts neither as ran', () => {
+  const output = 'ok 1 - test covers H1 and H2 together';
+  const result = extractRanIds(output, ['H1', 'H2']);
+  assert.deepEqual(result.ran, []);
+  assert.deepEqual(result.seenOnSharedLines.sort(), ['H1', 'H2']);
+});
+
+test('extractRanIds: an ID that passes alone elsewhere is not treated as shared', () => {
+  const output = 'ok 1 - test covers H1 and H2 together\nok 2 - test_H1_dedicated';
+  const result = extractRanIds(output, ['H1', 'H2']);
+  // H1 passed on its own dedicated line too, so it should count as ran and drop out of shared.
+  assert.deepEqual(result.ran, ['H1']);
+  assert.deepEqual(result.seenOnSharedLines, ['H2']);
+});
+
+test('extractRanIds: a shared pass line does not affect an unrelated single-ID pass line', () => {
+  const output = 'ok 1 - test_V1_alone\nok 2 - test covers H1 and H2 together';
+  const result = extractRanIds(output, ['V1', 'H1', 'H2']);
+  assert.deepEqual(result.ran, ['V1']);
+  assert.deepEqual(result.seenOnSharedLines.sort(), ['H1', 'H2']);
+});

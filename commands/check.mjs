@@ -29,7 +29,22 @@ export function checkCommand({ cwd, taskId, only }) {
   }
 
   let gates = ORDER.filter((g) => rules.gates.includes(g));
-  if (only) gates = gates.filter((g) => g === only);
+
+  if (only) {
+    if (!gates.includes(only)) {
+      return {
+        exitCode: 2,
+        output: `Gate "${only}" không áp dụng cho loại task "${spec.type}". Gate hợp lệ: ${gates.join(', ')}`,
+      };
+    }
+    if (!IMPLEMENTED[only]) {
+      return {
+        exitCode: 2,
+        output: `Gate "${only}" áp dụng nhưng chưa được xây dựng ở giai đoạn này.`,
+      };
+    }
+    gates = gates.filter((g) => g === only);
+  }
 
   const lines = [];
   const skipped = [];

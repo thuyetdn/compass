@@ -53,7 +53,18 @@ export function statusCommand({ cwd, taskId }) {
   }
 
   if (!integrity.ok) {
-    lines.push('', `⚠ Chữ ký không khớp: ${integrity.tampered.join(', ')}`);
+    if (integrity.tampered.length) {
+      lines.push('', `⚠ Chữ ký không khớp: ${integrity.tampered.join(', ')}`);
+    }
+    if (integrity.misslotted?.length) {
+      lines.push('', `⚠ Bản ghi không thuộc slot này (bị chuyển từ gate khác): ${integrity.misslotted.join(', ')}`);
+    }
+    if (integrity.wrongTask?.length) {
+      lines.push('', `⚠ Bản ghi thuộc task khác (bị copy sang đây): ${integrity.wrongTask.join(', ')}`);
+    }
+    if (integrity.outdated?.length) {
+      lines.push('', `⚠ Bản ghi từ bản Compass cũ, chưa có taskId, cần chạy lại: ${integrity.outdated.join(', ')}`);
+    }
   }
 
   return { exitCode: 0, output: lines.join('\n') };

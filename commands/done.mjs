@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { findRoot, specPath } from '../lib/paths.mjs';
+import { findRoot, specPath, configPath } from '../lib/paths.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
 import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
@@ -25,7 +25,18 @@ export function doneCommand({ cwd, taskId }) {
 
   const integrity = verifyAllGates(root, taskId);
   if (!integrity.ok) {
-    problems.push(`chữ ký không khớp ở gate: ${integrity.tampered.join(', ')} — bản ghi đã bị sửa tay.`);
+    if (integrity.tampered.length) {
+      problems.push(`chữ ký không khớp ở gate: ${integrity.tampered.join(', ')} — bản ghi đã bị sửa tay.`);
+    }
+    if (integrity.misslotted?.length) {
+      problems.push(`bản ghi ở gate "${integrity.misslotted.join(', ')}" không thuộc slot này — bị chuyển từ gate khác. Coi như gian lận.`);
+    }
+    if (integrity.wrongTask?.length) {
+      problems.push(`bản ghi ở gate "${integrity.wrongTask.join(', ')}" thuộc task khác — bị copy sang task này. Coi như gian lận.`);
+    }
+    if (integrity.outdated?.length) {
+      problems.push(`bản ghi ở gate "${integrity.outdated.join(', ')}" được ghi từ bản Compass cũ, chưa có taskId — không chứng minh được gì ở bản này. Chạy lại: compass check ${taskId}`);
+    }
   }
 
   let gates;
@@ -63,6 +74,14 @@ export function doneCommand({ cwd, taskId }) {
     const record = gates[name];
     if (record && record.specHash && record.specHash !== currentSpecHash) {
       problems.push(`Spec đã thay đổi sau khi gate "${name}" chạy — phải chạy lại và duyệt lại.`);
+    }
+  }
+
+  const currentConfigHash = hashFile(configPath(root));
+  for (const name of required) {
+    const record = gates[name];
+    if (record && record.configHash && record.configHash !== currentConfigHash) {
+      problems.push(`Lệnh test đã đổi kể từ khi gate "${name}" chạy — bằng chứng không còn mô tả đúng lệnh sẽ chạy bây giờ. Chạy lại: compass check ${taskId}`);
     }
   }
 

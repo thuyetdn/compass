@@ -83,6 +83,13 @@ test('testCommand records the command and exit code in the gate', () => {
   assert.match(gate.outputHash, /^sha256:/);
 });
 
+test('testCommand records a configHash in the gate', () => {
+  const root = makeTask(printBoth);
+  testCommand({ cwd: root, taskId: 'T-1' });
+  const gate = readGate(root, 'T-1', 'test');
+  assert.match(gate.configHash, /^sha256:/);
+});
+
 test('testCommand reports an invalid config', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-testcmd-bad-'));
   mkdirSync(path.join(root, '.compass', 'T-1'), { recursive: true });
@@ -119,6 +126,17 @@ test('testCommand: when process is killed by signal, shows in gate', () => {
   // Verify the gate has these fields even if null in normal runs
   assert.ok('signal' in gate);
   assert.ok('suiteFailure' in gate);
+});
+
+test('I2: testCommand fails and reports IDs sharing one pass line distinctly', () => {
+  const root = makeTask('node -e "console.log(\'ok 1 - test covers H1 and H2 together\')"');
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /không tách được ai chạy ai|mỗi ca cần một test riêng/);
+  assert.match(result.output, /H1/);
+  assert.match(result.output, /H2/);
+  const gate = readGate(root, 'T-1', 'test');
+  assert.deepEqual(gate.seenOnSharedLines.sort(), ['H1', 'H2']);
 });
 
 test('testCommand: retried-then-passed ID not reported as failed', () => {

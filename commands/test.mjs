@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { findRoot, specPath, evidenceDir, validateTaskId } from '../lib/paths.mjs';
+import { findRoot, specPath, evidenceDir, configPath, validateTaskId } from '../lib/paths.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { runCommand } from '../lib/test-runner.mjs';
@@ -57,11 +57,13 @@ export function testCommand({ cwd, taskId }) {
     outputHash: sha256(run.output),
     outputFile: 'evidence/test.log',
     specHash: hashFile(file),
+    configHash: hashFile(configPath(root)),
     specIdCount: specIds.length,
     ranIdCount: extracted.ran.length,
     missingIds: comparison.missing,
     seenOnNonPassLines: extracted.seenOnNonPassLines,
     seenOnUnknownLines: extracted.seenOnUnknownLines,
+    seenOnSharedLines: extracted.seenOnSharedLines,
   });
 
   if (ok) {
@@ -89,8 +91,13 @@ export function testCommand({ cwd, taskId }) {
     if (extracted.seenOnUnknownLines.length > 0) {
       lines.push(`Xuất hiện trên dòng không rõ định dạng (có thể dùng reporter khác): ${extracted.seenOnUnknownLines.join(', ')}`);
     }
+    if (extracted.seenOnSharedLines.length > 0) {
+      lines.push(`Cùng xuất hiện chung một dòng pass, không tách được ai chạy ai (mỗi ca cần một test riêng): ${extracted.seenOnSharedLines.join(', ')}`);
+    }
     const neverSeen = comparison.missing.filter(
-      (id) => !extracted.seenOnNonPassLines.includes(id) && !extracted.seenOnUnknownLines.includes(id)
+      (id) => !extracted.seenOnNonPassLines.includes(id) &&
+              !extracted.seenOnUnknownLines.includes(id) &&
+              !extracted.seenOnSharedLines.includes(id)
     );
     if (neverSeen.length > 0) {
       lines.push(`Không tìm thấy dấu vết: ${neverSeen.join(', ')}`);
