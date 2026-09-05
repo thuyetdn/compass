@@ -1,0 +1,68 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { findRoot, specPath } from '../lib/paths.mjs';
+import { parseSpec } from '../lib/spec-parser.mjs';
+import { rulesFor } from '../lib/task-types.mjs';
+import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
+import { hashFile } from '../lib/hash.mjs';
+import { pass, fail, hint } from '../lib/report.mjs';
+
+const IMPLEMENTED_GATES = ['spec', 'test'];
+
+export function doneCommand({ cwd, taskId }) {
+  if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass done <id>' };
+
+  const root = findRoot(cwd);
+  if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
+
+  const file = specPath(root, taskId);
+  if (!existsSync(file)) return { exitCode: 2, output: `Không tìm thấy spec: ${file}` };
+
+  const spec = parseSpec(readFileSync(file, 'utf8'));
+  const rules = rulesFor(spec.type);
+  if (!rules) return { exitCode: 2, output: `Loại task không hợp lệ trong spec: "${spec.type}"` };
+
+  const problems = [];
+
+  const integrity = verifyAllGates(root, taskId);
+  if (!integrity.ok) {
+    problems.push(`chữ ký không khớp ở gate: ${integrity.tampered.join(', ')} — bản ghi đã bị sửa tay.`);
+  }
+
+  const gates = readGates(root, taskId);
+  const required = rules.gates.filter((g) => IMPLEMENTED_GATES.includes(g));
+
+  for (const name of required) {
+    const record = gates[name];
+    if (!record) {
+      problems.push(`Gate "${name}" chưa chạy.`);
+      continue;
+    }
+    if (record.exitCode !== 0) {
+      problems.push(`Gate "${name}" chưa pass (exit code ${record.exitCode}).`);
+    }
+  }
+
+  const currentSpecHash = hashFile(file);
+  for (const name of required) {
+    const record = gates[name];
+    if (record && record.specHash && record.specHash !== currentSpecHash) {
+      problems.push(`Spec đã thay đổi sau khi gate "${name}" chạy — phải chạy lại và duyệt lại.`);
+    }
+  }
+
+  if (problems.length) {
+    return {
+      exitCode: 1,
+      output: [fail('done', problems), '', hint('Chạy: compass check ' + taskId)].join('\n'),
+    };
+  }
+
+  return {
+    exitCode: 0,
+    output: [
+      pass('done', `${required.length} gate đã pass`),
+      '',
+      `Task ${taskId} hoàn thành. Bằng chứng: .compass/${taskId}/evidence/`,
+    ].join('\n'),
+  };
+}

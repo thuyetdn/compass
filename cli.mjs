@@ -2,6 +2,9 @@
 import { initCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
 import { testCommand } from './commands/test.mjs';
+import { checkCommand } from './commands/check.mjs';
+import { doneCommand } from './commands/done.mjs';
+import { statusCommand } from './commands/status.mjs';
 
 const USAGE = `compass — quy trình có bằng chứng
 
@@ -46,6 +49,15 @@ function main() {
         break;
       case 'test':
         result = testCommand({ cwd, taskId });
+        break;
+      case 'check':
+        result = checkCommand({ cwd, taskId, only: flags.only });
+        break;
+      case 'done':
+        result = doneCommand({ cwd, taskId });
+        break;
+      case 'status':
+        result = statusCommand({ cwd, taskId });
         break;
       default:
         result = { exitCode: 2, output: USAGE };
