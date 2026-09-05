@@ -13,7 +13,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 
 ```json
 {
-  "brief": "96ff4bdd567f",
+  "brief": "a8056f710462",
   "findings": [
     {
       "severity": "Critical | Major | Minor | Info",
@@ -26,7 +26,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 }
 ```
 
-Không tìm thấy gì thì nộp `{ "brief": "96ff4bdd567f", "findings": [] }`. Đừng bịa ra finding cho có.
+Không tìm thấy gì thì nộp `{ "brief": "a8056f710462", "findings": [] }`. Đừng bịa ra finding cho có.
 
 | Mức | Dùng khi |
 |---|---|
@@ -219,7 +219,7 @@ index 0000000..d238733
 +**Vùng ảnh hưởng:** lib/dev-server.mjs
 +**Phòng tránh:** giết theo cây (`taskkill /t`), và **đợi** nó chết trước khi trả về. Đừng suy ra trạng thái cây tiến trình từ exit code của tiến trình gốc.
 diff --git a/README.md b/README.md
-index d9ae78c..118b5c1 100644
+index d9ae78c..c1f7b7a 100644
 --- a/README.md
 +++ b/README.md
 @@ -52,9 +52,10 @@ Gate record có chữ ký — sửa tay là lộ.
@@ -227,7 +227,7 @@ index d9ae78c..118b5c1 100644
  ## Trạng thái
  
 -Sáu gate đã chạy được: `spec`, `convention`, `test`, `ui`, `visual`, `review` — 403 test.
-+Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 516 test.
++Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 523 test.
  
 -Chưa có: knowledge base sinh tự động, lệnh `investigate`, multi-repo.
 +Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
@@ -240,7 +240,7 @@ index d9ae78c..118b5c1 100644
  
  ```bash
 -npm test        # 403 test, vài giây
-+npm test        # 516 test, vài giây
++npm test        # 523 test, vài giây
  npm run test:deep  # 10 test qua CLI thật trên examples/todo, ~100 giây
  ```
  
@@ -922,15 +922,15 @@ index ee04046..b7fe554 100644
      let state;
 diff --git a/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md b/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
 new file mode 100644
-index 0000000..ca668d5
+index 0000000..0955502
 --- /dev/null
 +++ b/docs/superpowers/notes/2026-09-06-phase-3-4-notes.md
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,156 @@
 +# Compass GĐ 3 và 4 — ghi chú
 +
 +**Ngày:** 2026-09-06
 +**Task:** CP-7 (`sourceHash`) · CP-9 (test tích hợp sâu) · CP-10 (`knowledge`) · CP-11 (`investigate` + `scripts`) · CP-12 (multi-repo) · INV-1 (điều tra thật đầu tiên)
-+**Suite:** 385 → 516 test
++**Suite:** 385 → 523 test
 +
 +Tiếp sau [GĐ 2](2026-09-05-phase-2-notes.md). Lộ trình trong spec thiết kế §13 đã đi hết.
 +
@@ -1026,9 +1026,15 @@ index 0000000..ca668d5
 +|---|---|
 +| 1 | `usedIn` đếm tên trần trong comment |
 +| 2 | Bản sửa vòng 1 vẫn để lọt import bị comment-out; và `readProps` mất prop |
-+| 3 | Bản sửa Pitfall chặn nhầm `<SaveButton />` |
++| 3 | Bản sửa vòng 2 không biết regex literal — `/['"]/g` mở chuỗi ma nuốt dòng import ngay dưới, tái hiện được trên chính `lib/paths.mjs`. Và `readProps` vẫn đào type object của tham số không destructure, bịa ra prop |
++| 4 | Bản sửa Pitfall chặn nhầm `<SaveButton />`; rồi bản sửa cái đó lại để lọt mọi gợi ý một từ (`<ngày>`, `<vì sao>`, `<...>`) |
 +
-+Nếu dừng ở vòng một, hai lỗi Major vẫn còn nguyên.
++Bốn vòng, và **mỗi vòng đều tìm ra lỗi do bản sửa của vòng trước sinh ra**. Nếu dừng ở vòng
++một, bốn lỗi Major vẫn còn nguyên.
++
++Lần cuối phải bỏ hẳn lối đoán. Thay vì suy ra "cái này trông giống chữ mẫu", đọc thẳng
++`templates/investigation.md` rồi so khớp chính xác — chữ mẫu là thứ template tự viết ra, biết
++được chính xác thì đừng đoán.
 +
 +## Vòng phản hồi chạy thật
 +
@@ -1050,7 +1056,7 @@ index 0000000..ca668d5
 +| Chỉ số | Giá trị |
 +|---|---|
 +| Suite đầu GĐ 3 | 385 pass |
-+| Suite cuối GĐ 4 | 516 pass |
++| Suite cuối GĐ 4 | 523 pass |
 +| Gate `knowledge` trên Compass | 85 file, ~10ms |
 +| `hashSource` trên Compass | ~15ms |
 +| Số gate | 7 |
@@ -1327,10 +1333,10 @@ index 0000000..58a87af
 +}
 diff --git a/lib/knowledge-scan.mjs b/lib/knowledge-scan.mjs
 new file mode 100644
-index 0000000..2ad1c7f
+index 0000000..972ccd5
 --- /dev/null
 +++ b/lib/knowledge-scan.mjs
-@@ -0,0 +1,232 @@
+@@ -0,0 +1,270 @@
 +import { readdirSync, readFileSync } from 'node:fs';
 +import path from 'node:path';
 +import { SKIP_DIRS } from './source-hash.mjs';
@@ -1388,11 +1394,22 @@ index 0000000..2ad1c7f
 +  // line: `({ x, y }: { x: string; y: number })` has a type object after it,
 +  // and reaching for lastIndexOf swallowed half the props while still
 +  // reporting confidence.
++  // Skip over string contents: a default value like `close = '}'` holds a
++  // brace that would close the block early, dropping every prop after it while
++  // the function still reported confidence.
 +  let braces = 0;
 +  let close = -1;
++  let quote = null;
 +  for (let i = open; i < text.length; i++) {
-+    if (text[i] === '{') braces += 1;
-+    else if (text[i] === '}') {
++    const ch = text[i];
++    if (quote) {
++      if (ch === '\\') { i += 1; continue; }
++      if (ch === quote) quote = null;
++      continue;
++    }
++    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
++    if (ch === '{') braces += 1;
++    else if (ch === '}') {
 +      braces -= 1;
 +      if (braces === 0) { close = i; break; }
 +    }
@@ -1416,8 +1433,21 @@ index 0000000..2ad1c7f
 +    props[name] = eq === -1 ? {} : { default: piece.slice(eq + 1).trim() };
 +  };
 +
-+  // Split on commas that are not inside a nested value.
-+  for (const ch of body) {
++  // Split on commas that are not inside a nested value — and not inside a
++  // string. `close = '}'` drove depth negative, after which no comma split
++  // again and every prop behind it was swallowed.
++  let inString = null;
++  for (let i = 0; i < body.length; i++) {
++    const ch = body[i];
++
++    if (inString) {
++      current += ch;
++      if (ch === '\\') { current += body[i + 1] ?? ''; i += 1; continue; }
++      if (ch === inString) inString = null;
++      continue;
++    }
++    if (ch === '"' || ch === "'" || ch === '`') { inString = ch; current += ch; continue; }
++
 +    if ('([{'.includes(ch)) depth += 1;
 +    else if (')]}'.includes(ch)) depth -= 1;
 +    if (ch === ',' && depth === 0) { flush(); continue; }
@@ -1488,10 +1518,24 @@ index 0000000..2ad1c7f
 +
 +// `/` opens a regex only where a value may begin. After an identifier, a
 +// number, or a closing bracket it is division.
++//
++// Looking at one character is not enough: `return /['"]/` ends in the `n` of
++// `return`, which reads as an identifier and so as division. These keywords are
++// followed by a value, never by a divisor.
++const VALUE_KEYWORDS = new Set([
++  'return', 'throw', 'typeof', 'instanceof', 'in', 'of', 'delete', 'void',
++  'yield', 'await', 'case', 'do', 'else', 'new',
++]);
++
 +function startsRegex(before) {
-+  const prev = before.replace(/\s+$/, '').slice(-1);
-+  if (prev === '') return true;
-+  return !/[A-Za-z0-9_$)\]]/.test(prev);
++  const trimmed = before.replace(/\s+$/, '');
++  if (trimmed === '') return true;
++
++  const prev = trimmed.slice(-1);
++  if (!/[A-Za-z0-9_$)\]]/.test(prev)) return true;
++
++  const word = trimmed.match(/[A-Za-z_$][A-Za-z0-9_$]*$/);
++  return word !== null && VALUE_KEYWORDS.has(word[0]);
 +}
 +
 +// Only the import clause counts: `import X`, `import { X }`, `import { Y as X }`,
@@ -2585,10 +2629,10 @@ index 0000000..3db3372
 +});
 diff --git a/test/knowledge-scan.test.mjs b/test/knowledge-scan.test.mjs
 new file mode 100644
-index 0000000..0cecda4
+index 0000000..19e50f3
 --- /dev/null
 +++ b/test/knowledge-scan.test.mjs
-@@ -0,0 +1,287 @@
+@@ -0,0 +1,357 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -2875,6 +2919,76 @@ index 0000000..0cecda4
 +  const { components } = scanComponents(root);
 +  assert.deepEqual(Object.keys(components.Ok.props).sort(), ['alpha', 'beta']);
 +  assert.equal(components.Ok.confident, true);
++});
++
++test('EC11 a regex after a keyword is a regex, not a division', () => {
++  // `return /['"]/` ends in the `n` of return, which reads as an identifier
++  // and so as division — the quote then opened a phantom string that ate the
++  // import below. Looking at one character was never enough.
++  const root = makeTree({
++    'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
++    'src/Page.jsx': `export const has = (s) => { return /['"]/.test(s); };\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
++  });
++  const { components } = scanComponents(root);
++  assert.equal(components.Card.usedIn, 1);
++});
++
++test('every keyword that precedes a value is handled, not just return', () => {
++  for (const keyword of ['return', 'typeof', 'case', 'yield']) {
++    const root = makeTree({
++      'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
++      'src/Page.jsx': `function f(s) { ${keyword} /['"]/.test(s); }\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
++    });
++    const { components } = scanComponents(root);
++    assert.equal(components.Card.usedIn, 1, `sau "${keyword}" phải nhận là regex`);
++  }
++});
++
++test('EC12 a default value holding a brace does not cut the prop list short', () => {
++  // `close = '}'` closed the destructuring early and drove the comma splitter
++  // negative, so every prop behind it vanished — while confident stayed true.
++  const root = makeTree({
++    'src/Tpl.jsx': `export function Tpl({ close = '}', label, onSave }) { return null; }\n`,
++  });
++  const { components } = scanComponents(root);
++  assert.deepEqual(Object.keys(components.Tpl.props).sort(), ['close', 'label', 'onSave']);
++});
++
++test('a default value holding a comma does not split the prop list', () => {
++  const root = makeTree({
++    'src/S.jsx': `export function S({ sep = 'a, b', label }) { return null; }\n`,
++  });
++  const { components } = scanComponents(root);
++  assert.deepEqual(Object.keys(components.S.props).sort(), ['label', 'sep']);
++});
++
++test('EC13 a regex after any value-position keyword is read as a regex', () => {
++  // Fixed one keyword at a time twice — `return`, then `throw`. Sweep the whole
++  // list instead, so the next omission fails here rather than in a review.
++  const keywords = [
++    'return', 'throw', 'typeof', 'instanceof', 'in', 'of', 'delete', 'void',
++    'yield', 'await', 'case', 'do', 'else', 'new',
++  ];
++
++  for (const keyword of keywords) {
++    const root = makeTree({
++      'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
++      'src/Page.jsx': `function probe(s) { ${keyword} /['"]/.test(s); }\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
++    });
++    const { components } = scanComponents(root);
++    assert.equal(components.Card.usedIn, 1,
++      `sau "${keyword}" phải nhận là regex — thiếu nó thì dấu nháy mở chuỗi ma nuốt dòng import`);
++  }
++});
++
++test('an identifier that merely looks like a keyword is still division', () => {
++  // `min / max` must not be read as a regex opening.
++  const root = makeTree({
++    'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
++    'src/Page.jsx': `const ratio = min / max;\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
++  });
++  const { components } = scanComponents(root);
++  assert.equal(components.Card.usedIn, 1);
 +});
 diff --git a/test/manifest.test.mjs b/test/manifest.test.mjs
 new file mode 100644

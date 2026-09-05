@@ -67,3 +67,6 @@ Quét cả cây source ở repo lớn có thể chậm. Phải đo.
 | EC9 | Edge | Chuỗi chứa chữ "import" | Không tính là dùng | P0 |
 | EC10 | Edge | File có regex literal chứa dấu nháy | Vẫn đọc được import ở dưới | P0 |
 | V6 | Validation | Tham số dạng props: { a: string } | confident=false, không bịa prop từ type | P0 |
+| EC11 | Edge | Regex đứng sau từ khóa return | Nhận đúng là regex, không phải phép chia | P0 |
+| EC12 | Edge | Giá trị mặc định là chuỗi chứa dấu } | Không cắt sớm, trích đủ prop | P0 |
+| EC13 | Edge | Regex sau MỌI từ khóa đứng trước biểu thức | Nhận đúng là regex, rà cả danh sách chứ không từng cái | P0 |

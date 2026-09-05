@@ -285,3 +285,73 @@ test('a destructured parameter with an inline type is still read', () => {
   assert.deepEqual(Object.keys(components.Ok.props).sort(), ['alpha', 'beta']);
   assert.equal(components.Ok.confident, true);
 });
+
+test('EC11 a regex after a keyword is a regex, not a division', () => {
+  // `return /['"]/` ends in the `n` of return, which reads as an identifier
+  // and so as division — the quote then opened a phantom string that ate the
+  // import below. Looking at one character was never enough.
+  const root = makeTree({
+    'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
+    'src/Page.jsx': `export const has = (s) => { return /['"]/.test(s); };\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
+  });
+  const { components } = scanComponents(root);
+  assert.equal(components.Card.usedIn, 1);
+});
+
+test('every keyword that precedes a value is handled, not just return', () => {
+  for (const keyword of ['return', 'typeof', 'case', 'yield']) {
+    const root = makeTree({
+      'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
+      'src/Page.jsx': `function f(s) { ${keyword} /['"]/.test(s); }\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
+    });
+    const { components } = scanComponents(root);
+    assert.equal(components.Card.usedIn, 1, `sau "${keyword}" phải nhận là regex`);
+  }
+});
+
+test('EC12 a default value holding a brace does not cut the prop list short', () => {
+  // `close = '}'` closed the destructuring early and drove the comma splitter
+  // negative, so every prop behind it vanished — while confident stayed true.
+  const root = makeTree({
+    'src/Tpl.jsx': `export function Tpl({ close = '}', label, onSave }) { return null; }\n`,
+  });
+  const { components } = scanComponents(root);
+  assert.deepEqual(Object.keys(components.Tpl.props).sort(), ['close', 'label', 'onSave']);
+});
+
+test('a default value holding a comma does not split the prop list', () => {
+  const root = makeTree({
+    'src/S.jsx': `export function S({ sep = 'a, b', label }) { return null; }\n`,
+  });
+  const { components } = scanComponents(root);
+  assert.deepEqual(Object.keys(components.S.props).sort(), ['label', 'sep']);
+});
+
+test('EC13 a regex after any value-position keyword is read as a regex', () => {
+  // Fixed one keyword at a time twice — `return`, then `throw`. Sweep the whole
+  // list instead, so the next omission fails here rather than in a review.
+  const keywords = [
+    'return', 'throw', 'typeof', 'instanceof', 'in', 'of', 'delete', 'void',
+    'yield', 'await', 'case', 'do', 'else', 'new',
+  ];
+
+  for (const keyword of keywords) {
+    const root = makeTree({
+      'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
+      'src/Page.jsx': `function probe(s) { ${keyword} /['"]/.test(s); }\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
+    });
+    const { components } = scanComponents(root);
+    assert.equal(components.Card.usedIn, 1,
+      `sau "${keyword}" phải nhận là regex — thiếu nó thì dấu nháy mở chuỗi ma nuốt dòng import`);
+  }
+});
+
+test('an identifier that merely looks like a keyword is still division', () => {
+  // `min / max` must not be read as a regex opening.
+  const root = makeTree({
+    'src/Card.jsx': 'export function Card({ x }) { return <i>{x}</i>; }\n',
+    'src/Page.jsx': `const ratio = min / max;\nimport { Card } from './Card';\nexport const Page = () => <Card/>;\n`,
+  });
+  const { components } = scanComponents(root);
+  assert.equal(components.Card.usedIn, 1);
+});
