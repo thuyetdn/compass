@@ -199,16 +199,17 @@ test('C4: check --only with an unknown gate name exits non-zero, not 0', () => {
   assert.match(result.stdout, /test/);
 });
 
-test('C4: check --only with a gate applicable but not yet implemented exits non-zero, not 0', () => {
+test('C4: check --only=review hands out a brief and refuses to pass', () => {
   const cwd = makeWorkspace();
   compass(cwd, ['init', 'T-RV', '--type=feature-m']);
   writeFileSync(path.join(cwd, '.compass', 'config.json'), JSON.stringify({ test: GREEN }));
   writeFileSync(path.join(cwd, '.compass', 'T-RV', 'spec.md'),
     FILLED_SPEC.replace('T-1', 'T-RV').replace('Loại: fix', 'Loại: feature-m'));
 
+  // Nobody has reviewed anything yet, so the gate must not report success —
+  // that would let done close a task whose review never happened.
   const result = compass(cwd, ['check', 'T-RV', '--only=review']);
-  assert.equal(result.status, 2);
-  assert.match(result.stdout, /chưa được xây dựng/);
+  assert.notEqual(result.status, 0, result.stdout);
 });
 
 // I2 — one pass line naming several spec IDs must not satisfy all of them.

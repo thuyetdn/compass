@@ -31,7 +31,13 @@ test('the run order puts review last — it costs the most', () => {
   assert.equal(GATE_ORDER[GATE_ORDER.length - 1], 'review');
 });
 
-test('isImplemented answers for both a built and an unbuilt gate', () => {
+test('every gate in the run order is built — nothing is declared but missing', () => {
+  for (const gate of GATE_ORDER) {
+    assert.ok(isImplemented(gate), gate + ' nằm trong thứ tự chạy nhưng chưa cài');
+  }
+});
+
+test('isImplemented says no to a gate that does not exist', () => {
   assert.equal(isImplemented('test'), true);
-  assert.equal(isImplemented('review'), false);
+  assert.equal(isImplemented('khong-co-that'), false);
 });

@@ -52,11 +52,9 @@ Gate record có chữ ký — sửa tay là lộ.
 
 ## Trạng thái
 
-Gate đã có: `spec`, `convention`, `test` — 253 test.
-Còn thiếu: `ui`, `visual`, `review`, knowledge base, điều tra, multi-repo.
+Sáu gate đã chạy được: `spec`, `convention`, `test`, `ui`, `visual`, `review` — 385 test.
 
-Task `feature-s` trở lên đóng xanh **mà chưa ai đo giao diện** — `done` liệt kê rõ gate nào
-chưa được kiểm. Đọc dòng đó.
+Chưa có: knowledge base sinh tự động, lệnh `investigate`, multi-repo.
 
 ## Quy ước
 

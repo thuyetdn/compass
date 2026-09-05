@@ -5,6 +5,7 @@ import { testCommand } from './commands/test.mjs';
 import { conventionCommand } from './commands/convention.mjs';
 import { uiCommand } from './commands/ui.mjs';
 import { visualCommand } from './commands/visual.mjs';
+import { reviewCommand } from './commands/review.mjs';
 import { checkCommand } from './commands/check.mjs';
 import { doneCommand } from './commands/done.mjs';
 import { statusCommand } from './commands/status.mjs';
@@ -18,6 +19,7 @@ Dùng:
   compass test <id>
   compass ui <id>
   compass visual <id>
+  compass review <id>
   compass check <id>
   compass done <id>
   compass status <id>
@@ -64,6 +66,9 @@ async function main() {
         break;
       case 'visual':
         result = await visualCommand({ cwd, taskId });
+        break;
+      case 'review':
+        result = reviewCommand({ cwd, taskId });
         break;
       case 'check':
         result = await checkCommand({ cwd, taskId, only: flags.only });

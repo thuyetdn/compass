@@ -168,7 +168,13 @@ Pass → **dừng lại, đưa người duyệt**. Đây là điểm dừng bắ
 compass check <id>
 ```
 
-Chạy các gate áp dụng, dừng ngay khi fail. Rẻ trước, đắt sau: `spec` → `convention` → `test`.
+Chạy các gate áp dụng, dừng ngay khi fail. Rẻ trước, đắt sau:
+
+```
+spec (0.1s) → convention (1s) → test (vài giây) → ui (30s) → visual (30s) → review (cần agent)
+```
+
+Gate nào áp dụng thì tùy loại task — xem bảng Phân loại. `fix` và `bug` chỉ có `spec` với `test`.
 
 Gate `test` không chỉ xem suite xanh — nó còn đối chiếu **mọi test ID trong spec đã thực sự chạy chưa**.
 
@@ -205,6 +211,82 @@ Không có `conventions.md` thì gate pass và nói rõ là chưa có luật nà
 `node_modules`, `dist`, `build`, `coverage`, `.git` không bị quét.
 
 **Giới hạn:** chỉ khớp mẫu theo dòng, không phân tích AST. Luật kiểu "component này phải nhận prop kia" chưa làm được. Quy ước mềm cứ để dạng văn xuôi — vẫn đọc được, chỉ không có gate.
+
+### Gate `ui` — đo số, không nhìn ảnh
+
+Khai số thiết kế vào `.compass/<id>/design-contract.json`:
+
+```json
+{
+  "viewports": [{ "name": "desktop", "width": 1280 }],
+  "elements": [
+    {
+      "name": "Nút gửi",
+      "selector": "form button",
+      "properties": { "background-color": "#2563eb", "padding-left": "20px" }
+    }
+  ]
+}
+```
+
+Compass khởi động dev server, mở từng viewport bằng Playwright, đọc `getComputedStyle`, so theo dung sai:
+
+| Thuộc tính | Dung sai |
+|---|---|
+| color, font-size, font-weight | khớp tuyệt đối |
+| padding, margin, gap, width | ±2px |
+| border-radius, line-height | ±1px |
+
+Config cần `dev` và `devUrl`. Playwright cài ở **dự án đích**, không phải ở Compass:
+
+```
+npm install -D playwright && npx playwright install chromium
+```
+
+Không có contract thì gate pass và nói rõ là chưa có gì để đối chiếu.
+
+### Gate `visual` — chụp và so pixel
+
+`ui` chỉ đo những thuộc tính bạn nghĩ ra để khai. Nó **không thấy** chữ tràn, phần tử đè nhau, layout vỡ ở màn hẹp.
+
+Lần chạy đầu tạo baseline trong `.compass/<id>/baseline/` và nói rõ là **chưa so gì cả**. Xem ảnh, thấy đúng thì commit vào git. Từ lần sau nó so pixel.
+
+Vượt ngưỡng (mặc định 0.1%, chỉnh bằng `visualThreshold`) thì fail và ghi ảnh diff vào evidence — đỏ là chỗ đổi, mờ là chỗ giữ nguyên.
+
+Thay đổi là cố ý thì xóa baseline cũ, chạy lại để chốt baseline mới.
+
+**Giới hạn:** render chữ khác nhau giữa máy và CI làm gate đỏ vì lý do vặt. Ngưỡng phần trăm giảm bớt, không chữa được.
+
+### Gate `review` — agent khác soi diff
+
+Chỉ từ `feature-m`. Chạy hai pha.
+
+```
+compass review <id>          → sinh review-brief.md, exit 1
+   ↓  đưa brief cho agent KHÁC
+   ↓  agent ghi evidence/findings.json
+compass review <id>          → đọc findings, phán
+```
+
+Brief **chỉ có** spec và diff. Không lịch sử chat, không lời giải thích của người viết — reviewer biết lý do sẽ cân nhắc lý do đó thay vì đọc code.
+
+Findings theo format cứng:
+
+```json
+{ "findings": [{ "severity": "Major", "title": "...", "detail": "...", "file": "a.js", "line": 42 }] }
+```
+
+`Critical` và `Major` chặn gate. `Minor` và `Info` hiện ra nhưng không chặn. Không tìm thấy gì thì nộp `{"findings": []}` — đừng bịa cho có.
+
+Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ, Compass sinh brief mới và bắt soi lại. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code.
+
+**Phạm vi soi.** Mặc định Compass so với điểm rẽ khỏi nhánh chính, hoặc commit đầu tiên nếu không có. Nhánh sống lâu thì phạm vi đó là cả dự án chứ không phải một task — khai `reviewBase` trong config để trỏ đúng chỗ task bắt đầu:
+
+```json
+{ "reviewBase": "abc1234" }
+```
+
+Diff quá 2MB thì gate từ chối. Không ai đọc hết chừng đó, và gate xanh trên bản chưa đọc còn tệ hơn không có gate — chia task nhỏ ra.
 
 ### Cách Compass đếm test ID
 
@@ -275,9 +357,13 @@ Ba điều này chặn được **sai sót vô tình**, không chặn được *
 
 ## Giai đoạn hiện tại
 
-Đã có: `spec`, `convention`, `test`. Còn thiếu: `ui`, `visual`, `review` — `check` báo chúng là bỏ qua, không tính fail, và `done` liệt kê rõ gate nào chưa được kiểm.
+Sáu gate đã có đủ: `spec`, `convention`, `test`, `ui`, `visual`, `review`.
 
-Task frontend `feature-s` trở lên vì thế đóng xanh **mà chưa ai đo giao diện**. Dòng "chưa xây dựng ở giai đoạn này" trong output `done` là thứ phải đọc, không phải ghi chú cho vui.
+Chưa có: knowledge base sinh tự động, lệnh `investigate`, phân giải config đa repo.
+
+### Giới hạn còn lại của `done`
+
+`done` đọc `gate.json`, không đo lại code. Sửa code sau khi gate xanh thì `done` vẫn đóng được — đúng với **mọi** gate, không riêng `review`. Chặn được sai sót vô tình, không chặn được cố ý.
 
 ## Red Flags
 

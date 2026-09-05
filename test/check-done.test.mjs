@@ -157,7 +157,7 @@ test('statusCommand lists gate state', async () => {
   assert.match(result.output, /test/);
 });
 
-test('doneCommand for feature-m reports unimplemented gates on pass', async () => {
+test('doneCommand for feature-m blocks until the review gate has run', async () => {
   // Build a feature-m spec with 21 test cases spanning all 6 layers
   // Counts: Happy 4, Validation 4, Error 4, Edge 4, Security 3, Performance 2 = 21
   const rows = [
@@ -220,9 +220,10 @@ ${rows.join('\n')}
 
   await checkCommand({ cwd: root, taskId: 'T-FM' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM' });
-  assert.equal(result.exitCode, 0, result.output);
+  // Every gate is built now, so a feature-m task cannot close until an
+  // independent agent has actually reviewed the diff.
+  assert.equal(result.exitCode, 1, result.output);
   assert.match(result.output, /review/);
-  assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });
 });
@@ -235,7 +236,7 @@ test('doneCommand for fix task does NOT report unimplemented gates on pass', asy
   assert.doesNotMatch(result.output, /chưa xây dựng/);
 });
 
-test('doneCommand for feature-m reports unimplemented gates on fail', async () => {
+test('doneCommand for feature-m still blocks when the suite is red', async () => {
   // Build a feature-m spec with 21 test cases spanning all 6 layers
   // Counts: Happy 4, Validation 4, Error 4, Edge 4, Security 3, Performance 2 = 21
   const layers = ['Happy', 'Validation', 'Error', 'Edge', 'Security', 'Performance'];
@@ -285,8 +286,7 @@ ${rows.join('\n')}
   await checkCommand({ cwd: root, taskId: 'T-FM2' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM2' });
   assert.equal(result.exitCode, 1);
-  assert.match(result.output, /review/);
-  assert.match(result.output, /chưa xây dựng/);
+  assert.match(result.output, /review|test/);
 
   rmSync(root, { recursive: true });
 });
