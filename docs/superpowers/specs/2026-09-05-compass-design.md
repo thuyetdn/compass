@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-09-05
 **Tác giả:** Thuyet Do (thiết kế cùng Claude)
-**Trạng thái:** Draft — chờ thử nghiệm thực tế ở GĐ 1
+**Trạng thái:** Đã xây xong cả bốn giai đoạn (2026-09-06). Chưa chạy thử trên codebase Nexus thật.
 
 ---
 
@@ -149,15 +149,19 @@ compass investigate --close <id>
 
 ## 5. Phân loại task và gate áp dụng
 
-| Loại | Spec | Test tối thiểu | convention | ui | visual | review |
-|---|---|---|---|---|---|---|
-| `fix` | 5 dòng | 2 | ✅ | – | – | – |
-| `bug` | ngắn | 6 | ✅ | nếu FE | nếu FE | – |
-| `feature-s` | vừa | 13 | ✅ | ✅ | ✅ | – |
-| `feature-m` | đủ | 21 | ✅ | ✅ | ✅ | ✅ |
-| `feature-l` | đủ | 30+ | ✅ | ✅ | ✅ | ✅ |
+| Loại | Spec | Test tối thiểu | knowledge | convention | ui | visual | review |
+|---|---|---|---|---|---|---|---|
+| `fix` | 5 dòng | 2 | ✅ | – | – | – | – |
+| `bug` | ngắn | 6 | ✅ | – | – | – | – |
+| `feature-s` | vừa | 13 | ✅ | ✅ | ✅ | ✅ | – |
+| `feature-m` | đủ | 21 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `feature-l` | đủ | 30+ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 Số tối thiểu kế thừa từ `qa-standards/01-qa-strategy.md`.
+
+Bảng này khớp `lib/task-types.mjs` tính đến 2026-09-06. `fix` và `bug` không chạy `convention`
+như bản thiết kế đầu dự tính: một sửa đổi hai dòng không đáng phải quét cả cây source, và
+`convention` chỉ khớp mẫu theo dòng nên nó bắt được rất ít ở phạm vi đó.
 
 **Nguyên tắc một chiều:** AI được nâng cấp loại task giữa chừng (phải chạy lại `compass spec`),
 không bao giờ được hạ cấp.
@@ -704,6 +708,13 @@ Lần sau AI đụng vào `outlook/` sẽ đọc được. Kiến thức tích l
 ## 13. Lộ trình
 
 Mỗi giai đoạn **dùng được ngay** — không phải xây hết mới chạy.
+
+> **Trạng thái 2026-09-06:** cả bốn giai đoạn đã đi hết. Bảy gate chạy được, 504 test.
+> Bốn chỗ làm khác thiết kế và lý do: xem [ghi chú GĐ 2](../notes/2026-09-05-phase-2-notes.md)
+> và [ghi chú GĐ 3-4](../notes/2026-09-06-phase-3-4-notes.md).
+>
+> Còn nợ: `check` chạy gate ở nhiều repo (GĐ 4 mới làm phần phân giải cấu hình),
+> `derived/api.json` và `entities.json`, trang `--view`, và chạy thử trên codebase Nexus thật.
 
 ### GĐ 1 — Bộ xương
 - `SKILL.md` bản đầu
