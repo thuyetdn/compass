@@ -372,3 +372,26 @@ test('statusCommand where gate.json is a directory reports read error, not corru
   assert.match(result.output, /EISDIR/);
   assert.doesNotMatch(result.output, /at /);
 });
+
+test('doneCommand rejects a test gate that recorded no configHash', () => {
+  const root = makeTask(GREEN);
+  checkCommand({ cwd: root, taskId: 'T-1' });
+
+  // Dựng lại bản ghi kiểu phiên bản cũ: bỏ configHash rồi ký lại hợp lệ.
+  const file = gatePath(root, 'T-1');
+  const gates = JSON.parse(readFileSync(file, 'utf8'));
+  delete gates.test.configHash;
+  delete gates.test.sig;
+  gates.test.sig = signRecord(gates.test, getSalt(root));
+  writeFileSync(file, JSON.stringify(gates, null, 2));
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /phiên bản cũ/);
+});
+
+test('doneCommand still passes when the test gate carries its configHash', () => {
+  const root = makeTask(GREEN);
+  checkCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+});

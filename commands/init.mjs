@@ -42,6 +42,13 @@ export function initCommand({ cwd, taskId, type }) {
     writeFileSync(configPath(root), JSON.stringify(DEFAULT_CONFIG, null, 2));
   }
 
+  // .salt không được rời khỏi máy này. Nếu nó theo repo đi nơi khác, mọi bản ghi
+  // gate ký bằng nó trở nên chuyển được giữa các máy — chữ ký hết tác dụng.
+  const saltIgnore = path.join(compassDir(root), '.gitignore');
+  if (!existsSync(saltIgnore)) {
+    writeFileSync(saltIgnore, '.salt\n');
+  }
+
   const spec = specPath(root, taskId);
   if (existsSync(spec)) {
     return { exitCode: 2, output: `Spec đã tồn tại: ${spec}` };

@@ -136,11 +136,26 @@ Một task có mục tiêu "không còn để lại file rác" có thể pass m�
 
 Nên: sau khi `done` xanh, **tự kiểm mục tiêu gốc một lần**. Nếu spec nói "sau khi chạy không còn X", thì đi đếm X. Trách nhiệm chọn test case đo đúng mục tiêu vẫn nằm ở người viết spec — công cụ chỉ đảm bảo bạn không nói dối về việc đã chạy chúng.
 
-### Hai giới hạn chưa đóng được
+### Compass từ chối bản ghi thế nào
 
-Compass không hash source code. Test xanh xong, code implementation vẫn có thể bị đổi sau đó mà `done` không biết — việc này còn mở ở giai đoạn này.
+Bản ghi gate được ký kèm **danh tính**, không chỉ nội dung. Bốn lý do bị từ chối:
 
-`config.json` khai báo lệnh test và Compass tin nó. Compass phát hiện được lệnh test **đổi** sau khi gate đã chạy (qua `configHash`), nhưng không phán được lệnh đó có phải một test suite thật hay không.
+| Thông báo | Nghĩa là |
+|---|---|
+| "bản ghi đã bị sửa tay" | Giá trị trong `gate.json` bị đổi |
+| "không thuộc slot này" | Bản ghi của gate khác bị chuyển sang |
+| "thuộc task khác" | `gate.json` bị chép từ task khác |
+| "bản ghi từ phiên bản cũ" | Thiếu trường danh tính — chạy lại gate |
+
+### Ba giới hạn chưa đóng được
+
+**Source code không được hash.** Test xanh xong, code vẫn có thể bị đổi mà `done` không biết.
+
+**Bản ghi cũ có thể được khôi phục.** Lưu `gate.json` lúc xanh, để test đỏ, chép lại file cũ — `done` vẫn xanh. Bản ghi đó hợp lệ mọi mặt: đúng khe, đúng task, spec và config không đổi. Không có gì đánh dấu thời gian hay xâu chuỗi các lần chạy.
+
+**`config.json` được tin.** Compass bắt được lệnh test **đổi sau** khi gate chạy (qua `configHash`), nhưng nếu ai sửa nó **trước** khi chạy gate — trỏ sang một lệnh `echo` in ra định dạng TAP giả — thì không có cách nào phát hiện. Compass không phán được lệnh đó có phải test suite thật hay không.
+
+Ba điều này chặn được **sai sót vô tình**, không chặn được **cố ý gian lận**. Đó là ranh giới, và bạn nên biết nó ở đâu.
 
 ## Giai đoạn hiện tại
 
@@ -155,6 +170,6 @@ GĐ 1 có gate `spec` và `test`. Các gate `convention`, `ui`, `visual`, `revie
 | "Docs lỗi thời chút không sao" | Docs lỗi thời = quyết định dựa trên thông tin sai |
 | "Screenshot trông giống rồi" | Trông giống không phải bằng chứng. Đo số. |
 | "Còn 1 test fail nhưng không liên quan" | Fail là fail |
-| "Tôi sẽ sửa gate.json cho nhanh" | Chữ ký sẽ lộ. Và đó là gian lận. |
+| "Tôi sẽ sửa gate.json cho nhanh" | Chữ ký sẽ lộ — sửa giá trị, chuyển khe, chép từ task khác đều bị bắt. Và đó là gian lận. |
 | "Người duyệt chắc sẽ đồng ý thôi" | Chờ họ nói. Đoán ý là bỏ qua checkpoint. |
 | "compass done xanh rồi, xong" | Gate chứng minh test đã chạy, không chứng minh test đo đúng thứ. Tự kiểm mục tiêu gốc một lần. |

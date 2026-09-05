@@ -77,10 +77,17 @@ export function doneCommand({ cwd, taskId }) {
     }
   }
 
+  // Gate nào chạy lệnh từ config thì BẮT BUỘC phải ghi configHash. Thiếu là bản
+  // ghi cũ, không phải được miễn — dùng `record.configHash &&` sẽ âm thầm miễn
+  // trừ mọi gate tương lai nào quên ghi.
+  const CONFIG_DEPENDENT_GATES = ['test'];
   const currentConfigHash = hashFile(configPath(root));
   for (const name of required) {
     const record = gates[name];
-    if (record && record.configHash && record.configHash !== currentConfigHash) {
+    if (!record || !CONFIG_DEPENDENT_GATES.includes(name)) continue;
+    if (!record.configHash) {
+      problems.push(`Gate "${name}" không ghi lại lệnh test đã dùng — bản ghi từ phiên bản cũ. Chạy lại: compass check ${taskId}`);
+    } else if (record.configHash !== currentConfigHash) {
       problems.push(`Lệnh test đã đổi kể từ khi gate "${name}" chạy — bằng chứng không còn mô tả đúng lệnh sẽ chạy bây giờ. Chạy lại: compass check ${taskId}`);
     }
   }

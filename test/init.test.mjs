@@ -86,3 +86,11 @@ test('initCommand reuses existing root without new project message', () => {
   const result2 = initCommand({ cwd, taskId: 'T-2', type: 'fix' });
   assert.ok(!result2.output.includes('Khởi tạo dự án Compass mới tại'));
 });
+
+test('initCommand gitignores the salt so signatures stay machine-local', () => {
+  const cwd = makeDir();
+  initCommand({ cwd, taskId: 'T-1', type: 'fix' });
+  const ignore = path.join(cwd, '.compass', '.gitignore');
+  assert.ok(existsSync(ignore), '.compass/.gitignore phải được tạo');
+  assert.match(readFileSync(ignore, 'utf8'), /^\.salt$/m);
+});
