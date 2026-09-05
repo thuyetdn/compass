@@ -280,3 +280,29 @@ test('statusCommand with corrupt gate.json returns exit 2 with clean message', (
   assert.match(result.output, /Không thể đọc ledger gate/);
   assert.doesNotMatch(result.output, /at readGates/);
 });
+
+test('doneCommand detects actual JSON corruption and claims it', () => {
+  const root = makeTask(GREEN);
+  checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const gateFile = gatePath(root, 'T-1');
+  writeFileSync(gateFile, 'not valid json {');
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /Bản ghi có thể bị hỏng/);
+  assert.doesNotMatch(result.output, /at /);
+});
+
+test('statusCommand detects actual JSON corruption and claims it', () => {
+  const root = makeTask(GREEN);
+  checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const gateFile = gatePath(root, 'T-1');
+  writeFileSync(gateFile, 'not valid json {');
+
+  const result = statusCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /Bản ghi có thể bị hỏng/);
+  assert.doesNotMatch(result.output, /at /);
+});

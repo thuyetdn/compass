@@ -22,9 +22,15 @@ export function statusCommand({ cwd, taskId }) {
   try {
     gates = readGates(root, taskId);
   } catch (err) {
+    if (err.code === 'COMPASS_GATE_CORRUPT') {
+      return {
+        exitCode: 2,
+        output: `Không thể đọc ledger gate tại ${file.replace(/spec\.md$/, 'evidence/gate.json')}.\nBản ghi có thể bị hỏng. Không thể tin tưởng kết quả gate.`,
+      };
+    }
     return {
       exitCode: 2,
-      output: `Không thể đọc ledger gate tại ${file.replace(/spec\.md$/, 'evidence/gate.json')}.\nBản ghi có thể bị hỏng. Không thể tin tưởng kết quả gate.`,
+      output: `Không thể đọc ledger gate tại ${file.replace(/spec\.md$/, 'evidence/gate.json')}.\nLỗi: ${err.message}`,
     };
   }
 

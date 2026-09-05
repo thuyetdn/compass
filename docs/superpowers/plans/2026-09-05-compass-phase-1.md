@@ -1443,7 +1443,12 @@ export function readGates(root, taskId) {
   try {
     return JSON.parse(readFileSync(file, 'utf8'));
   } catch {
-    throw new Error(`gate.json hỏng, không đọc được: ${file}`);
+    // Đánh dấu lỗi để lệnh gọi phân biệt được "file hỏng" với mọi lỗi khác
+    // (quyền truy cập, đĩa lỗi). Không có dấu này, mọi trục trặc đều bị báo
+    // thành "bản ghi hỏng" — đẩy người dùng đi sửa file không hề hỏng.
+    const err = new Error(`gate.json hỏng, không đọc được: ${file}`);
+    err.code = 'COMPASS_GATE_CORRUPT';
+    throw err;
   }
 }
 
