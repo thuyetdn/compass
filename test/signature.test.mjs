@@ -55,3 +55,34 @@ test('verifyRecord rejects a record signed with a different salt', () => {
 test('verifyRecord rejects a record without a signature', () => {
   assert.equal(verifyRecord({ gate: 'test' }, 'abc'), false);
 });
+
+test('signRecord detects changes in nested object values', () => {
+  const salt = 'abc';
+  const a = signRecord({ gate: 'test', evidence: { exitCode: 0, log: 'clean' } }, salt);
+  const b = signRecord({ gate: 'test', evidence: { exitCode: 1, log: 'FAILED' } }, salt);
+  assert.notEqual(a, b);
+});
+
+test('signRecord produces stable signature regardless of nested key order', () => {
+  const salt = 'abc';
+  const a = signRecord({ gate: 'test', evidence: { exitCode: 0, log: 'x' } }, salt);
+  const b = signRecord({ gate: 'test', evidence: { log: 'x', exitCode: 0 } }, salt);
+  assert.equal(a, b);
+});
+
+test('signRecord detects changes in array contents and order', () => {
+  const salt = 'abc';
+  const a = signRecord({ gate: 'test', missingIds: ['EC3', 'S2'] }, salt);
+  const b = signRecord({ gate: 'test', missingIds: ['EC3', 'S3'] }, salt);
+  const c = signRecord({ gate: 'test', missingIds: ['S2', 'EC3'] }, salt);
+  assert.notEqual(a, b);
+  assert.notEqual(a, c);
+});
+
+test('verifyRecord rejects a tampered nested value', () => {
+  const salt = 'abc';
+  const record = { gate: 'test', evidence: { exitCode: 0, log: 'clean' } };
+  record.sig = signRecord(record, salt);
+  record.evidence.exitCode = 1;
+  assert.equal(verifyRecord(record, salt), false);
+});
