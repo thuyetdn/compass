@@ -987,6 +987,7 @@ Kiểm theo spec §6.3:
 5. Đủ các lớp bắt buộc theo loại
 6. Mỗi test case phải có ID, mô tả, và kỳ vọng không trống
 7. ID không trùng nhau
+8. Bảng test case không được rỗng — kiểm **độc lập**, không nấp trong nhánh `else` của `if (rules)`. Bảng rỗng là sai bất kể loại task hợp lệ hay không; đặt trong `else` khiến lỗi này biến mất với mọi spec có loại hợp lệ.
 
 - [ ] **Step 1: Viết test thất bại**
 
@@ -1077,6 +1078,17 @@ test('validateSpec reports every problem at once', () => {
   const result = validateSpec(buildSpec({ type: 'huge', regression: '', rows: [] }));
   assert.ok(result.errors.length >= 3);
 });
+
+test('validateSpec rejects an empty test case table even for a valid type', () => {
+  const result = validateSpec(buildSpec({ type: 'fix', rows: [] }));
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('ít nhất 1 test case')));
+});
+
+test('validateSpec does not fire the empty-table error when cases exist', () => {
+  const result = validateSpec(buildSpec({ type: 'fix', rows: [happy(1), happy(2)] }));
+  assert.ok(!result.errors.some((e) => e.includes('ít nhất 1 test case')));
+});
 ```
 
 - [ ] **Step 2: Chạy test, xác nhận fail**
@@ -1111,6 +1123,10 @@ export function validateSpec(markdown) {
     errors.push('Mục "Rủi ro hồi quy" đang trống — bắt buộc phải điền');
   }
 
+  if (spec.testCases.length === 0) {
+    errors.push('Spec phải có ít nhất 1 test case');
+  }
+
   const seen = new Set();
   for (const c of spec.testCases) {
     if (seen.has(c.id)) errors.push(`Test case ID bị trùng: ${c.id}`);
@@ -1140,7 +1156,7 @@ export function validateSpec(markdown) {
 - [ ] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/spec-validator.test.mjs`
-Expected: PASS — 9 test
+Expected: PASS — 11 test
 
 - [ ] **Step 5: Commit**
 
