@@ -1266,6 +1266,12 @@ git commit -m "feat: add spec validation rules"
 
 `gate.json` là một object, key là tên gate — mỗi lần chạy lại một gate thì ghi đè bản ghi cũ.
 
+**Sổ không đọc được là trạng thái LỖI, không phải trạng thái rỗng.** File thiếu hẳn thì trả `{}` — đúng nghĩa "chưa chạy gate nào". Nhưng file có mà không parse được thì phải ném lỗi.
+
+Vì sao quan trọng: ai muốn xóa một gate fail không cần giả chữ ký — chỉ cần **làm hỏng file**. Nuốt lỗi parse rồi trả `{}` biến một thất bại đã ghi thành "chưa từng chạy", `verifyAllGates` vẫn báo `ok: true`, và lần chạy gate sau ghi đè lên, xóa sạch dấu vết. Bắt được `exitCode` bị sửa mà bỏ qua file bị băm là hiểu ngược mô hình đe dọa.
+
+`verifyAllGates` bắt lỗi đó lại và trả `ok: false` kèm dấu `'<gate.json hỏng>'` trong `tampered`, để lệnh gọi nó vẫn hoạt động đúng và in được thông báo có nghĩa.
+
 - [ ] **Step 1: Viết test thất bại**
 
 Tạo `test/gate-store.test.mjs`:
@@ -1362,7 +1368,7 @@ export function readGates(root, taskId) {
   try {
     return JSON.parse(readFileSync(file, 'utf8'));
   } catch {
-    return {};
+    throw new Error(`gate.json hỏng, không đọc được: ${file}`);
   }
 }
 
@@ -1386,7 +1392,12 @@ export function writeGate(root, taskId, record) {
 
 export function verifyAllGates(root, taskId) {
   const salt = getSalt(root);
-  const gates = readGates(root, taskId);
+  let gates;
+  try {
+    gates = readGates(root, taskId);
+  } catch {
+    return { ok: false, tampered: ['<gate.json hỏng>'] };
+  }
   const tampered = Object.entries(gates)
     .filter(([, record]) => !verifyRecord(record, salt))
     .map(([name]) => name);
@@ -1397,7 +1408,7 @@ export function verifyAllGates(root, taskId) {
 - [ ] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/gate-store.test.mjs`
-Expected: PASS — 8 test
+Expected: PASS — 13 test
 
 - [ ] **Step 5: Commit**
 
@@ -1535,9 +1546,24 @@ git commit -m "feat: add test id extraction and spec comparison"
 **Interfaces:**
 - Consumes: (không)
 - Produces:
-  - `runCommand(command: string, cwd: string): {exitCode: number, output: string, durationMs: number}`
+  - `runCommand(command: string, cwd: string): {exitCode: number, output: string, durationMs: number, signal: string|null, failure: string|null}`
 
 Dùng `spawnSync` với `shell: true` để lệnh trong config (`npm test`, `pnpm vitest run`) chạy đúng như gõ tay. Gộp stdout và stderr vào một chuỗi — evidence cần cả hai.
+
+**Phân biệt "test fail" với "lệnh không chạy được".** Cả hai đều cho exit code khác 0, nhưng ý nghĩa hoàn toàn khác:
+
+| Tình huống | `exitCode` | `signal` | `failure` |
+|---|---|---|---|
+| Test chạy xong, có test đỏ | 3 | null | null |
+| Tiến trình bị kill (OOM, timeout CI) | ≠0 | `'SIGKILL'` | mô tả |
+| Output vượt `maxBuffer` | ≠0 | null | mô tả |
+| Không spawn được lệnh | ≠0 | null | mô tả |
+
+Nếu quy hết về "exit 1", bản ghi bằng chứng nói "test fail" trong khi sự thật là "lệnh chưa chạy xong" — người đọc log sau này sẽ đi tìm sai chỗ. Riêng ca `maxBuffer` còn tệ hơn: output rỗng khiến gate `test` báo *mọi* test ID đều thiếu, đổ lỗi hoàn toàn sai hướng.
+
+`failure` cũng được nối vào `output` để lý do nằm ngay trong file log, không chỉ trong giá trị trả về.
+
+**Hạn chế trên Windows:** ba nhánh `signal`, `ENOBUFS`, và lỗi spawn không kích hoạt được ở đây — Node dịch `SIGKILL` thành `TerminateProcess` nên tiến trình *thoát* mã 1 chứ không bị *báo tín hiệu*, và shell nuốt lỗi spawn. Code vẫn đúng và chạy được trên Linux/macOS. **Không viết test giả vờ phủ các nhánh này** — một assertion luôn đúng (`signal === 'SIGTERM' || signal === null`) tệ hơn là ghi nhận thẳng khoảng trống.
 
 - [ ] **Step 1: Viết test thất bại**
 
@@ -1578,7 +1604,29 @@ test('runCommand measures duration', () => {
 test('runCommand reports a non-zero code for a missing binary', () => {
   const result = runCommand('definitely-not-a-real-command-xyz', tmpdir());
   assert.notEqual(result.exitCode, 0);
+  assert.notEqual(result.output.trim(), '');
 });
+
+test('runCommand returns the exact field set later tasks consume', () => {
+  const result = runCommand('node -e "process.exit(0)"', tmpdir());
+  assert.deepEqual(
+    Object.keys(result).sort(),
+    ['durationMs', 'exitCode', 'failure', 'output', 'signal']
+  );
+});
+
+test('runCommand does not treat a plain test failure as a runner failure', () => {
+  const result = runCommand('node -e "process.exit(3)"', tmpdir());
+  assert.equal(result.exitCode, 3);
+  assert.equal(result.signal, null);
+  assert.equal(result.failure, null);
+});
+
+// Ba nhánh không kiểm được trên Windows — ghi nhận thẳng thay vì viết test luôn xanh:
+//   - signal: Node dịch SIGKILL thành TerminateProcess, tiến trình thoát mã 1, signal luôn null
+//   - ENOBUFS: cần sinh >32MB output, quá chậm để chạy mỗi lần
+//   - lỗi spawn: shell nuốt lỗi, spawnSync chỉ thấy shell thoát mã khác 0
+// Cả ba đều kích hoạt được trên Linux/macOS.
 ```
 
 - [ ] **Step 2: Chạy test, xác nhận fail**
@@ -1603,19 +1651,33 @@ export function runCommand(command, cwd) {
 
   const stdout = result.stdout ?? '';
   const stderr = result.stderr ?? '';
-  const output = stderr ? `${stdout}\n${stderr}` : stdout;
+  let output = stderr ? `${stdout}\n${stderr}` : stdout;
+
+  const signal = result.signal ?? null;
+  let failure = null;
+
+  if (signal) {
+    failure = `Tiến trình bị kết thúc bởi tín hiệu ${signal} — lệnh chưa chạy xong.`;
+  } else if (result.error?.code === 'ENOBUFS') {
+    failure = 'Output vượt quá giới hạn bộ đệm — log bị cắt, không dùng làm bằng chứng được.';
+  } else if (result.error) {
+    failure = `Không chạy được lệnh: ${result.error.message}`;
+  }
 
   let exitCode = result.status;
   if (exitCode === null || exitCode === undefined) exitCode = 1;
+  if (failure && exitCode === 0) exitCode = 1;
 
-  return { exitCode, output, durationMs };
+  if (failure) output = output ? `${output}\n${failure}` : failure;
+
+  return { exitCode, output, durationMs, signal, failure };
 }
 ```
 
 - [ ] **Step 4: Chạy test, xác nhận pass**
 
 Run: `node --test test/test-runner.test.mjs`
-Expected: PASS — 6 test
+Expected: PASS — 8 test
 
 - [ ] **Step 5: Commit**
 
