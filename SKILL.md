@@ -1,11 +1,25 @@
 ---
 name: compass
-description: Quy trình phát triển có bằng chứng — spec trước code, gate máy kiểm thay vì AI tự khai. Dùng khi bắt đầu bất kỳ task lập trình nào trong dự án có .compass/.
+description: Quy trình phát triển có bằng chứng — spec trước code, gate máy chạy thật thay vì AI tự khai kết quả. Dùng khi bắt đầu bất kỳ task lập trình nào: thêm tính năng, sửa bug, refactor. Cũng dùng khi người dùng nhắc compass, gate, spec-first, hoặc hỏi vì sao AI báo xong mà chưa xong.
 ---
 
 # Compass
 
 Quy trình làm việc có bằng chứng kiểm chứng được. La bàn không đi thay bạn — nó đảm bảo bạn không lạc.
+
+## Trước tiên: có `compass` chưa?
+
+```
+compass
+```
+
+Không thấy lệnh → cài một lần, dùng cho mọi dự án:
+
+```
+npm install -g <đường-dẫn-tới-repo-compass>
+```
+
+Không cài được thì gọi trực tiếp, thay `compass` bằng `node <đường-dẫn>/cli.mjs` ở mọi lệnh bên dưới.
 
 ## Luật tối cao
 
