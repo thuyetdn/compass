@@ -33,5 +33,5 @@ test('the run order puts review last — it costs the most', () => {
 
 test('isImplemented answers for both a built and an unbuilt gate', () => {
   assert.equal(isImplemented('test'), true);
-  assert.equal(isImplemented('visual'), false);
+  assert.equal(isImplemented('review'), false);
 });

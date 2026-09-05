@@ -7,6 +7,7 @@ import { testCommand } from './test.mjs';
 import { info } from '../lib/report.mjs';
 import { conventionCommand } from './convention.mjs';
 import { uiCommand } from './ui.mjs';
+import { visualCommand } from './visual.mjs';
 import { GATE_ORDER } from '../lib/gates.mjs';
 
 const IMPLEMENTED = {
@@ -14,6 +15,7 @@ const IMPLEMENTED = {
   convention: conventionCommand,
   test: testCommand,
   ui: uiCommand,
+  visual: visualCommand,
 };
 
 

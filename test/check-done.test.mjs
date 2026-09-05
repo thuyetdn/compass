@@ -78,12 +78,14 @@ test('C4: checkCommand --only with an unknown gate exits non-zero and names vali
   assert.match(result.output, /test/);
 });
 
-test('C4: checkCommand --only with an applicable-but-unimplemented gate exits non-zero', async () => {
+test('C4: checkCommand --only with a gate the task does not use exits non-zero', async () => {
+  // review starts at feature-m, so asking for it on a feature-s task is a
+  // usage error — never a quiet exit 0 that reads like the gate ran.
   const featureSSpec = SPEC.replace('Loại: fix', 'Loại: feature-s');
   const root = makeTask(GREEN, featureSSpec);
-  const result = await checkCommand({ cwd: root, taskId: 'T-1', only: 'visual' });
+  const result = await checkCommand({ cwd: root, taskId: 'T-1', only: 'review' });
   assert.notEqual(result.exitCode, 0);
-  assert.match(result.output, /chưa được xây dựng/);
+  assert.match(result.output, /không áp dụng/);
 });
 
 test('doneCommand passes after a clean check', async () => {
@@ -219,7 +221,7 @@ ${rows.join('\n')}
   await checkCommand({ cwd: root, taskId: 'T-FM' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM' });
   assert.equal(result.exitCode, 0, result.output);
-  assert.match(result.output, /visual, review/);
+  assert.match(result.output, /review/);
   assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });
@@ -283,7 +285,7 @@ ${rows.join('\n')}
   await checkCommand({ cwd: root, taskId: 'T-FM2' });
   const result = doneCommand({ cwd: root, taskId: 'T-FM2' });
   assert.equal(result.exitCode, 1);
-  assert.match(result.output, /visual, review/);
+  assert.match(result.output, /review/);
   assert.match(result.output, /chưa xây dựng/);
 
   rmSync(root, { recursive: true });
