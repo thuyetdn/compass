@@ -397,3 +397,50 @@ test('doneCommand still passes when the test gate carries its configHash', async
   await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
 });
+
+test('S1 editing code after every gate is green blocks done, naming the gate', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0, 'phải xanh trước đã');
+
+  // The gap this closes: evidence describes code that no longer exists.
+  writeFileSync(path.join(root, 'src.js'), 'eval(process.env.EVIL);\n');
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.match(result.output, /Code đã thay đổi/);
+  assert.match(result.output, /test/);
+});
+
+test('H5 running check then done with nothing touched still passes', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+  // Twice, because done itself writes nothing that should move the hash.
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+});
+
+test('V1 a gate record with no sourceHash is refused as coming from an older build', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  delete data.test.sourceHash;
+  const salt = getSalt(root);
+  const { sig, ...rest } = data.test;
+  data.test = { ...rest, sig: signRecord(rest, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /phiên bản cũ|không ghi lại/);
+});
+
+test('V2 the spec gate is not asked for a sourceHash — it never reads code', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  const gate = JSON.parse(readFileSync(gatePath(root, 'T-1'), 'utf8'));
+  assert.equal(gate.spec.sourceHash, undefined);
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+});

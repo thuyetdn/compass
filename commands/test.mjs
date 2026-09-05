@@ -8,6 +8,7 @@ import { extractRanIds, compareWithSpec } from '../lib/test-parser.mjs';
 import { writeGate } from '../lib/gate-store.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
+import { hashSource } from '../lib/source-hash.mjs';
 
 export function testCommand({ cwd, taskId }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass test <id>' };
@@ -57,6 +58,7 @@ export function testCommand({ cwd, taskId }) {
     outputHash: sha256(run.output),
     outputFile: 'evidence/test.log',
     specHash: hashFile(file),
+    sourceHash: hashSource(root),
     configHash: hashFile(configPath(root)),
     specIdCount: specIds.length,
     ranIdCount: extracted.ran.length,

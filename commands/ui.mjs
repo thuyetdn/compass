@@ -9,6 +9,7 @@ import { startDevServer, waitForUrl, isLocalUrl } from '../lib/dev-server.mjs';
 import { writeGate } from '../lib/gate-store.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
+import { hashSource } from '../lib/source-hash.mjs';
 
 const CONTRACT_FILE = 'design-contract.json';
 const DEV_TIMEOUT_MS = 60000;
@@ -48,6 +49,7 @@ export async function uiCommand({ cwd, taskId }) {
       exitCode: 0,
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
+      sourceHash: hashSource(root),
       contractHash: null,
       measured: 0,
       driftCount: 0,
@@ -94,6 +96,7 @@ export async function uiCommand({ cwd, taskId }) {
       exitCode: 0,
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
+      sourceHash: hashSource(root),
       contractHash: sha256(source),
       measured: 0,
       driftCount: 0,
@@ -190,6 +193,7 @@ export async function uiCommand({ cwd, taskId }) {
       exitCode: drifts.length > 0 ? 1 : 0,
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
+      sourceHash: hashSource(root),
       contractHash: sha256(source),
       devUrl: cfg.config.devUrl,
       measured,

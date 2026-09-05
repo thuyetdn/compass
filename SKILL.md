@@ -345,15 +345,26 @@ Bản ghi gate được ký kèm **danh tính**, không chỉ nội dung. Bốn 
 | "thuộc task khác" | `gate.json` bị chép từ task khác |
 | "bản ghi từ phiên bản cũ" | Thiếu trường danh tính — chạy lại gate |
 
-### Ba giới hạn chưa đóng được
+### Bốn thứ `done` đối chiếu
 
-**Source code không được hash.** Test xanh xong, code vẫn có thể bị đổi mà `done` không biết.
+`done` đọc `gate.json` chứ không chạy lại gate, nên nó so bốn thứ để biết bằng chứng còn nói đúng về hiện tại:
 
-**Bản ghi cũ có thể được khôi phục.** Lưu `gate.json` lúc xanh, để test đỏ, chép lại file cũ — `done` vẫn xanh. Bản ghi đó hợp lệ mọi mặt: đúng khe, đúng task, spec và config không đổi. Không có gì đánh dấu thời gian hay xâu chuỗi các lần chạy.
+| Trường | Bắt được gì |
+|---|---|
+| `sig` | Bản ghi bị sửa tay, chuyển khe, hay chép từ task khác |
+| `specHash` | Spec đổi sau khi gate chạy — phải duyệt lại |
+| `sourceHash` | **Code đổi sau khi gate xanh** — bằng chứng nói về bản cũ |
+| `configHash` | Lệnh test đổi sau khi gate chạy |
 
-**`config.json` được tin.** Compass bắt được lệnh test **đổi sau** khi gate chạy (qua `configHash`), nhưng nếu ai sửa nó **trước** khi chạy gate — trỏ sang một lệnh `echo` in ra định dạng TAP giả — thì không có cách nào phát hiện. Compass không phán được lệnh đó có phải test suite thật hay không.
+Gate nào đọc code mà thiếu `sourceHash` thì bị coi là bản ghi cũ và bị chặn — không được miễn.
 
-Ba điều này chặn được **sai sót vô tình**, không chặn được **cố ý gian lận**. Đó là ranh giới, và bạn nên biết nó ở đâu.
+### Hai giới hạn còn lại
+
+**Khôi phục cả code lẫn bản ghi.** Lưu `gate.json` lúc xanh, sửa code, rồi khôi phục **cả hai** về đúng trạng thái cũ — `done` xanh. Đúng ra là nên thế: code đó thật sự là code đã được kiểm. Chỗ hở thật nằm ở việc không có gì xâu chuỗi các lần chạy theo thời gian.
+
+**`config.json` được tin.** Compass bắt được lệnh test **đổi sau** khi gate chạy, nhưng nếu ai sửa nó **trước** — trỏ sang một lệnh `echo` in ra TAP giả — thì không phát hiện được. Compass không phán được lệnh đó có phải test suite thật hay không.
+
+Hai điều này chặn được **sai sót vô tình**, không chặn được **cố ý gian lận**. Đó là ranh giới, và bạn nên biết nó ở đâu.
 
 ## Giai đoạn hiện tại
 

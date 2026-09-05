@@ -5,6 +5,7 @@ import { rulesFor } from '../lib/task-types.mjs';
 import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
+import { hashSource } from '../lib/source-hash.mjs';
 import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
 
 
@@ -75,6 +76,26 @@ export function doneCommand({ cwd, taskId }) {
     const record = gates[name];
     if (record && record.specHash && record.specHash !== currentSpecHash) {
       problems.push(`Spec đã thay đổi sau khi gate "${name}" chạy — phải chạy lại và duyệt lại.`);
+    }
+  }
+
+  // done đọc sổ cái chứ không chạy lại gate, nên nếu không so mã nguồn thì mọi
+  // bằng chứng đều có thể đã nói về code không còn tồn tại: gate xanh xong sửa
+  // code, done vẫn đóng. Đây là giới hạn số một trong ba giới hạn SKILL.md nêu.
+  //
+  // Gate `spec` không đọc code nên không nằm trong danh sách. Các gate còn lại
+  // thiếu trường là bản ghi cũ chứ không phải được miễn — cùng luật với
+  // configHash, vì `record.sourceHash &&` sẽ âm thầm miễn trừ gate tương lai
+  // nào quên ghi.
+  const SOURCE_DEPENDENT_GATES = ['convention', 'test', 'ui', 'visual'];
+  const currentSourceHash = hashSource(root);
+  for (const name of required) {
+    const record = gates[name];
+    if (!record || !SOURCE_DEPENDENT_GATES.includes(name)) continue;
+    if (!record.sourceHash) {
+      problems.push(`Gate "${name}" không ghi lại mã nguồn đã kiểm — bản ghi từ phiên bản cũ. Chạy lại: compass check ${taskId}`);
+    } else if (record.sourceHash !== currentSourceHash) {
+      problems.push(`Code đã thay đổi sau khi gate "${name}" chạy — bằng chứng nói về bản cũ. Chạy lại: compass check ${taskId}`);
     }
   }
 

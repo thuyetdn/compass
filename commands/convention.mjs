@@ -6,6 +6,7 @@ import { runRules } from '../lib/rule-runner.mjs';
 import { writeGate } from '../lib/gate-store.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
+import { hashSource } from '../lib/source-hash.mjs';
 
 const CONVENTIONS = path.join('.knowledge', 'decided', 'conventions.md');
 
@@ -37,6 +38,7 @@ export function conventionCommand({ cwd, taskId }) {
       exitCode: 0,
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
+      sourceHash: hashSource(root),
       rulesHash: null,
       ruleCount: 0,
       errorCount: 0,
@@ -70,6 +72,7 @@ export function conventionCommand({ cwd, taskId }) {
       exitCode: 1,
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
+      sourceHash: hashSource(root),
       rulesHash: sha256(markdown),
       ruleCount: parsed.rules.length,
       errorCount: parsed.errors.length,
@@ -93,6 +96,7 @@ export function conventionCommand({ cwd, taskId }) {
     exitCode: result.errorCount > 0 ? 1 : 0,
     checkedAt: new Date().toISOString(),
     specHash: hashFile(file),
+    sourceHash: hashSource(root),
     rulesHash: sha256(markdown),
     ruleCount: parsed.rules.length,
     errorCount: result.errorCount,

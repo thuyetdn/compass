@@ -10,6 +10,7 @@ import { startDevServer, waitForUrl } from '../lib/dev-server.mjs';
 import { writeGate } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
+import { hashSource } from '../lib/source-hash.mjs';
 
 const CONTRACT_FILE = 'design-contract.json';
 const BASELINE_DIR = 'baseline';
@@ -44,6 +45,7 @@ export async function visualCommand({ cwd, taskId }) {
       exitCode: 0,
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
+      sourceHash: hashSource(root),
       shots: 0,
       failedShots: 0,
     });
@@ -171,6 +173,7 @@ export async function visualCommand({ cwd, taskId }) {
       exitCode: failed > 0 ? 1 : 0,
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
+      sourceHash: hashSource(root),
       threshold,
       shots: contract.viewports.length,
       createdBaselines: created,
