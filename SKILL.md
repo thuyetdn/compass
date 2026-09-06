@@ -404,14 +404,43 @@ Repo con đè lên phần chung theo từng trường — khai `test` mà không
 
 `Phạm vi` trong spec quyết định repo nào áp dụng, và `compass status` cho thấy Compass đọc ra gì.
 
+### Dựng config cho dự án nhiều repo
+
+`compass init` chỉ đẻ config một repo. Nhiều repo thì **đọc từng thư mục con rồi viết**, đừng hỏi
+người dùng từng repo một — thông tin đã nằm sẵn trong file.
+
+Với mỗi thư mục con có `package.json`:
+
+| Đọc gì | Ra cái gì |
+|---|---|
+| `pnpm-lock.yaml` / `yarn.lock` / `package-lock.json` | trình quản lý gói |
+| `scripts.test` | lệnh test — ghép với trình quản lý: `yarn test`, `pnpm test` |
+| `scripts.dev` + cổng trong `vite.config` / `next.config` | `dev` và `devUrl`, **chỉ cho repo có giao diện** |
+
+Bốn luật khi viết:
+
+1. **Không có `scripts.test`** → khai `"test": "echo 'chưa có test' && exit 1"`. Gate đỏ khi đụng tới,
+   đúng như vậy — chưa có test thì chưa có bằng chứng. Đừng bỏ repo ra khỏi config.
+2. **Không phải Node** (PHP, Java, Go) → vẫn khai, lệnh test của hệ đó. Compass không quan tâm ngôn ngữ,
+   nó chỉ cần một lệnh và một mã thoát.
+3. **Backend đừng khai `devUrl`** — khai vào thì `ui`/`visual` chạy oan rồi đỏ vì không có trang nào.
+4. **Config đã có thì không ghi đè.** In ra cái vừa dò được, để người tự gộp.
+
+Viết xong chạy `compass status` và **đọc kết quả cùng người dùng**. Đó là lúc bắt được lockfile đoán sai
+hay repo bị bỏ sót — rẻ hơn nhiều so với phát hiện lúc gate đỏ giữa chừng.
+
 ## Giai đoạn hiện tại
 
 Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review`.
 
-Cộng knowledge base sinh tự động, lệnh `investigate`, và config nhiều repo.
+Cộng knowledge base sinh tự động, lệnh `investigate`, config nhiều repo, và `check` chạy gate
+theo từng repo.
 
-Chưa có: `check` chạy gate riêng cho từng repo (mới có phần đọc config), trang xem knowledge
-bằng trình duyệt, và cách khai "task này không có test tự động".
+Chưa xong ở chế độ nhiều repo: `convention`, `ui`, `visual` quét đúng thư mục nhưng **ghi sổ không
+kèm tên repo**, nên hai repo đè lên nhau và chỉ repo cuối còn bằng chứng. Gate vẫn xanh — đây là dạng
+sai khó thấy nhất. Dự án nhiều repo chỉ nên tin `test` và `knowledge` cho tới khi vá xong.
+
+Chưa có: trang xem knowledge bằng trình duyệt, và lệnh dựng config nhiều repo (làm tay theo mục trên).
 
 ### Giới hạn còn lại của `done`
 
