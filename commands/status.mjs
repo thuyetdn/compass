@@ -5,7 +5,7 @@ import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
 import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
 import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
-import { loadConfig } from '../lib/config.mjs';
+import { loadConfig, DEAD_FIELDS } from '../lib/config.mjs';
 import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 
 
@@ -45,6 +45,20 @@ function cauHinh(root) {
   }
 
   lines.push('', 'Đọc kỹ lệnh test từng repo — sai ở đây thì gate `test` đỏ mà không rõ vì sao.');
+
+  // Trường bỏ rồi nhưng config cũ còn khai. Im lặng thì người dùng vẫn tin nó có
+  // tác dụng — đúng cái bẫy khiến nó bị bỏ. Nói ở đây vì đây là nơi người ta đến
+  // để kiểm config.
+  const chet = DEAD_FIELDS.filter((f) => f in cfg.config);
+  if (chet.length) {
+    lines.push(
+      '',
+      `⚠ Trường không còn tác dụng: ${chet.join(', ')} — Compass không đọc.`,
+      '   Cờ reporter phải ghép vào chính lệnh test: Jest cần --verbose,',
+      '   Vitest cần --reporter=tap, node --test đã in sẵn tên test.'
+    );
+  }
+
   return { exitCode: 0, output: lines.join('\n') };
 }
 

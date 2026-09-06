@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { statusCommand } from '../commands/status.mjs';
+import { initCommand } from '../commands/init.mjs';
 
 const SPEC = `# T-1: Tiêu đề
 Loại: fix
@@ -150,4 +151,44 @@ test('CP-22-EC1 chỉ repo có khai devUrl mới hiện devUrl', () => {
     !khoiBackend.some((l) => /devUrl/.test(l)),
     `backend không khai devUrl nhưng output có: ${khoiBackend.join(' | ')}`
   );
+});
+
+test('CP-23-H2 compass init sinh config không chứa testReporter', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'compass-init-'));
+  initCommand({ cwd: root, taskId: 'T-9', type: 'fix' });
+  const raw = readFileSync(path.join(root, '.compass', 'config.json'), 'utf8');
+  rmSync(root, { recursive: true, force: true });
+
+  // Dự án mới không được sinh ra kèm trường chết — người dùng thấy nó trong
+  // file của chính mình thì tin nó có tác dụng.
+  assert.ok(!raw.includes('testReporter'), `config mới vẫn có testReporter: ${raw}`);
+});
+
+test('CP-23-EC1 status cảnh báo khi config còn khai testReporter', () => {
+  const root = duAn({ test: 'npm test', testReporter: 'tap' });
+
+  const result = statusCommand({ cwd: root, taskId: undefined });
+  rmSync(root, { recursive: true, force: true });
+
+  assert.equal(result.exitCode, 0);
+  assert.match(result.output, /testReporter/);
+  assert.match(result.output, /không còn tác dụng|không đọc/);
+  // Nói trường vô dụng mà không chỉ chỗ đúng thì người dùng vẫn kẹt.
+  assert.match(result.output, /--reporter=tap/);
+  assert.match(result.output, /--verbose/);
+});
+
+test('CP-23-EC2 status im lặng khi config không khai testReporter', () => {
+  const root = duAn({ test: 'npm test' });
+
+  const result = statusCommand({ cwd: root, taskId: undefined });
+  rmSync(root, { recursive: true, force: true });
+
+  assert.equal(result.exitCode, 0);
+  assert.doesNotMatch(result.output, /testReporter/);
+  // Kiểm cả nhãn, không chỉ tên trường: `chet.join()` trên mảng rỗng ra chuỗi
+  // rỗng, nên khối cảnh báo vẫn in được mà không mang chữ "testReporter" nào.
+  // Chỉ kiểm tên trường thì cảnh báo bật cho mọi config vẫn lọt.
+  assert.doesNotMatch(result.output, /không còn tác dụng/);
+  assert.doesNotMatch(result.output, /--reporter/);
 });
