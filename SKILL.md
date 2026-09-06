@@ -31,22 +31,50 @@ Không cài được thì gọi trực tiếp, thay `compass` bằng `node <đư
 
 ## Ngôn ngữ
 
-- Đối thoại, giải thích, báo cáo với người → **tiếng Việt**
+- Đối thoại, giải thích, báo cáo với người → **tiếng của người đọc**
 - Spec, test name, commit message, code comment → **tiếng Anh**
 
-### Quy tắc diễn đạt tiếng Việt
+### Bốn nguyên tắc — đúng với mọi ngôn ngữ
 
-Sáu lỗi, mỗi lỗi một cặp câu. Đọc cặp câu, đừng đọc tên lỗi.
+Người đọc đang mệt, đang vội, và đã biết code.
 
-**1. Mô tả cơ chế thay vì nói kết quả**
+**1. Kết luận trước, bối cảnh sau.** Họ quyết định đọc tiếp hay không sau câu đầu tiên.
+
+> ❌ Tôi đã tiến hành phân tích và nhận thấy rằng có một vấn đề khá nghiêm trọng...
+>
+> ✅ Parser xếp sai một test đã pass.
+
+**2. Nói chuyện gì xảy ra, đừng tả máy chạy ra sao.** Họ mở được file; họ cần biết **hậu quả**.
 
 > ❌ Compass tìm test bằng cách đọc chữ trong màn hình output.
 >
 > ✅ Reporter không in tên test thì Compass báo thiếu, dù bạn đã viết đủ.
 
-Câu đầu tả máy chạy ra sao. Câu sau nói chuyện gì xảy ra với người đọc. Luôn chọn câu sau.
+**3. Số thay cho tính từ.** "Nhanh hơn nhiều" không kiểm chứng được.
 
-**2. Chủ ngữ mơ hồ**
+> ❌ Gate này chạy khá nhanh và khá đáng tin.
+>
+> ✅ 26ms trên 85 file. Chưa bắt được hồi quy CP-8 — đã thử bốn vòng.
+
+**4. Chỉ ra chỗ đáng ngờ trước khi bị hỏi.** Giả định ngầm, nhánh chưa xử lý, chỗ dễ vỡ.
+
+> ✅ Ngưỡng 20% là phỏng đoán, không phải số đo. Chọn vì Vitest khớp 1/13.
+
+### Viết cho tự nhiên
+
+Bốn nguyên tắc trên chống viết dở. Ba thói quen dưới đây làm câu dễ đọc:
+
+- **Câu ngắn xen câu dài.** Toàn câu dài thì nghẹt, toàn câu ngắn thì cộc.
+- **Từ đời thường khi có.** "Chỗ này hỏng" đọc nhanh hơn "khu vực này tồn tại lỗi".
+- **Nói với người.** "Bạn sẽ gặp lỗi khi…" gần hơn "người dùng có thể gặp phải tình huống…".
+
+Câu đúng ngữ pháp mà đọc xong phải đọc lại là câu hỏng. Đọc thành tiếng, chỗ nào vấp thì sửa.
+
+### Sáu lỗi hay gặp khi viết tiếng Việt
+
+Mỗi lỗi một cặp câu. Đọc cặp câu, đừng đọc tên lỗi.
+
+**1. Chủ ngữ mơ hồ**
 
 > ❌ Ai đó quên chép `ui` và `visual` vào bảng gate.
 >
@@ -54,52 +82,62 @@ Câu đầu tả máy chạy ra sao. Câu sau nói chuyện gì xảy ra với n
 
 "Ai đó", "hệ thống", "người ta" — bỏ hết. Nói thẳng cái gì thiếu, cái gì sai.
 
-**3. Dịch code thành lời**
+**2. Dịch code thành lời**
 
 > ❌ Hàm `syncEvents` gọi Graph API lấy danh sách rồi lưu vào database qua repository.
 >
 > ✅ Lịch kéo về mỗi 15 phút, hỏi Graph "có gì đổi không" bằng deltaToken lưu trong DB.
 
-Người đọc mở được file. Họ cần biết **vì sao** và **khi nào hỏng**, không cần biết dòng nào gọi dòng nào.
+Kể theo **dòng chảy dữ liệu**, không theo thứ tự file.
 
-**4. Hán-Việt nặng khi có từ thuần Việt**
+**3. Hán-Việt nặng khi có từ thuần Việt**
 
 > ❌ Thực hiện việc kiểm tra tính hợp lệ của dữ liệu đầu vào.
 >
 > ✅ Kiểm dữ liệu vào có hợp lệ không.
 
-Thấy "thực hiện việc", "tiến hành", "tính ... của" — cắt.
+Thấy "thực hiện việc", "tiến hành", "tính … của", "một cách", "mang tính" — cắt.
 
-**5. Bị động kiểu Tây**
+**4. Bị động kiểu Tây**
 
 > ❌ Dữ liệu được xử lý bởi service rồi được lưu bởi repository.
 >
 > ✅ Service xử lý dữ liệu, repository lưu lại.
 
-Tiếng Việt có chủ ngữ thì dùng chủ ngữ.
+Tiếng Việt có chủ ngữ thì dùng chủ ngữ. "Bởi" gần như luôn là dấu hiệu câu dịch.
 
-**6. Nói vòng trước khi vào việc**
+**5. Đệm chữ cho câu dài ra**
 
-> ❌ Tôi đã tiến hành phân tích và nhận thấy rằng có một vấn đề khá nghiêm trọng ở đây, cụ thể là...
+> ❌ Về cơ bản thì có thể nói rằng gate này về mặt nào đó đã hoạt động tương đối ổn định.
 >
-> ✅ Parser xếp sai một test đã pass.
+> ✅ Gate chạy đúng, 530 test xanh.
 
-Câu đầu tiên phải là kết luận. Bối cảnh để sau.
+"Về cơ bản", "có thể nói rằng", "về mặt nào đó", "tương đối", "khá là" — bỏ hết. Chúng không
+thêm nghĩa, chỉ làm người đọc phải lọc.
 
-**Giữ nguyên, đừng dịch:** token · cache · race condition · deadlock · commit · merge · gate · reporter.
+**6. Dịch thuật ngữ đã quen**
+
+> ❌ Điều kiện tranh chấp khiến tiến trình con bị treo ở cổng.
+>
+> ✅ Race condition làm tiến trình con giữ cổng.
+
+Giữ nguyên: token · cache · race condition · deadlock · commit · merge · gate · reporter ·
+regex · parser. Dịch chúng làm người đọc phải dịch ngược lại trong đầu.
 
 ### Tự kiểm trước khi gửi
 
-Đọc lại đoạn vừa viết, hỏi bốn câu:
+Đọc lại đoạn vừa viết, hỏi năm câu:
 
 | Hỏi | Nếu "không" thì |
 |---|---|
 | Ba câu đầu đã nói hết ý chính chưa? | Chuyển kết luận lên đầu |
-| Mỗi khẳng định có số hoặc ví dụ chưa? | Thay lời khen bằng số đo |
-| Có chỗ nào đáng ngờ mà tôi im lặng không? | Nói ra — giả định ngầm, nhánh chưa xử lý, chỗ dễ vỡ |
+| Mỗi khẳng định có số hoặc ví dụ chưa? | Thay tính từ bằng số đo |
+| Có chỗ nào đáng ngờ mà tôi im lặng không? | Nói ra trước khi bị hỏi |
 | Đoạn từ 4 bước trở lên đã có bảng hoặc sơ đồ chưa? | Vẽ ra |
+| Đọc thành tiếng có chỗ nào vấp không? | Viết lại chỗ đó |
 
-**Khó nhất là câu thứ ba.** Chỗ đáng ngờ thường là chỗ mình lười kiểm. Nói ra thì mất mặt một chút, giấu đi thì người khác sập bẫy.
+**Khó nhất là câu thứ ba.** Chỗ đáng ngờ thường là chỗ mình lười kiểm. Nói ra thì mất mặt một
+chút, giấu đi thì người khác sập bẫy.
 
 ## Vòng đời task
 
@@ -174,9 +212,8 @@ Chạy các gate áp dụng, dừng ngay khi fail. Rẻ trước, đắt sau:
 spec (0.1s) → convention (1s) → test (vài giây) → ui (30s) → visual (30s) → review (cần agent)
 ```
 
-Gate nào áp dụng thì tùy loại task — xem bảng Phân loại. `fix` và `bug` chỉ có `spec` với `test`.
-
-Gate `test` không chỉ xem suite xanh — nó còn đối chiếu **mọi test ID trong spec đã thực sự chạy chưa**.
+Gate nào áp dụng thì tùy loại task — xem bảng Phân loại. Gate `test` không chỉ xem suite xanh:
+nó đối chiếu **mọi test ID trong spec đã thực sự chạy chưa**.
 
 ### Gate `knowledge` — tài liệu không được lỗi thời
 
@@ -217,14 +254,9 @@ message: Dùng CSS variable thay vì mã màu
 ```
 ````
 
-| Trường | Nghĩa |
-|---|---|
-| `id` | Tên luật, hiện trong báo lỗi. Không trùng nhau |
-| `type` | Hiện chỉ có `forbid-pattern` |
-| `pattern` | Regex. Khớp là vi phạm |
-| `scope` | Glob: `**`, `*`, `?` |
-| `severity` | `error` chặn gate, `warn` chỉ hiện ra |
-| `message` | Tùy chọn — câu nhắc kèm mỗi vi phạm |
+`id` không trùng nhau · `type` hiện chỉ có `forbid-pattern` · `pattern` là regex, khớp là vi
+phạm · `scope` nhận glob `**` `*` `?` · `severity` là `error` (chặn) hoặc `warn` (chỉ hiện) ·
+`message` tùy chọn, hiện kèm mỗi vi phạm.
 
 Không có `conventions.md` thì gate pass và nói rõ là chưa có luật nào. Luật khai sai — thiếu trường, regex hỏng, `type` chưa hỗ trợ — thì gate **fail**, vì luật chạy không được trông như có bảo vệ mà thật ra không bảo vệ gì.
 
@@ -318,23 +350,15 @@ Diff quá 2MB thì gate từ chối. Không ai đọc hết chừng đó, và ga
 | Dòng fail / skip / error | "xuất hiện nhưng không pass" |
 | Dòng không nhận ra định dạng | "không nhận diện được định dạng" |
 
-Ba nhóm tách riêng vì chúng đòi bạn làm ba việc khác nhau: viết test mới, bỏ skip, hay kiểm lại reporter.
+Ba nhóm tách riêng vì chúng đòi ba việc khác nhau: viết test mới, bỏ skip, hay kiểm lại reporter.
 
-**Giới hạn — phải biết:** quét text không bao giờ kín được. Định dạng reporter không nằm trong tay Compass, nên gate này bắt các ca thường gặp và **gọi tên thứ nó không phân loại được**, chứ không giả vờ chắc chắn. Đây là lưới chắn, không phải khóa.
+**Reporter phải in tên từng test.** Reporter chỉ in tên **file** thì mọi ID biến mất và gate
+báo thiếu dù bạn đã viết đủ: `node --test` chạy sẵn, Vitest cần `--reporter=tap`, Jest cần
+`--verbose`. Kiểm nhanh bằng cách chạy lệnh test rồi nhìn output — không thấy tên test nào thì
+Compass cũng không thấy. Suite xanh mà gần như không ID nào khớp thì gate tự nhắc khả năng này.
 
-### Reporter phải in tên từng test
-
-Compass tìm ID bằng cách đọc output. Reporter nào chỉ in tên **file** thì mọi ID đều biến mất, và gate báo thiếu test dù bạn đã viết đủ.
-
-| Runner | Lệnh trong `config.json` |
-|---|---|
-| `node --test` | chạy sẵn, không cần cờ |
-| Vitest | `vitest run --reporter=tap` — mặc định chỉ in tên file |
-| Jest | `jest --verbose` |
-
-Kiểm nhanh: chạy lệnh test, nhìn output. Không thấy tên test nào thì Compass cũng không thấy.
-
-Khi suite xanh mà gần như không ID nào khớp, gate sẽ tự nhắc khả năng này trước khi bảo bạn đi viết test.
+**Giới hạn:** quét text không bao giờ kín được. Gate bắt các ca thường gặp và **gọi tên thứ nó
+không phân loại được**, chứ không giả vờ chắc chắn. Đây là lưới chắn, không phải khóa.
 
 Fail → sửa → chạy lại. Không bỏ qua, không giải thích vòng vo.
 
