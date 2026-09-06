@@ -68,8 +68,11 @@ chút, giấu đi thì người khác sập bẫy.
 
 ### Viết tiếng Việt
 
-Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 12 lỗi hay gặp, mỗi lỗi
-một cặp câu **❌ → ✅**, cộng bảng tự kiểm sáu câu. Bắt chước cặp câu, đừng học tên luật.
+Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 34 cặp câu **❌ → ✅** chia
+theo từ ngữ, định dạng và giọng. Bắt chước cặp câu, đừng học tên luật.
+
+**Mặc định là văn xuôi.** Bảng chỉ dùng khi so nhiều thứ theo cùng một tiêu chí; ba ý rời nhau thì
+viết thành đoạn. Đóng khung hết vào bảng thì câu chữ có sạch mấy cũng đọc như tài liệu.
 
 Ba lỗi nặng nhất, để đây cho khỏi phải mở file: chủ ngữ mơ hồ ("ai đó quên chép" → "bảng gate
 thiếu"), bị động kiểu Tây ("được xử lý bởi service" → "service xử lý"), và sáo rỗng ("đóng vai trò
