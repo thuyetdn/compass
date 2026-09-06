@@ -21,6 +21,9 @@ npm install -g <đường-dẫn-tới-repo-compass>
 
 Không cài được thì gọi trực tiếp, thay `compass` bằng `node <đường-dẫn>/cli.mjs` ở mọi lệnh bên dưới.
 
+Lệnh **có** nhưng ném `MODULE_NOT_FOUND` → symlink đứt vì repo bị đổi tên hoặc chuyển chỗ. Chạy lại
+`npm install -g .` từ repo, đừng đi chẩn đoán từng bước.
+
 ## Luật tối cao
 
 1. **Không bao giờ tự tuyên bố kết quả.** Chỉ `compass` mới phán pass/fail.
@@ -415,7 +418,15 @@ Với mỗi thư mục con có `package.json`:
 |---|---|
 | `pnpm-lock.yaml` / `yarn.lock` / `package-lock.json` | trình quản lý gói |
 | `scripts.test` | lệnh test — ghép với trình quản lý: `yarn test`, `pnpm test` |
-| `scripts.dev` + cổng trong `vite.config` / `next.config` | `dev` và `devUrl`, **chỉ cho repo có giao diện** |
+| `scripts.dev` + cổng | `dev` và `devUrl`, **chỉ cho repo có giao diện** |
+
+Cổng nằm ở `vite.config` (`server.port`), `next.config`, hoặc `angular.json` (`serve.options.port`).
+Không khai thì lấy mặc định: **Vite 5173 · Next 3000 · Angular 4200**. Hai repo cùng framework mà đều
+không khai là hai `devUrl` trùng nhau — `visual` sẽ chụp nhầm trang. Gặp vậy thì hỏi người dùng, đừng
+tự chọn cổng.
+
+Cờ reporter ghép vào chính lệnh `test`, không có trường config nào cho nó: `"test": "vitest run
+--reporter=tap"`. Xem mục "Cách Compass đếm test ID" để biết runner nào cần cờ gì.
 
 Bốn luật khi viết:
 
@@ -425,6 +436,8 @@ Bốn luật khi viết:
    nó chỉ cần một lệnh và một mã thoát.
 3. **Backend đừng khai `devUrl`** — khai vào thì `ui`/`visual` chạy oan rồi đỏ vì không có trang nào.
 4. **Config đã có thì không ghi đè.** In ra cái vừa dò được, để người tự gộp.
+5. **Repo lồng trong thư mục con** → key là đường dẫn: `"sorm/backend"`, `"sorm/frontend"`. Một thư
+   mục cha chứa hai repo là chuyện thường; khai thành một entry thì lệnh test của một nửa sẽ sai.
 
 Viết xong chạy `compass status` và **đọc kết quả cùng người dùng**. Đó là lúc bắt được lockfile đoán sai
 hay repo bị bỏ sót — rẻ hơn nhiều so với phát hiện lúc gate đỏ giữa chừng.
