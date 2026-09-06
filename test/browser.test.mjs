@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { findPlaywright, buildMeasureScript } from '../lib/browser.mjs';
 
-test('E1 a project without playwright is told how to install it', async () => {
+test('CP-8-E1 a project without playwright is told how to install it', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-pw-'));
   const result = await findPlaywright(root);
   assert.equal(result.ok, false);
@@ -40,7 +40,7 @@ test('findPlaywright also accepts playwright-core', async () => {
   assert.equal(result.ok, true, result.reason);
 });
 
-test('P1 the measure script reads one selector once for every property', () => {
+test('CP-4-P1 the measure script reads one selector once for every property', () => {
   const script = buildMeasureScript([
     { selector: 'h1', properties: { color: '#000', 'font-size': '32px' } },
   ]);
@@ -49,7 +49,7 @@ test('P1 the measure script reads one selector once for every property', () => {
   assert.equal(calls.length, 1);
 });
 
-test('S1 a selector is embedded as data, never as code', () => {
+test('CP-4-S1 a selector is embedded as data, never as code', () => {
   const nasty = `h1"); alert("pwned`;
   const script = buildMeasureScript([{ selector: nasty, properties: { color: '#000' } }]);
   // The selector must survive as a JSON string, so the quotes are escaped.

@@ -60,84 +60,19 @@ Người đọc đang mệt, đang vội, và đã biết code.
 
 > ✅ Ngưỡng 20% là phỏng đoán, không phải số đo. Chọn vì Vitest khớp 1/13.
 
-### Viết cho tự nhiên
-
-Bốn nguyên tắc trên chống viết dở. Ba thói quen dưới đây làm câu dễ đọc:
-
-- **Câu ngắn xen câu dài.** Toàn câu dài thì nghẹt, toàn câu ngắn thì cộc.
-- **Từ đời thường khi có.** "Chỗ này hỏng" đọc nhanh hơn "khu vực này tồn tại lỗi".
-- **Nói với người.** "Bạn sẽ gặp lỗi khi…" gần hơn "người dùng có thể gặp phải tình huống…".
-
-Câu đúng ngữ pháp mà đọc xong phải đọc lại là câu hỏng. Đọc thành tiếng, chỗ nào vấp thì sửa.
-
-### Sáu lỗi hay gặp khi viết tiếng Việt
-
-Mỗi lỗi một cặp câu. Đọc cặp câu, đừng đọc tên lỗi.
-
-**1. Chủ ngữ mơ hồ**
-
-> ❌ Ai đó quên chép `ui` và `visual` vào bảng gate.
->
-> ✅ Bảng gate thiếu `ui` và `visual`.
-
-"Ai đó", "hệ thống", "người ta" — bỏ hết. Nói thẳng cái gì thiếu, cái gì sai.
-
-**2. Dịch code thành lời**
-
-> ❌ Hàm `syncEvents` gọi Graph API lấy danh sách rồi lưu vào database qua repository.
->
-> ✅ Lịch kéo về mỗi 15 phút, hỏi Graph "có gì đổi không" bằng deltaToken lưu trong DB.
-
-Kể theo **dòng chảy dữ liệu**, không theo thứ tự file.
-
-**3. Hán-Việt nặng khi có từ thuần Việt**
-
-> ❌ Thực hiện việc kiểm tra tính hợp lệ của dữ liệu đầu vào.
->
-> ✅ Kiểm dữ liệu vào có hợp lệ không.
-
-Thấy "thực hiện việc", "tiến hành", "tính … của", "một cách", "mang tính" — cắt.
-
-**4. Bị động kiểu Tây**
-
-> ❌ Dữ liệu được xử lý bởi service rồi được lưu bởi repository.
->
-> ✅ Service xử lý dữ liệu, repository lưu lại.
-
-Tiếng Việt có chủ ngữ thì dùng chủ ngữ. "Bởi" gần như luôn là dấu hiệu câu dịch.
-
-**5. Đệm chữ cho câu dài ra**
-
-> ❌ Về cơ bản thì có thể nói rằng gate này về mặt nào đó đã hoạt động tương đối ổn định.
->
-> ✅ Gate chạy đúng, 530 test xanh.
-
-"Về cơ bản", "có thể nói rằng", "về mặt nào đó", "tương đối", "khá là" — bỏ hết. Chúng không
-thêm nghĩa, chỉ làm người đọc phải lọc.
-
-**6. Dịch thuật ngữ đã quen**
-
-> ❌ Điều kiện tranh chấp khiến tiến trình con bị treo ở cổng.
->
-> ✅ Race condition làm tiến trình con giữ cổng.
-
-Giữ nguyên: token · cache · race condition · deadlock · commit · merge · gate · reporter ·
-regex · parser. Dịch chúng làm người đọc phải dịch ngược lại trong đầu.
-
-### Tự kiểm trước khi gửi
-
-Đọc lại đoạn vừa viết, hỏi năm câu:
-
-| Hỏi | Nếu "không" thì |
-|---|---|
-| Ba câu đầu đã nói hết ý chính chưa? | Chuyển kết luận lên đầu |
-| Mỗi khẳng định có số hoặc ví dụ chưa? | Thay tính từ bằng số đo |
-| Có chỗ nào đáng ngờ mà tôi im lặng không? | Nói ra trước khi bị hỏi |
-| Đoạn từ 4 bước trở lên đã có bảng hoặc sơ đồ chưa? | Vẽ ra |
-| Đọc thành tiếng có chỗ nào vấp không? | Viết lại chỗ đó |
-
-**Khó nhất là câu thứ ba.** Chỗ đáng ngờ thường là chỗ mình lười kiểm. Nói ra thì mất mặt một
+**Khó nhất là nguyên tắc 4.** Chỗ đáng ngờ thường là chỗ mình lười kiểm. Nói ra thì mất mặt một
 chút, giấu đi thì người khác sập bẫy.
+
+### Viết tiếng Việt
+
+Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 12 lỗi hay gặp, mỗi lỗi
+một cặp câu **❌ → ✅**, cộng bảng tự kiểm sáu câu. Bắt chước cặp câu, đừng học tên luật.
+
+Ba lỗi nặng nhất, để đây cho khỏi phải mở file: chủ ngữ mơ hồ ("ai đó quên chép" → "bảng gate
+thiếu"), bị động kiểu Tây ("được xử lý bởi service" → "service xử lý"), và sáo rỗng ("đóng vai trò
+quan trọng" → nói thẳng hậu quả).
+
+**Phép thử cuối cùng: đọc thành tiếng.** Câu đúng ngữ pháp mà đọc xong phải đọc lại là câu hỏng.
 
 ## Vòng đời task
 
@@ -185,6 +120,16 @@ compass init <id> --type=<loại>
 Điền vào `.compass/<id>/spec.md`. Mọi mục đều bắt buộc, đặc biệt **Rủi ro hồi quy** — nghĩ xem tính năng cũ nào có thể vỡ.
 
 Test case phải có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`), mô tả, và kỳ vọng **đo được**. "Hoạt động đúng" không phải kỳ vọng đo được.
+
+**Hai dòng khai thêm, dùng khi cần:**
+
+| Dòng | Khi nào | Gate làm gì |
+|---|---|---|
+| `Lệnh test: <lệnh>` | Task cần suite khác với cả dự án | Chạy lệnh đó thay lệnh trong config |
+| `Kiểm bằng: mắt` | Việc sửa tài liệu, đổi config — không có test tự động | Nói thẳng nó không đo gì, vẫn đòi bảng ca |
+
+`Kiểm bằng: mắt` không phải cửa sau. Gate vẫn đòi liệt kê từng ca và cách kiểm, và báo lỗi
+nếu suite có test mang task id — lời khai mâu thuẫn với thực tế thì phải sửa, không đoán.
 
 ```
 compass spec <id>
@@ -349,16 +294,19 @@ Diff quá 2MB thì gate từ chối. Không ai đọc hết chừng đó, và ga
 | Dòng pass (`ok N`, `✔`, `✓`, `PASS`) | đã chạy |
 | Dòng fail / skip / error | "xuất hiện nhưng không pass" |
 | Dòng không nhận ra định dạng | "không nhận diện được định dạng" |
+| Hai dòng pass khác nhau, cùng ID | "không rõ cái nào của task này" |
 
-Ba nhóm tách riêng vì chúng đòi ba việc khác nhau: viết test mới, bỏ skip, hay kiểm lại reporter.
+Bốn nhóm tách riêng vì đòi bốn việc khác nhau: viết test mới, bỏ skip, kiểm reporter, đặt lại tên.
 
-**Reporter phải in tên từng test.** Reporter chỉ in tên **file** thì mọi ID biến mất và gate
-báo thiếu dù bạn đã viết đủ: `node --test` chạy sẵn, Vitest cần `--reporter=tap`, Jest cần
-`--verbose`. Kiểm nhanh bằng cách chạy lệnh test rồi nhìn output — không thấy tên test nào thì
-Compass cũng không thấy. Suite xanh mà gần như không ID nào khớp thì gate tự nhắc khả năng này.
+**Reporter phải in tên từng test.** Chỉ in tên **file** thì mọi ID biến mất và gate báo thiếu dù
+bạn đã viết đủ: `node --test` chạy sẵn, Vitest cần `--reporter=tap`, Jest cần `--verbose`.
 
-**Giới hạn:** quét text không bao giờ kín được. Gate bắt các ca thường gặp và **gọi tên thứ nó
-không phân loại được**, chứ không giả vờ chắc chắn. Đây là lưới chắn, không phải khóa.
+**Một ID khớp nhiều test là đỏ.** Mọi spec đều dùng `H1`, `V1`, `EC1`, nên nhiều task chung một
+suite thì gate không biết test nào của ai — task chưa viết gì vẫn qua. Đường thoát: đặt tên test
+kèm task id, `test('T-12-H1 …')`. Chỉ đổi tên test của task đang làm.
+
+**Giới hạn:** quét text không kín được. Gate bắt ca thường gặp và **gọi tên thứ nó không phân
+loại được**, chứ không giả vờ chắc chắn. Đây là lưới chắn, không phải khóa.
 
 Fail → sửa → chạy lại. Không bỏ qua, không giải thích vòng vo.
 
@@ -460,7 +408,10 @@ Repo con đè lên phần chung theo từng trường — khai `test` mà không
 
 Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review`.
 
-Chưa có: knowledge base sinh tự động, lệnh `investigate`, phân giải config đa repo.
+Cộng knowledge base sinh tự động, lệnh `investigate`, và config nhiều repo.
+
+Chưa có: `check` chạy gate riêng cho từng repo (mới có phần đọc config), trang xem knowledge
+bằng trình duyệt, và cách khai "task này không có test tự động".
 
 ### Giới hạn còn lại của `done`
 

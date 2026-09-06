@@ -2,12 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { compareValue, normaliseColour, toleranceFor } from '../lib/tolerance.mjs';
 
-test('H3 an exact colour match reports no drift', () => {
+test('CP-4-H3 an exact colour match reports no drift', () => {
   const result = compareValue('color', '#111827', 'rgb(17, 24, 39)');
   assert.equal(result.ok, true);
 });
 
-test('EC3 the same colour in rgb and hex is one colour', () => {
+test('CP-4-EC3 the same colour in rgb and hex is one colour', () => {
   assert.equal(normaliseColour('#ff0000'), 'rgb(255, 0, 0)');
   assert.equal(normaliseColour('rgb(255, 0, 0)'), 'rgb(255, 0, 0)');
   assert.equal(normaliseColour('#F00'), 'rgb(255, 0, 0)');
@@ -19,18 +19,18 @@ test('a colour that differs at all fails — no tolerance on colour', () => {
   assert.match(result.reason, /tuyệt đối/);
 });
 
-test('H4 padding off by 1px sits inside the 2px tolerance', () => {
+test('CP-4-H4 padding off by 1px sits inside the 2px tolerance', () => {
   const result = compareValue('padding-right', '20px', '19px');
   assert.equal(result.ok, true);
   assert.equal(result.drift, 1);
 });
 
-test('EC1 padding off by exactly 2px is still inside tolerance', () => {
+test('CP-4-EC1 padding off by exactly 2px is still inside tolerance', () => {
   const result = compareValue('padding-right', '20px', '18px');
   assert.equal(result.ok, true);
 });
 
-test('EC2 padding off by 2.5px breaks tolerance', () => {
+test('CP-4-EC2 padding off by 2.5px breaks tolerance', () => {
   const result = compareValue('padding-right', '20px', '17.5px');
   assert.equal(result.ok, false);
   assert.equal(result.drift, 2.5);
@@ -79,4 +79,29 @@ test('rgba keeps its alpha channel when normalised', () => {
 
 test('a non-colour string passed to normaliseColour comes back unchanged', () => {
   assert.equal(normaliseColour('inherit'), 'inherit');
+});
+
+test('CP-4-P4 longhand properties inherit the shorthand budget', () => {
+  // Tên CSS ghép bằng dấu gạch, và phần quyết định có thể ở bất kỳ đoạn nào.
+  // Chỉ so tiền tố thì `row-gap` rơi về dung sai 0px, và `12px` vs `12.5px` bị
+  // báo drift dù spec cho ±2px.
+  const mong = {
+    'gap': 2, 'row-gap': 2, 'column-gap': 2,
+    'width': 2, 'min-width': 2, 'max-height': 2,
+    'padding-top': 2, 'margin-inline-start': 2,
+    'border-radius': 1, 'border-top-left-radius': 1,
+    'border-width': 1, 'border-top-width': 1,
+    'color': 0, 'background-color': 0, 'font-size': 0,
+  };
+  for (const [prop, budget] of Object.entries(mong)) {
+    assert.equal(toleranceFor(prop), budget, `${prop} phải có dung sai ${budget}px`);
+  }
+});
+
+test('CP-4-P5 the most specific name wins, not the first one listed', () => {
+  // `border-top-left-radius` khớp cả `border-width` (2 đoạn) lẫn `border-radius`
+  // (2 đoạn) lẫn `width`. Duyệt theo thứ tự khai báo thì kết quả tuỳ ai đứng
+  // trước — một lần sắp xếp lại danh sách là đổi hành vi.
+  assert.equal(toleranceFor('border-top-left-radius'), 1, 'radius thắng width');
+  assert.equal(toleranceFor('border-bottom-width'), 1, 'border-width thắng width');
 });

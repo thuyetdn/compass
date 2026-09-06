@@ -52,7 +52,7 @@ Gate record có chữ ký — sửa tay là lộ.
 
 ## Trạng thái
 
-Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review` — 532 test.
+Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review`.
 
 Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
 Khai nhiều repo trong `config.json` nếu một task đụng nhiều nơi.
@@ -85,10 +85,34 @@ Compass tìm test ID trong output, nên reporter phải in tên từng test:
 | Vitest | `vitest run --reporter=tap` |
 | Jest | `jest --verbose` |
 
+### Khi một ID khớp nhiều test
+
+Spec nào cũng dùng `H1`, `V1`, `EC1`. Nhiều task chạy chung một suite thì các ID đó
+trùng nhau, và gate không biết test nào của task nào — task chưa viết dòng test nào
+vẫn qua được.
+
+Nên gate đỏ khi một ID khớp từ hai test khác nhau trở lên:
+
+```
+✗ Gate test FAILED
+  Khớp nhiều test khác nhau, không rõ cái nào là của task này: H1
+        H1 thêm một việc
+        H1 xoá một việc
+```
+
+Đường thoát: đặt tên test kèm task id.
+
+```js
+test('T-12-H1 thêm một việc', ...)   // gate nhận ra đây là test của T-12
+```
+
+Chỉ cần đổi tên test của task đang làm, không phải đổi test của người khác. Nhận cả
+`T-12-H1`, `T-12: H1`, `[T-12] H1`.
+
 ## Test
 
 ```bash
-npm test        # 532 test, vài giây
+npm test           # suite chính, vài giây
 npm run test:deep  # 10 test qua CLI thật trên examples/todo, ~100 giây
 ```
 

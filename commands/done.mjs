@@ -2,13 +2,25 @@ import { existsSync, readFileSync } from 'node:fs';
 import { findRoot, specPath, configPath } from '../lib/paths.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
-import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
+import { readGates, verifyAllGates, writeGate, parseSlot } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES } from '../lib/gates.mjs';
 
 
+
+// Lệnh chạy lại đúng cho một gate. `compass check` chỉ chạm gate bắt buộc của
+// loại task, nên với gate chạy thêm nó không sửa được gì — bảo người ta chạy nó
+// là chỉ họ đâm vào tường, rồi chạy lại, rồi vẫn đỏ y nguyên.
+// Khe có thể mang tên repo (`test@be`), nhưng `compass test@be` không phải lệnh.
+// Lệnh chạy lại là tên gate; chạy nó sẽ đi qua mọi repo trong phạm vi.
+function cachChayLai(name, taskId, batBuoc) {
+  const { gate } = parseSlot(name);
+  return batBuoc
+    ? `Chạy lại: compass check ${taskId}`
+    : `Chạy lại: compass ${gate} ${taskId} — hoặc xoá khoá "${name}" trong .compass/${taskId}/evidence/gate.json nếu không cần gate này`;
+}
 
 export function doneCommand({ cwd, taskId }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass done <id>' };
@@ -24,6 +36,13 @@ export function doneCommand({ cwd, taskId }) {
   if (!rules) return { exitCode: 2, output: `Loại task không hợp lệ trong spec: "${spec.type}"` };
 
   const problems = [];
+
+  // Problem nào đã tự nói cách xử lý thì không cần hint chung ở cuối. Đánh dấu
+  // ngay lúc tạo, đừng đoán lại từ chuỗi: đoán từ text hỏi sai câu hỏi, và mọi
+  // message viết trước CP-16 đều rơi nhầm nhóm.
+  const tuCoLoiKhuyen = new Set();
+  const themKemLoiKhuyen = (p) => { problems.push(p); tuCoLoiKhuyen.add(p); };
+  const them = (p, batBuoc) => (batBuoc ? problems.push(p) : themKemLoiKhuyen(p));
 
   const integrity = verifyAllGates(root, taskId);
   if (!integrity.ok) {
@@ -66,13 +85,69 @@ export function doneCommand({ cwd, taskId }) {
       problems.push(`Gate "${name}" chưa chạy.`);
       continue;
     }
-    if (record.exitCode !== 0) {
+    if (typeof record.exitCode !== 'number') {
+      problems.push(`Gate "${name}" có bản ghi không ghi exit code — bản ghi hỏng. ${cachChayLai(name, taskId, true)}`);
+    } else if (record.exitCode !== 0) {
       problems.push(`Gate "${name}" chưa pass (exit code ${record.exitCode}).`);
     }
   }
 
+  // Gate chạy thêm ngoài danh sách bắt buộc vẫn phải xanh. Người ta chạy nó vì
+  // thấy cần, không phải cho vui — bỏ qua một gate đỏ ở đây đúng là "báo xong
+  // khi chưa xong", ngay tại cổng sinh ra để chặn điều đó.
+  //
+  // Muốn bỏ thì xoá bản ghi, đừng để nó nằm đó đỏ.
+  //
+  // `done` không nằm trong IMPLEMENTED_GATES nên dòng lọc dưới đã loại nó — không
+  // cần kiểm riêng.
+  //
+  // Chỉ đúng lệnh chạy lại được: `compass check --only=<gate>` **từ chối** gate
+  // ngoài danh sách loại task, nên bảo người ta chạy nó là bảo họ đâm vào tường.
+  // Gọi thẳng `compass <gate> <id>` thì chạy được.
+  for (const [name, record] of Object.entries(gates)) {
+    // Khe có thể mang tên repo: `convention@be`. So nguyên chuỗi với
+    // IMPLEMENTED_GATES thì mọi bản ghi đa repo bị bỏ qua như khoá lạ, và một
+    // gate đỏ ở repo nào đó lọt thẳng qua cổng cuối.
+    const { gate: ten } = parseSlot(name);
+    // Bỏ qua **đúng khe trần** mà vòng bắt buộc đã soi, không bỏ qua mọi khe
+    // cùng tên gate. `test@be` rơi giữa hai vòng: vòng kia tra khoá `test`,
+    // vòng này thấy `test` nằm trong required rồi đi tiếp — và một gate bắt
+    // buộc đỏ ở repo lọt thẳng qua cổng cuối.
+    if (name === ten && required.includes(ten)) continue;
+    if (!IMPLEMENTED_GATES.includes(ten)) continue;
+    // Ba vòng còn lại đều có chốt này; thiếu ở đây thì một khoá `null` trong sổ
+    // làm `done` ném TypeError thay vì báo bản ghi hỏng.
+    if (!record || typeof record !== "object") {
+      themKemLoiKhuyen(`Khoá "${name}" trong sổ gate không phải bản ghi — sổ hỏng. Xoá khoá đó rồi chạy lại: compass ${ten} ${taskId}`);
+      continue;
+    }
+    if (typeof record.exitCode !== 'number') {
+      themKemLoiKhuyen(`Gate "${name}" có bản ghi không ghi exit code — bản ghi hỏng. Chạy lại: compass ${parseSlot(name).gate} ${taskId}`);
+    } else if (record.exitCode !== 0) {
+      const doDay = `Gate "${name}" đã chạy và đỏ (exit code ${record.exitCode}).`;
+      themKemLoiKhuyen(required.includes(ten)
+        ? `${doDay}\n    Chạy lại: compass check ${taskId}`
+        : `${doDay} Loại task "${spec.type}" không bắt buộc gate này, nhưng đã chạy thì phải xanh.` +
+          `\n    Chạy lại: compass ${ten} ${taskId}` +
+          `\n    Hoặc bỏ hẳn: xoá khoá "${name}" trong .compass/${taskId}/evidence/gate.json`);
+    }
+  }
+
+  // Mọi gate đã chạy đều phải soi hash, không riêng gate bắt buộc. Chỉ soi
+  // `exitCode` thì một bản ghi xanh từ ba tuần trước vẫn đóng được task — "đỏ
+  // thì tin, xanh thì tin luôn cả khi đã mốc".
+  const soi = [...new Set([
+    ...required,
+    // Giữ nguyên tên khe (kèm `@repo`) để đọc đúng bản ghi, nhưng lọc theo
+    // phần gate — nếu không thì bản ghi đa repo không bao giờ được soi hash.
+    // Lớp thứ hai: vòng CP-16 phía trên đã chặn bản ghi đỏ ở khe repo, nên
+    // mutation riêng dòng này sẽ sống sót. Giữ vì nó đúng — bỏ đi thì bản ghi
+    // đa repo không bao giờ được soi hash, và một bản ghi xanh mốc lọt qua.
+    ...Object.keys(gates).filter((g) => IMPLEMENTED_GATES.includes(parseSlot(g).gate)),
+  ])];
+
   const currentSpecHash = hashFile(file);
-  for (const name of required) {
+  for (const name of soi) {
     const record = gates[name];
     if (record && record.specHash && record.specHash !== currentSpecHash) {
       problems.push(`Spec đã thay đổi sau khi gate "${name}" chạy — phải chạy lại và duyệt lại.`);
@@ -88,13 +163,15 @@ export function doneCommand({ cwd, taskId }) {
   // configHash, vì `record.sourceHash &&` sẽ âm thầm miễn trừ gate tương lai
   // nào quên ghi.
   const currentSourceHash = hashSource(root);
-  for (const name of required) {
+  for (const name of soi) {
     const record = gates[name];
-    if (!record || !SOURCE_DEPENDENT_GATES.includes(name)) continue;
+    // So phần gate, không so nguyên khe: `test@be` không nằm trong danh sách
+    // tên gate, nên so nguyên chuỗi thì mọi bản ghi đa repo thoát hết.
+    if (!record || !SOURCE_DEPENDENT_GATES.includes(parseSlot(name).gate)) continue;
     if (!record.sourceHash) {
-      problems.push(`Gate "${name}" không ghi lại mã nguồn đã kiểm — bản ghi từ phiên bản cũ. Chạy lại: compass check ${taskId}`);
+      them(`Gate "${name}" không ghi lại mã nguồn đã kiểm — bản ghi từ phiên bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
     } else if (record.sourceHash !== currentSourceHash) {
-      problems.push(`Code đã thay đổi sau khi gate "${name}" chạy — bằng chứng nói về bản cũ. Chạy lại: compass check ${taskId}`);
+      them(`Code đã thay đổi sau khi gate "${name}" chạy — bằng chứng nói về bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
     }
   }
 
@@ -103,18 +180,22 @@ export function doneCommand({ cwd, taskId }) {
   // trừ mọi gate tương lai nào quên ghi.
   const CONFIG_DEPENDENT_GATES = ['test'];
   const currentConfigHash = hashFile(configPath(root));
-  for (const name of required) {
+  for (const name of soi) {
     const record = gates[name];
-    if (!record || !CONFIG_DEPENDENT_GATES.includes(name)) continue;
+    if (!record || !CONFIG_DEPENDENT_GATES.includes(parseSlot(name).gate)) continue;
     if (!record.configHash) {
-      problems.push(`Gate "${name}" không ghi lại lệnh test đã dùng — bản ghi từ phiên bản cũ. Chạy lại: compass check ${taskId}`);
+      them(`Gate "${name}" không ghi lại lệnh test đã dùng — bản ghi từ phiên bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
     } else if (record.configHash !== currentConfigHash) {
-      problems.push(`Lệnh test đã đổi kể từ khi gate "${name}" chạy — bằng chứng không còn mô tả đúng lệnh sẽ chạy bây giờ. Chạy lại: compass check ${taskId}`);
+      them(`Lệnh test đã đổi kể từ khi gate "${name}" chạy — bằng chứng không còn mô tả đúng lệnh sẽ chạy bây giờ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
     }
   }
 
   if (problems.length) {
-    const lines = [fail('done', problems), '', hint('Chạy: compass check ' + taskId)];
+    // Chỉ gợi ý `check` khi nó thật sự sửa được gì. Vấn đề nằm hết ở gate ngoài
+    // danh sách thì `check` chạy xong vẫn đỏ y nguyên, và người dùng quay vòng.
+    const deuTuCoLoiKhuyen = problems.length > 0 && problems.every((p) => tuCoLoiKhuyen.has(p));
+    const lines = [fail('done', problems)];
+    if (!deuTuCoLoiKhuyen) lines.push('', hint('Chạy: compass check ' + taskId));
     if (unimplemented.length) {
       lines.push('');
       lines.push(`Ghi chú: Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này.`);
@@ -125,7 +206,21 @@ export function doneCommand({ cwd, taskId }) {
     };
   }
 
-  const lines = [pass('done', `${required.length} gate đã pass`)];
+  // Cổng cuối cũng phải để lại bằng chứng. Không ghi thì `status` không biết
+  // task đã đóng, và cổng quyết định "xong hay chưa" là cổng duy nhất không
+  // có sổ sách.
+  writeGate(root, taskId, {
+    gate: 'done',
+    exitCode: 0,
+    gateCount: soi.length,
+    gates: soi,
+    closedAt: new Date().toISOString(),
+    specHash: currentSpecHash,
+    sourceHash: currentSourceHash,
+    configHash: currentConfigHash,
+  });
+
+  const lines = [pass('done', `${soi.length} gate đã pass`)];
   if (unimplemented.length) {
     lines.push(`Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này và không được kiểm tra.`);
   }

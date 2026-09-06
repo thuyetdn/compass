@@ -95,13 +95,13 @@ test('removing gates entry does not affect later calls', () => {
   assert.deepEqual(result2.gates, ['spec', 'knowledge', 'test']);
 });
 
-test('H1 feature-s requires the ui and visual gates', () => {
+test('CP-2-H1 feature-s requires the ui and visual gates', () => {
   const gates = rulesFor('feature-s').gates;
   assert.ok(gates.includes('ui'), 'thiếu gate ui');
   assert.ok(gates.includes('visual'), 'thiếu gate visual');
 });
 
-test('H2 feature-m and feature-l require ui, visual and review', () => {
+test('CP-2-H2 feature-m and feature-l require ui, visual and review', () => {
   for (const type of ['feature-m', 'feature-l']) {
     const gates = rulesFor(type).gates;
     for (const gate of ['ui', 'visual', 'review']) {
@@ -110,7 +110,7 @@ test('H2 feature-m and feature-l require ui, visual and review', () => {
   }
 });
 
-test('V1 fix and bug stay free of frontend gates', () => {
+test('CP-2-V1 fix and bug stay free of frontend gates', () => {
   // knowledge applies everywhere — stale docs mislead on a one-line fix too.
   assert.deepEqual(rulesFor('fix').gates, ['spec', 'knowledge', 'test']);
   assert.deepEqual(rulesFor('bug').gates, ['spec', 'knowledge', 'test']);

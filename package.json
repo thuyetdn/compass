@@ -5,6 +5,15 @@
   "bin": {
     "compass": "./cli.mjs"
   },
+  "files": [
+    "cli.mjs",
+    "lib/",
+    "commands/",
+    "templates/",
+    "SKILL.md",
+    "writing-vi.md",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },

@@ -76,3 +76,19 @@ mới chỉ sinh brief chứ chưa ai soi — đúng kiểu lỗi Compass sinh r
 | S15 | Security | Diff chứa dòng ba backtick | Không đóng sớm code fence, cả diff nằm trong khối | P0 |
 | S16 | Security | Spec chứa dòng ba backtick | Không đóng sớm code fence của spec | P0 |
 | S17 | Security | Spec đổi sau khi soi, code giữ nguyên | Gate chặn ở mọi lần chạy lại, không chỉ lần đầu | P0 |
+| EC8 | Edge | Brief bị sửa tay ở pha hai | Sinh lại brief, không giữ bản đã sửa | P1 |
+| H6 | Happy | Findings rỗng, ở tầng **gate** | Gate exit 0 (H3 kiểm cùng ca ở tầng parser) | P1 |
+| H8 | Happy | Finding mức Minor, ở tầng gate | Gate exit 0 nhưng vẫn in ra finding đó | P1 |
+| H7 | Happy | Finding mức Major, ở tầng gate | Gate exit 1, nêu tên finding | P1 |
+| EC7 | Edge | Finding mức Critical, ở tầng gate | Gate exit 1 | P1 |
+| V6 | Validation | findings.json không phải JSON hợp lệ | Exit 2, không phải gate đỏ | P1 |
+| V7 | Validation | Finding thiếu trường `detail` | Exit 2, nêu đúng tên trường thiếu | P1 |
+| EC9 | Edge | Project lồng ghi vào `.compass/` của nó | Không tính là đổi code, review không mở lại | P0 |
+| S18 | Security | Xoá `gate.json` khi code và findings y nguyên | Không xanh trở lại — không sổ thì không bằng chứng | P0 |
+| S19 | Security | Sửa brief **sau** khi verdict đã có | Mở lại review — đổi câu hỏi sau khi có câu trả lời | P0 |
+| S20 | Security | Brief biến mất khi code y nguyên | Gate đỏ **và** sổ đỏ theo — `done` đọc sổ, không chạy lại gate | P0 |
+| S21 | Security | findings.json hỏng định dạng | Sổ cũng phải đỏ, không giữ verdict xanh cũ | P0 |
+| V8 | Validation | Finding thiếu `title` | Từ chối, nêu đúng tên trường | P1 |
+| V9 | Validation | Trường chỉ có khoảng trắng | Tính là thiếu | P1 |
+| V10 | Validation | Phần tử findings không phải object | Từ chối, không crash | P1 |
+| V11 | Validation | Trường `file` sai kiểu | Bỏ đi, không mang theo đường dẫn giả | P1 |

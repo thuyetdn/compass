@@ -24,14 +24,14 @@ const HEX_RULE = {
   message: undefined,
 };
 
-test('H3 clean source produces no violations', () => {
+test('CP-3-H6 clean source produces no violations', () => {
   const root = makeRepo({ 'src/App.jsx': 'const c = "text-primary";\n' });
   const result = runRules(root, [HEX_RULE]);
   assert.deepEqual(result.violations, []);
   assert.equal(result.scanned, 1);
 });
 
-test('H4 a violation names the file and the line', () => {
+test('CP-3-H7 a violation names the file and the line', () => {
   const root = makeRepo({
     'src/App.jsx': 'const a = 1;\nconst c = "#ff00aa";\n',
   });
@@ -43,7 +43,7 @@ test('H4 a violation names the file and the line', () => {
   assert.match(result.violations[0].text, /#ff00aa/);
 });
 
-test('E2 a scope matching nothing scans no files and does not throw', () => {
+test('CP-3-E2 a scope matching nothing scans no files and does not throw', () => {
   const root = makeRepo({ 'src/App.jsx': 'x\n' });
   const rule = { ...HEX_RULE, scope: 'nowhere/**/*.ts' };
   const result = runRules(root, [rule]);
@@ -51,7 +51,7 @@ test('E2 a scope matching nothing scans no files and does not throw', () => {
   assert.equal(result.scanned, 0);
 });
 
-test('EC1 a warn-level violation is reported but does not fail the gate', () => {
+test('CP-3-EC3 a warn-level violation is reported but does not fail the gate', () => {
   const root = makeRepo({ 'src/App.jsx': 'const c = "#ff00aa";\n' });
   const rule = { ...HEX_RULE, severity: 'warn' };
   const result = runRules(root, [rule]);
@@ -61,7 +61,7 @@ test('EC1 a warn-level violation is reported but does not fail the gate', () => 
   assert.equal(result.warnCount, 1);
 });
 
-test('EC2 node_modules is never scanned', () => {
+test('CP-3-EC2 node_modules is never scanned', () => {
   const root = makeRepo({
     'src/App.jsx': 'clean\n',
     'node_modules/pkg/src/App.jsx': 'const c = "#ff00aa";\n',
@@ -98,7 +98,7 @@ test('errorCount counts only error-level violations', () => {
   assert.equal(result.warnCount, 1);
 });
 
-test('S1 a catastrophic pattern is cut off rather than hanging', () => {
+test('CP-3-S1 a catastrophic pattern is cut off rather than hanging', () => {
   const root = makeRepo({ 'src/App.jsx': 'a'.repeat(3000) + '!' });
   const rule = { ...HEX_RULE, id: 'evil', pattern: '(a+)+$' };
   const started = Date.now();

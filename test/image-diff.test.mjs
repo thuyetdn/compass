@@ -13,14 +13,14 @@ function image(width, height, fill = [255, 255, 255, 255]) {
   return { width, height, pixels };
 }
 
-test('H3 two identical images differ in nothing', () => {
+test('CP-5-H3 two identical images differ in nothing', () => {
   const result = diffImages(image(4, 4), image(4, 4));
   assert.equal(result.differentPixels, 0);
   assert.equal(result.ratio, 0);
   assert.equal(result.sizeMismatch, false);
 });
 
-test('H4 changing one pixel is counted as exactly one', () => {
+test('CP-5-H4 changing one pixel is counted as exactly one', () => {
   const baseline = image(4, 4);
   const actual = image(4, 4);
   actual.pixels[0] = 0; // one channel of one pixel
@@ -30,7 +30,7 @@ test('H4 changing one pixel is counted as exactly one', () => {
   assert.equal(result.ratio, 1 / 16);
 });
 
-test('E1 images of different sizes count as wholly different', () => {
+test('CP-5-E1 images of different sizes count as wholly different', () => {
   const result = diffImages(image(4, 4), image(8, 4));
   assert.equal(result.sizeMismatch, true);
   assert.equal(result.ratio, 1);
@@ -38,7 +38,7 @@ test('E1 images of different sizes count as wholly different', () => {
   assert.match(result.reason, /8x4/);
 });
 
-test('EC3 a 1x1 image does not divide by zero', () => {
+test('CP-5-EC3 a 1x1 image does not divide by zero', () => {
   const a = image(1, 1);
   const b = image(1, 1, [0, 0, 0, 255]);
   const result = diffImages(a, b);
@@ -80,4 +80,29 @@ test('ratio is the share of pixels that changed, not of bytes', () => {
   const result = diffImages(baseline, actual);
   assert.equal(result.differentPixels, 5);
   assert.equal(result.ratio, 0.05);
+});
+
+test('CP-5-EC1 a difference exactly at the tolerance does not count', () => {
+  // Biên phải rõ: đúng bằng ngưỡng thì chưa vượt. Không kiểm thì một ảnh lệch
+  // đúng ngưỡng lúc đỏ lúc xanh tuỳ cách viết dấu so sánh.
+  const a = image(4, 4, [100, 100, 100, 255]);
+  const b = image(4, 4, [110, 100, 100, 255]);
+  const r = diffImages(a, b, { channelTolerance: 10 });
+  assert.equal(r.differentPixels, 0, 'lệch đúng bằng ngưỡng thì không tính là khác');
+});
+
+test('CP-5-EC2 one step past the tolerance counts every pixel', () => {
+  const a = image(4, 4, [100, 100, 100, 255]);
+  const b = image(4, 4, [111, 100, 100, 255]);
+  const r = diffImages(a, b, { channelTolerance: 10 });
+  assert.equal(r.differentPixels, 16, 'quá ngưỡng một bậc là khác, cả 16 pixel');
+});
+
+test('CP-5-E2 a baseline whose pixel buffer is truncated is reported, not read past', () => {
+  // Baseline hỏng: khai 4x4 nhưng buffer chỉ đủ một hàng. Đọc bừa thì được số
+  // rác; phải báo lỗi.
+  const a = image(4, 4);
+  const hong = { width: 4, height: 4, pixels: Buffer.alloc(16) };
+  assert.throws(() => diffImages(hong, a), /kích thước|buffer|pixel/i,
+    'buffer thiếu so với kích thước khai là baseline hỏng');
 });

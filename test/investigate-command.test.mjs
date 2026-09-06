@@ -47,7 +47,7 @@ deltaToken hết hạn sau 30 ngày, syncEvents không bắt 410 nên cron chế
 Mở task BUILD sửa calendar-sync.service.ts.
 `;
 
-test('H1 opening an investigation writes the template', () => {
+test('CP-11-H1 opening an investigation writes the template', () => {
   const root = makeRepo();
   const result = investigateCommand({ cwd: root, taskId: 'INV-1' });
   assert.equal(result.exitCode, 0, result.output);
@@ -63,7 +63,7 @@ test('the opened file carries the investigation id', () => {
   assert.ok(!doc.includes('<INV-ID>'));
 });
 
-test('E1 opening twice refuses rather than overwriting the work so far', () => {
+test('CP-11-E1 opening twice refuses rather than overwriting the work so far', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
   const file = path.join(root, '.compass', 'INV-1', 'investigation.md');
@@ -74,14 +74,14 @@ test('E1 opening twice refuses rather than overwriting the work so far', () => {
   assert.equal(readFileSync(file, 'utf8'), 'ĐÃ ĐIỀU TRA ĐƯỢC MỘT NỬA');
 });
 
-test('E2 closing something never opened is a usage error', () => {
+test('CP-11-E2 closing something never opened is a usage error', () => {
   const root = makeRepo();
   const result = investigateCommand({ cwd: root, taskId: 'INV-9', close: true });
   assert.equal(result.exitCode, 2);
   assert.match(result.output, /Chưa mở/);
 });
 
-test('EC1 closing an untouched template is refused with the gaps named', () => {
+test('CP-11-EC1 closing an untouched template is refused with the gaps named', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
   const result = investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
@@ -89,7 +89,7 @@ test('EC1 closing an untouched template is refused with the gaps named', () => {
   assert.match(result.output, /Kết luận|Pitfall/);
 });
 
-test('H3 a filled investigation closes and records a signed entry', () => {
+test('CP-11-H3 a filled investigation closes and records a signed entry', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
   writeFileSync(path.join(root, '.compass', 'INV-1', 'investigation.md'), FILLED);
@@ -103,7 +103,7 @@ test('H3 a filled investigation closes and records a signed entry', () => {
   assert.ok(gate.sig.startsWith('sha256:'));
 });
 
-test('V2 closing appends the pitfall to the knowledge base', () => {
+test('CP-11-H8 closing appends the pitfall to the knowledge base', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
   writeFileSync(path.join(root, '.compass', 'INV-1', 'investigation.md'), FILLED);
@@ -112,6 +112,24 @@ test('V2 closing appends the pitfall to the knowledge base', () => {
   const pitfalls = readFileSync(path.join(root, '.knowledge', 'decided', 'pitfalls.md'), 'utf8');
   assert.match(pitfalls, /deltaToken sống 30 ngày/);
   assert.match(pitfalls, /Lịch ngừng cập nhật/);
+});
+
+test('CP-11-V2 closing with an empty pitfall is refused', () => {
+  // Điều tra không để lại bài học thì người sau sập đúng hố đó. Đây là lý do
+  // vòng phản hồi tồn tại, nên nó phải chặn — không phải cảnh báo rồi cho qua.
+  const root = makeRepo();
+  investigateCommand({ cwd: root, taskId: 'INV-1' });
+
+  const khongPitfall = FILLED.replace(
+    /## Pitfall[\s\S]*?(?=\n## |$)/,
+    '## Pitfall' + '\n\n');
+  writeFileSync(path.join(root, '.compass', 'INV-1', 'investigation.md'), khongPitfall);
+
+  const r = investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+  assert.equal(r.exitCode, 1, 'thiếu pitfall thì không đóng được');
+  assert.match(r.output, /Pitfall/);
+  assert.ok(!existsSync(path.join(root, '.knowledge', 'decided', 'pitfalls.md')),
+    'từ chối đóng thì không được ghi gì vào knowledge base');
 });
 
 test('two investigations both leave their lesson behind', () => {
@@ -127,21 +145,21 @@ test('two investigations both leave their lesson behind', () => {
   assert.match(pitfalls, /nguyên nhân của INV-2/);
 });
 
-test('V5 an invalid id creates nothing', () => {
+test('CP-11-V5 an invalid id creates nothing', () => {
   const root = makeRepo();
   const result = investigateCommand({ cwd: root, taskId: 'a/b' });
   assert.equal(result.exitCode, 2);
   assert.equal(existsSync(path.join(root, '.compass', 'a')), false);
 });
 
-test('S1 an id trying to escape the directory is refused', () => {
+test('CP-11-S1 an id trying to escape the directory is refused', () => {
   const root = makeRepo();
   const result = investigateCommand({ cwd: root, taskId: '../escape' });
   assert.equal(result.exitCode, 2);
   assert.equal(existsSync(path.join(root, '..', 'escape')), false);
 });
 
-test('E3 a deleted file mid-investigation is reported, not crashed on', () => {
+test('CP-11-E3 a deleted file mid-investigation is reported, not crashed on', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
   rmSync(path.join(root, '.compass', 'INV-1', 'investigation.md'));
@@ -150,7 +168,7 @@ test('E3 a deleted file mid-investigation is reported, not crashed on', () => {
   assert.equal(result.exitCode, 2);
 });
 
-test('EC3 status on an investigation says it is one, not that a spec is missing', () => {
+test('CP-11-EC3 status on an investigation says it is one, not that a spec is missing', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
 
@@ -169,14 +187,14 @@ test('status on a task that simply has no spec still says so plainly', () => {
   assert.match(result.output, /Không tìm thấy spec/);
 });
 
-test('H5 scripts --list on an empty library explains what it is for', () => {
+test('CP-11-H5 scripts --list on an empty library explains what it is for', () => {
   const root = makeRepo();
   const result = scriptsCommand({ cwd: root });
   assert.equal(result.exitCode, 0);
   assert.match(result.output, /Chưa có script/);
 });
 
-test('H4 scripts --list shows each script and its purpose line', () => {
+test('CP-11-H4 scripts --list shows each script and its purpose line', () => {
   const root = makeRepo();
   const dir = path.join(root, '.compass', 'scripts');
   mkdirSync(dir, { recursive: true });
@@ -187,7 +205,7 @@ test('H4 scripts --list shows each script and its purpose line', () => {
   assert.match(result.output, /Tìm contact không còn chủ/);
 });
 
-test('EC4 a script in a subdirectory is listed with its path', () => {
+test('CP-11-EC4 a script in a subdirectory is listed with its path', () => {
   const root = makeRepo();
   const dir = path.join(root, '.compass', 'scripts', 'db');
   mkdirSync(dir, { recursive: true });
@@ -198,7 +216,7 @@ test('EC4 a script in a subdirectory is listed with its path', () => {
   assert.match(result.output, /Đếm bản ghi mồ côi/);
 });
 
-test('E4 a script with no comment header is listed, marked as undescribed', () => {
+test('CP-11-E4 a script with no comment header is listed, marked as undescribed', () => {
   const root = makeRepo();
   const dir = path.join(root, '.compass', 'scripts');
   mkdirSync(dir, { recursive: true });
@@ -209,7 +227,7 @@ test('E4 a script with no comment header is listed, marked as undescribed', () =
   assert.match(result.output, /chưa có dòng comment/);
 });
 
-test('S2 listing scripts never executes them', () => {
+test('CP-11-S2 listing scripts never executes them', () => {
   const root = makeRepo();
   const dir = path.join(root, '.compass', 'scripts');
   mkdirSync(dir, { recursive: true });
@@ -231,7 +249,7 @@ test('opening an investigation does not disturb the source hash', () => {
   assert.equal(hashSource(root), before);
 });
 
-test('V6 an untouched pitfall block cannot close an investigation', () => {
+test('CP-11-V6 an untouched pitfall block cannot close an investigation', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
   const file = path.join(root, '.compass', 'INV-1', 'investigation.md');
@@ -256,7 +274,7 @@ test('V6 an untouched pitfall block cannot close an investigation', () => {
     'không được ghi chữ mẫu vào kho pitfall');
 });
 
-test('V7 a title left as template text blocks closing', () => {
+test('CP-11-V7 a title left as template text blocks closing', () => {
   const root = makeRepo();
   investigateCommand({ cwd: root, taskId: 'INV-1' });
   const file = path.join(root, '.compass', 'INV-1', 'investigation.md');
@@ -267,7 +285,7 @@ test('V7 a title left as template text blocks closing', () => {
   assert.match(result.output, /tiêu đề/);
 });
 
-test('EC5 an existing pitfalls file with no trailing newline stays readable', () => {
+test('CP-11-EC5 an existing pitfalls file with no trailing newline stays readable', () => {
   const root = makeRepo();
   const pitfalls = path.join(root, '.knowledge', 'decided', 'pitfalls.md');
   mkdirSync(path.dirname(pitfalls), { recursive: true });
@@ -278,11 +296,14 @@ test('EC5 an existing pitfalls file with no trailing newline stays readable', ()
   investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
 
   const text = readFileSync(pitfalls, 'utf8');
-  assert.match(text, /không xuống dòng ở cuối\n/, 'đoạn cũ phải giữ nguyên và được tách dòng');
-  assert.match(text, /\n## INV-1/);
+  // Đo đúng chỗ nối. Khẳng định `\n## INV-1` là rỗng nghĩa: chuỗi ghép đã có
+  // `\n## ` cứng sẵn, nên nó đúng kể cả khi bỏ hẳn logic thêm dấu ngắt.
+  const noi = text.slice(text.indexOf('không xuống dòng ở cuối'));
+  assert.match(noi, /^không xuống dòng ở cuối\n\n## INV-1/,
+    `đoạn cũ và mục mới phải cách nhau một dòng trống, thấy: ${JSON.stringify(noi.slice(0, 60))}`);
 });
 
-test('EC6 a script opening with a block comment shows the line below it', () => {
+test('CP-11-EC6 a script opening with a block comment shows the line below it', () => {
   const root = makeRepo();
   const dir = path.join(root, '.compass', 'scripts');
   mkdirSync(dir, { recursive: true });
@@ -291,4 +312,25 @@ test('EC6 a script opening with a block comment shows the line below it', () => 
   const result = scriptsCommand({ cwd: root });
   assert.match(result.output, /Đếm bản ghi mồ côi trong DB/);
   assert.ok(!/^\s+\*$/m.test(result.output), 'không được lấy dấu sao làm mô tả');
+});
+
+test('CP-11-P1 listing scripts reads headers, not whole files', () => {
+  // Liệt kê một thư viện không được tốn bằng đọc nó.
+  //
+  // Fixture phải đặt phần mô tả **sau** vùng header và không có gì cản đường:
+  // `purposeOf` dừng ở dòng không-comment đầu tiên, nên một khối code lớn ở
+  // giữa sẽ chặn nó bất kể đọc bao nhiêu byte — và test xanh kể cả khi giới
+  // hạn header bị gỡ sạch. Bản đầu của ca này đã mắc đúng lỗi đó.
+  const root = makeRepo();
+  const dir = path.join(root, '.compass', 'scripts');
+  mkdirSync(dir, { recursive: true });
+
+  const SAU_HEADER = 'MO_TA_NAM_SAU_HEADER';
+  writeFileSync(path.join(dir, 'to.mjs'), '\n'.repeat(200000) + `// ${SAU_HEADER}` + '\n');
+  writeFileSync(path.join(dir, 'nho.mjs'), '// dọn thư mục tạm' + '\n');
+
+  const result = scriptsCommand({ cwd: root });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.match(result.output, /dọn thư mục tạm/, 'header trong tầm vẫn phải đọc được');
+  assert.ok(!result.output.includes(SAU_HEADER), 'không được đọc quá vùng header');
 });

@@ -48,12 +48,12 @@ Không có.
 |----|-----|-------|---------|---------|
 `;
 
-function makeTask(testCmd) {
+function makeTask(testCmd, specText = SPEC) {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-testcmd-'));
   mkdirSync(path.join(root, '.compass', 'T-1', 'evidence'), { recursive: true });
   writeFileSync(path.join(root, '.compass', 'config.json'),
     JSON.stringify({ test: testCmd }));
-  writeFileSync(path.join(root, '.compass', 'T-1', 'spec.md'), SPEC);
+  writeFileSync(path.join(root, '.compass', 'T-1', 'spec.md'), specText);
   return root;
 }
 
@@ -172,7 +172,7 @@ test('testCommand: retried-then-passed ID not reported as failed', () => {
   assert.ok(!result.output.includes('H1'), 'H1 should not appear in output since it passed');
 });
 
-test('H3 a green suite matching no ID at all points at the reporter', () => {
+test('CP-2-H3 a green suite matching no ID at all points at the reporter', () => {
   // Vitest's default reporter prints file names only, never test names — the
   // suite passes yet no spec ID is anywhere in the output.
   const fileNamesOnly = 'node -e "console.log(\'ok 1 - test/App.test.jsx\')"';
@@ -182,7 +182,7 @@ test('H3 a green suite matching no ID at all points at the reporter', () => {
   assert.match(result.output, /reporter/i);
 });
 
-test('E1 a red suite matching no ID stays quiet about the reporter', () => {
+test('CP-2-E1 a red suite matching no ID stays quiet about the reporter', () => {
   const redAndSilent = 'node -e "console.log(\'ok 1 - test/App.test.jsx\'); process.exit(1)"';
   const root = makeTask(redAndSilent);
   const result = testCommand({ cwd: root, taskId: 'T-1' });
@@ -190,7 +190,7 @@ test('E1 a red suite matching no ID stays quiet about the reporter', () => {
   assert.ok(!/reporter/i.test(result.output), 'suite lỗi thì nguyên nhân không phải reporter');
 });
 
-test('EC1 a green suite matching most IDs stays quiet about the reporter', () => {
+test('CP-2-EC1 a green suite matching most IDs stays quiet about the reporter', () => {
   // 1 of 2 named — the reporter clearly prints test names, so a missing ID is
   // a missing test, not a formatting problem.
   const root = makeTask(printOne);
@@ -199,7 +199,7 @@ test('EC1 a green suite matching most IDs stays quiet about the reporter', () =>
   assert.ok(!/reporter/i.test(result.output), 'reporter in được tên test thì nó không phải nguyên nhân');
 });
 
-test('EC3 a green suite matching one ID in thirteen still points at the reporter', () => {
+test('CP-2-EC3 a green suite matching one ID in thirteen still points at the reporter', () => {
   // Vitest names only its slow tests, so a 13-case spec can match exactly one.
   const rows = SPEC_IDS_13.map((id, i) => `| ${id} | ${LAYER_13[i]} | Case ${i + 1} | Đúng | P0 |`);
   const spec = SPEC_13_HEAD + rows.join('\n') + '\n';
@@ -213,4 +213,137 @@ test('EC3 a green suite matching one ID in thirteen still points at the reporter
   const result = testCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1);
   assert.match(result.output, /reporter/i);
+});
+
+// CP-15: một ID khớp nhiều test khác nhau nghĩa là ít nhất một cái thuộc task khác.
+// Gate phải nói ra, chứ không tính là đã chạy.
+
+const collideOnH1 = 'node -e "console.log(\'ok 1 - H1 chuyện của task khác\'); console.log(\'ok 2 - H1 chuyện của task khác nữa\'); console.log(\'ok 3 - H2 case hai\')"';
+
+test('CP-15-EC1 a green suite where an ID matches two different tests fails the gate', () => {
+  const root = makeTask(collideOnH1);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, 'suite xanh nhưng ID đụng độ thì gate phải đỏ');
+  assert.match(result.output, /H1/);
+});
+
+test('CP-15-H3 the message names the tests that collided', () => {
+  const root = makeTask(collideOnH1);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.match(result.output, /chuyện của task khác/);
+  assert.match(result.output, /chuyện của task khác nữa/);
+});
+
+test('CP-15-H6 the gate record keeps the colliding ids', () => {
+  const root = makeTask(collideOnH1);
+  testCommand({ cwd: root, taskId: 'T-1' });
+  const gate = readGate(root, 'T-1', 'test');
+  assert.deepEqual(gate.collidedIds, ['H1']);
+});
+
+test('CP-15-H8 a colliding ID is not also reported as never seen', () => {
+  const root = makeTask(collideOnH1);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  const neverSeen = result.output.split('\n').find((l) => l.includes('Không tìm thấy dấu vết'));
+  assert.ok(!neverSeen || !neverSeen.includes('H1'), 'H1 đã lộ diện, chỉ là không rõ của ai');
+});
+
+test('CP-15-E2 a red suite with a collision reports both', () => {
+  const redAndColliding = 'node -e "console.log(\'ok 1 - H1 một\'); console.log(\'ok 2 - H1 hai\'); process.exit(1)"';
+  const root = makeTask(redAndColliding);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /exit code 1/);
+  assert.match(result.output, /H1/);
+});
+
+test('CP-15-H9 naming a test with the task id resolves the collision', () => {
+  const escaped = 'node -e "console.log(\'ok 1 - H1 chuyện của task khác\'); console.log(\'ok 2 - T-1-H1 case một\'); console.log(\'ok 3 - H2 case hai\')"';
+  const root = makeTask(escaped);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 0, result.output);
+});
+
+// CP-20 — việc kiểm bằng mắt. Ép bịa test case chỉ tạo chỗ cho lỗ INV-2 phát
+// tác: ID bịa ra khớp test của task khác, gate báo xanh cho việc chưa ai kiểm.
+
+const SPEC_MAT = SPEC.replace('Phạm vi: src/', 'Phạm vi: docs/\nKiểm bằng: mắt');
+
+test('CP-20-H1 a spec verified by eye passes and says the machine measured nothing', () => {
+  const root = makeTask(printBoth, SPEC_MAT);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.match(result.output, /kiểm bằng mắt/);
+  assert.match(result.output, /không đo/, 'phải nói thẳng nó không đo được gì');
+});
+
+test('CP-20-H2 the gate record keeps the declaration', () => {
+  const root = makeTask(printBoth, SPEC_MAT);
+  testCommand({ cwd: root, taskId: 'T-1' });
+  const gate = readGate(root, 'T-1', 'test');
+  assert.equal(gate.verifyBy, 'mắt', '`done` và `status` phải đọc lại được');
+  assert.equal(gate.ranIdCount, 0, 'không ca nào chạy bằng máy');
+});
+
+test('CP-20-V1 an empty case table is refused even when verified by eye', () => {
+  // Khai kiểm bằng mắt không phải là được miễn liệt kê. Không có bảng thì
+  // không ai biết phải đi qua những gì.
+  const rong = SPEC_MAT.replace(/\| H1 \|.*\n/, '').replace(/\| H2 \|.*\n/, '');
+  const root = makeTask(printBoth, rong);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /liệt kê/);
+});
+
+test('CP-20-V2 declaring eye-verification while owning real tests is a contradiction', () => {
+  // Có test mang ID của task này thì lời khai sai. Đừng đoán bên nào đúng.
+  const coTest = 'node -e "console.log(\'ok 1 - T-1-H1 test thật\')"';
+  const root = makeTask(coTest, SPEC_MAT);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /H1/);
+  assert.match(result.output, /Bỏ dòng/, 'phải nói cách gỡ mâu thuẫn');
+});
+
+test('CP-20-E1 an unknown verification value names the valid ones', () => {
+  const la = SPEC.replace('Phạm vi: src/', 'Phạm vi: docs/\nKiểm bằng: bói toán');
+  const root = makeTask(printBoth, la);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /mắt/, 'phải nêu giá trị hợp lệ');
+});
+
+test('CP-20-EC1 a task id holding regex characters is matched literally', () => {
+  // `validateTaskId` không chặn `.` hay `+`. Ghép thẳng vào mẫu thì `v1.0+x`
+  // khớp nhầm những tên nó không nên khớp.
+  const spec = SPEC_MAT.replace('# T-1:', '# v1.0+x:');
+  const root = mkdtempSync(path.join(tmpdir(), 'compass-esc-'));
+  mkdirSync(path.join(root, '.compass', 'v1.0+x', 'evidence'), { recursive: true });
+  writeFileSync(path.join(root, '.compass', 'config.json'),
+    JSON.stringify({ test: 'node -e "console.log(\'ok 1 - v1x0Xx-H1 tên khớp nhầm\')"' }));
+  writeFileSync(path.join(root, '.compass', 'v1.0+x', 'spec.md'), spec);
+
+  // `v1x0Xx-H1` chỉ khớp nếu `.` và `+` được coi là ký tự bất kỳ.
+  const result = testCommand({ cwd: root, taskId: 'v1.0+x' });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.doesNotMatch(result.output, /mâu thuẫn|có test mang ID/,
+    'tên khác không được tính là test của task này');
+});
+
+test('CP-15-EC43 an ID owned by other tasks does not trigger the reporter hint', () => {
+  // `seenAnywhere = 0` bật gợi ý "reporter không in tên test" — trong khi
+  // reporter vừa in ra hai dòng mang đúng chữ H1. Người dùng đi sửa cấu hình
+  // đang chạy đúng.
+  const khacChu = 'node -e "console.log(\'ok 1 - CP-16-H1 x\'); console.log(\'ok 2 - CP-17-H2 y\')"';
+  const root = makeTask(khacChu);
+  // Hai task kia phải tồn tại thật — parser đối chiếu danh sách, không đoán từ
+  // hình dạng chuỗi.
+  for (const t of ['CP-16', 'CP-17']) mkdirSync(path.join(root, '.compass', t), { recursive: true });
+
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, 'task này chưa viết test — vẫn phải đỏ');
+  assert.doesNotMatch(result.output, /reporter/i, 'reporter đang in tên test hoàn hảo');
+  assert.match(result.output, /task khác/, 'phải nói rõ test đó của ai');
+  assert.doesNotMatch(result.output, /Không tìm thấy dấu vết/,
+    'có dấu vết — chỉ là dấu vết của task khác');
 });

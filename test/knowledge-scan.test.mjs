@@ -21,7 +21,7 @@ export function Button({ variant = 'primary', size = 'medium', disabled, onClick
 }
 `;
 
-test('H1 a component and its props are extracted', () => {
+test('CP-10-H1 a component and its props are extracted', () => {
   const root = makeTree({ 'src/Button.jsx': BUTTON });
   const { components } = scanComponents(root);
 
@@ -40,7 +40,7 @@ test('a default value is recorded with the prop', () => {
   assert.equal(components.Button.props.disabled.default, undefined);
 });
 
-test('H2 usedIn counts the files that import the component', () => {
+test('CP-10-H2 usedIn counts the files that import the component', () => {
   const root = makeTree({
     'src/Button.jsx': BUTTON,
     'src/Page.jsx': "import { Button } from './Button';\nexport const Page = () => <Button />;\n",
@@ -51,13 +51,13 @@ test('H2 usedIn counts the files that import the component', () => {
   assert.equal(components.Button.usedIn, 2);
 });
 
-test('EC3 a component nobody imports is listed with usedIn zero', () => {
+test('CP-10-EC3 a component nobody imports is listed with usedIn zero', () => {
   const root = makeTree({ 'src/Dead.jsx': 'export function Dead() { return null; }\n' });
   const { components } = scanComponents(root);
   assert.equal(components.Dead.usedIn, 0);
 });
 
-test('EC4 jsx and tsx are both scanned', () => {
+test('CP-10-EC4 jsx and tsx are both scanned', () => {
   const root = makeTree({
     'src/A.jsx': 'export function A({ x }) { return <i>{x}</i>; }\n',
     'src/B.tsx': 'export function B({ y }) { return <i>{y}</i>; }\n',
@@ -66,7 +66,7 @@ test('EC4 jsx and tsx are both scanned', () => {
   assert.ok(components.A && components.B);
 });
 
-test('V4 a prop shape the scanner cannot read is flagged, not invented', () => {
+test('CP-10-V4 a prop shape the scanner cannot read is flagged, not invented', () => {
   const root = makeTree({
     'src/Odd.jsx': 'export function Odd(props) { return <i>{props.anything}</i>; }\n',
   });
@@ -98,7 +98,7 @@ test('a lowercase function is not a component', () => {
   assert.deepEqual(components, {});
 });
 
-test('E3 a missing source directory yields nothing rather than throwing', () => {
+test('CP-10-E3 a missing source directory yields nothing rather than throwing', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-know-'));
   const { components, files } = scanComponents(root);
   assert.deepEqual(components, {});
@@ -115,7 +115,7 @@ test('node_modules is never scanned', () => {
   assert.equal(components.B, undefined);
 });
 
-test('S1 a component name with odd characters cannot break the output', () => {
+test('CP-10-S1 a component name with odd characters cannot break the output', () => {
   const root = makeTree({
     'src/Weird.jsx': 'export function Wei"rd({ x }) { return <i>{x}</i>; }\n',
   });
@@ -134,7 +134,7 @@ test('the scanned file list is returned so a manifest can hash it', () => {
   assert.deepEqual(files.sort(), ['src/A.jsx', 'src/B.jsx']);
 });
 
-test('EC5 a component named only in a comment is not counted as used', () => {
+test('CP-10-EC5 a component named only in a comment is not counted as used', () => {
   const root = makeTree({
     'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
     'src/Page.jsx': "import { Other } from './Other';\n// TODO: xóa Orphan, không ai dùng nữa\nexport const Page = () => <Other/>;\n",
@@ -144,7 +144,7 @@ test('EC5 a component named only in a comment is not counted as used', () => {
   assert.equal(components.Orphan.usedIn, 0);
 });
 
-test('EC6 a component name inside a string is not a use', () => {
+test('CP-10-EC6 a component name inside a string is not a use', () => {
   const root = makeTree({
     'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
     'src/log.js': "import { fmt } from './fmt';\nexport const msg = fmt('Orphan record found');\n",
@@ -154,7 +154,7 @@ test('EC6 a component name inside a string is not a use', () => {
   assert.equal(components.Orphan.usedIn, 0);
 });
 
-test('EC7 a renamed import still counts as a use', () => {
+test('CP-10-EC7 a renamed import still counts as a use', () => {
   const root = makeTree({
     'src/Button.jsx': 'export function Button({ x }) { return <b>{x}</b>; }\n',
     'src/Page.jsx': "import { Button as Btn } from './Button';\nexport const Page = () => <Btn/>;\n",
@@ -181,7 +181,7 @@ test('a require call counts as a use', () => {
   assert.equal(components.Button.usedIn, 1);
 });
 
-test('V5 a TSX prop list with a type object keeps every prop', () => {
+test('CP-10-V5 a TSX prop list with a type object keeps every prop', () => {
   // `lastIndexOf('}')` used to grab the type object's closing brace, dropping
   // half the props while still claiming confidence.
   const root = makeTree({
@@ -208,7 +208,7 @@ test('a prop typed as a function signature survives', () => {
   assert.deepEqual(Object.keys(components.Btn.props), ['onClick']);
 });
 
-test('EC8 an import that has been commented out is not a use', () => {
+test('CP-10-EC8 an import that has been commented out is not a use', () => {
   const root = makeTree({
     'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
     'src/Page.jsx': "// import { Orphan } from './Orphan';\nexport const Page = () => null;\n",
@@ -226,7 +226,7 @@ test('an import inside a block comment is not a use', () => {
   assert.equal(components.Orphan.usedIn, 0);
 });
 
-test('EC9 an import-shaped string is not a use', () => {
+test('CP-10-EC9 an import-shaped string is not a use', () => {
   const root = makeTree({
     'src/Orphan.jsx': 'export function Orphan({ x }) { return <i>{x}</i>; }\n',
     'src/doc.js': 'export const example = `import Orphan from "./Orphan"`;\n',
@@ -235,7 +235,7 @@ test('EC9 an import-shaped string is not a use', () => {
   assert.equal(components.Orphan.usedIn, 0);
 });
 
-test('EC10 a regex literal containing a quote does not swallow the import below it', () => {
+test('CP-10-EC10 a regex literal containing a quote does not swallow the import below it', () => {
   // `/['"]/g` has a lone quote. Treating it as a string opened a phantom one
   // that ran to the next quote — usually the import path on the line after —
   // and a live component came back as used by nobody.
@@ -265,7 +265,7 @@ test('division is not mistaken for a regex', () => {
   assert.equal(components.A.usedIn, 1);
 });
 
-test('V6 a typed non-destructured parameter yields no props and admits it', () => {
+test('CP-10-V6 a typed non-destructured parameter yields no props and admits it', () => {
   // `props: { alpha: string; beta: number }` — that brace opens the type, not a
   // binding pattern. Mining it invented `alpha` as a prop of a parameter named
   // `props`, and called the result confident.
@@ -286,7 +286,7 @@ test('a destructured parameter with an inline type is still read', () => {
   assert.equal(components.Ok.confident, true);
 });
 
-test('EC11 a regex after a keyword is a regex, not a division', () => {
+test('CP-10-EC11 a regex after a keyword is a regex, not a division', () => {
   // `return /['"]/` ends in the `n` of return, which reads as an identifier
   // and so as division — the quote then opened a phantom string that ate the
   // import below. Looking at one character was never enough.
@@ -309,7 +309,7 @@ test('every keyword that precedes a value is handled, not just return', () => {
   }
 });
 
-test('EC12 a default value holding a brace does not cut the prop list short', () => {
+test('CP-10-EC12 a default value holding a brace does not cut the prop list short', () => {
   // `close = '}'` closed the destructuring early and drove the comma splitter
   // negative, so every prop behind it vanished — while confident stayed true.
   const root = makeTree({
@@ -327,7 +327,7 @@ test('a default value holding a comma does not split the prop list', () => {
   assert.deepEqual(Object.keys(components.S.props).sort(), ['label', 'sep']);
 });
 
-test('EC13 a regex after any value-position keyword is read as a regex', () => {
+test('CP-10-EC13 a regex after any value-position keyword is read as a regex', () => {
   // Fixed one keyword at a time twice — `return`, then `throw`. Sweep the whole
   // list instead, so the next omission fails here rather than in a review.
   const keywords = [

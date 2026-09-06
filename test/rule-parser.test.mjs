@@ -17,7 +17,7 @@ severity: error
 \`\`\`
 `;
 
-test('H1 parses a complete rule block', () => {
+test('CP-3-H1 parses a complete rule block', () => {
   const result = parseRules(ONE_RULE);
   assert.equal(result.errors.length, 0);
   assert.equal(result.rules.length, 1);
@@ -31,7 +31,7 @@ test('H1 parses a complete rule block', () => {
   });
 });
 
-test('H2 parses several rule blocks in order', () => {
+test('CP-3-H2 parses several rule blocks in order', () => {
   const source = ONE_RULE + `
 ### Không dùng console.log
 
@@ -49,7 +49,7 @@ severity: warn
   assert.equal(result.rules[1].severity, 'warn');
 });
 
-test('V1 reports a rule block missing a required field', () => {
+test('CP-3-V1 reports a rule block missing a required field', () => {
   const source = `\`\`\`rule
 id: no-id-only
 type: forbid-pattern
@@ -66,7 +66,7 @@ severity: error
   assert.ok(result.errors.some((e) => e.includes('scope')));
 });
 
-test('V2 reports an unsupported rule type', () => {
+test('CP-3-V4 reports an unsupported rule type', () => {
   const source = `\`\`\`rule
 id: needs-ast
 type: require-import
@@ -81,7 +81,7 @@ severity: error
   assert.match(result.errors[0], /require-import/);
 });
 
-test('V3 reports an invalid regex pattern', () => {
+test('CP-3-V3 reports an invalid regex pattern', () => {
   const source = `\`\`\`rule
 id: bad-regex
 type: forbid-pattern

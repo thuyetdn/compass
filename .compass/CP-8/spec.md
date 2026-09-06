@@ -1,6 +1,7 @@
 # CP-8: Two browser gates in a row must not race over the dev port
 Loại: bug
 Phạm vi: lib/dev-server.mjs, commands/ui.mjs, commands/visual.mjs
+Lệnh test: npm test && npm run test:deep
 
 ## Mục tiêu
 `compass check` trên task frontend fail 100% ở gate `visual`, dù chạy `compass visual` riêng

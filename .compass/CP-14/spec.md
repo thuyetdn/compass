@@ -1,6 +1,7 @@
 # CP-14: Language rules that hold in any language, not just Vietnamese
 Loại: bug
 Phạm vi: SKILL.md
+Kiểm bằng: mắt
 
 ## Mục tiêu
 Rule hiện tại có hai lỗ.

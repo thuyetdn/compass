@@ -16,7 +16,7 @@ const VALID = JSON.stringify({
   ],
 });
 
-test('H1 parses a contract with one element', () => {
+test('CP-4-H1 parses a contract with one element', () => {
   const result = parseContract(VALID);
   assert.deepEqual(result.errors, []);
   assert.equal(result.contract.elements.length, 1);
@@ -24,26 +24,26 @@ test('H1 parses a contract with one element', () => {
   assert.deepEqual(Object.keys(result.contract.elements[0].properties), ['color', 'font-size']);
 });
 
-test('H2 parses several viewports with names and widths', () => {
+test('CP-4-H2 parses several viewports with names and widths', () => {
   const result = parseContract(VALID);
   assert.deepEqual(result.contract.viewports.map((v) => v.name), ['desktop', 'mobile']);
   assert.equal(result.contract.viewports[0].width, 1280);
 });
 
-test('V1 invalid JSON is reported, not thrown', () => {
+test('CP-4-V1 invalid JSON is reported, not thrown', () => {
   const result = parseContract('{ not json');
   assert.equal(result.contract, null);
   assert.equal(result.errors.length, 1);
   assert.match(result.errors[0], /JSON/);
 });
 
-test('V2 a contract with no elements array is reported', () => {
+test('CP-4-V2 a contract with no elements array is reported', () => {
   const result = parseContract(JSON.stringify({ viewports: [] }));
   assert.equal(result.contract, null);
   assert.match(result.errors[0], /elements/);
 });
 
-test('V3 an element missing its selector is named in the error', () => {
+test('CP-4-V3 an element missing its selector is named in the error', () => {
   const source = JSON.stringify({
     elements: [{ name: 'Nút gửi', properties: { color: '#000' } }],
   });
@@ -53,7 +53,7 @@ test('V3 an element missing its selector is named in the error', () => {
   assert.match(result.errors[0], /selector/);
 });
 
-test('V4 a viewport width that is not a number is reported', () => {
+test('CP-4-V4 a viewport width that is not a number is reported', () => {
   const source = JSON.stringify({
     viewports: [{ name: 'desktop', width: 'wide' }],
     elements: [{ name: 'x', selector: 'h1', properties: { color: '#000' } }],
@@ -72,7 +72,7 @@ test('an element with no properties is reported', () => {
   assert.match(result.errors[0], /Trống/);
 });
 
-test('EC4 an empty elements array parses and measures nothing', () => {
+test('CP-4-EC4 an empty elements array parses and measures nothing', () => {
   const result = parseContract(JSON.stringify({ elements: [] }));
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.contract.elements, []);
@@ -109,4 +109,15 @@ test('countProperties totals every measurement the contract asks for', () => {
   const { contract } = parseContract(source);
   // 3 properties across 2 viewports
   assert.equal(contract.totalMeasurements, 6);
+});
+
+test('CP-4-V7 a contract that parses to null is reported, not thrown', () => {
+  // `JSON.parse("null")` hợp lệ và trả về null; `.elements` trên đó ném
+  // TypeError ra ngoài hàm, thoát khỏi mọi try/catch của lệnh, và người dùng
+  // nhận một stack trace thay vì câu báo lỗi.
+  for (const raw of ['null', '123', '[]', 'true', '"chuỗi"']) {
+    let r;
+    assert.doesNotThrow(() => { r = parseContract(raw); }, `${raw} không được ném`);
+    assert.ok(r.errors.length > 0, `${raw} phải báo lỗi`);
+  }
 });

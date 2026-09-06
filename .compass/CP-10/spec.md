@@ -70,3 +70,8 @@ Quét cả cây source ở repo lớn có thể chậm. Phải đo.
 | EC11 | Edge | Regex đứng sau từ khóa return | Nhận đúng là regex, không phải phép chia | P0 |
 | EC12 | Edge | Giá trị mặc định là chuỗi chứa dấu } | Không cắt sớm, trích đủ prop | P0 |
 | EC13 | Edge | Regex sau MỌI từ khóa đứng trước biểu thức | Nhận đúng là regex, rà cả danh sách chứ không từng cái | P0 |
+| H7 | Happy | File nguồn bị sửa, ở tầng manifest | Manifest báo file đó theo tên (H5 kiểm cùng ca ở tầng gate) | P1 |
+| E4 | Error | File nguồn bị xoá, ở tầng manifest | Báo là mất, không lặng lẽ bỏ qua | P1 |
+| EC14 | Edge | File thêm sau lần sinh, ở tầng manifest | Báo là mới thêm | P1 |
+| V8 | Validation | Manifest thiếu hẳn map sources | Tính là cũ, không crash | P1 |
+| V7 | Validation | Manifest là null | Tính là chưa từng sinh | P1 |

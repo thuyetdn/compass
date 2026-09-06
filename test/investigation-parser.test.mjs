@@ -53,7 +53,7 @@ cron chết âm thầm.
 Mở task BUILD sửa calendar-sync.service.ts.
 `;
 
-test('H2 a complete investigation parses into its parts', () => {
+test('CP-11-H2 a complete investigation parses into its parts', () => {
   const parsed = parseInvestigation(COMPLETE);
   assert.match(parsed.symptom, /3 khách hàng/);
   assert.match(parsed.evidence, /410 Gone/);
@@ -61,7 +61,7 @@ test('H2 a complete investigation parses into its parts', () => {
   assert.match(parsed.pitfall, /Phòng tránh/);
 });
 
-test('H6 each hypothesis keeps its method and result together', () => {
+test('CP-11-H6 each hypothesis keeps its method and result together', () => {
   const { hypotheses } = parseInvestigation(COMPLETE);
   assert.equal(hypotheses.length, 2);
   assert.equal(hypotheses[0].id, 'H1');
@@ -70,40 +70,40 @@ test('H6 each hypothesis keeps its method and result together', () => {
   assert.match(hypotheses[1].result, /sai/);
 });
 
-test('H3 a complete investigation is allowed to close', () => {
+test('CP-11-H7 a complete investigation is allowed to close', () => {
   const result = validateForClose(parseInvestigation(COMPLETE));
   assert.equal(result.ok, true, result.errors.join(' · '));
 });
 
-test('EC2 a disproved hypothesis does not block closing', () => {
+test('CP-11-EC2 a disproved hypothesis does not block closing', () => {
   // H2 came back false. That is a result, not a gap.
   const { hypotheses } = parseInvestigation(COMPLETE);
   assert.match(hypotheses[1].result, /sai/);
   assert.equal(validateForClose(parseInvestigation(COMPLETE)).ok, true);
 });
 
-test('V1 closing without a conclusion is refused', () => {
+test('CP-11-V1 closing without a conclusion is refused', () => {
   const source = COMPLETE.replace(/## Kết luận\n\n[\s\S]*?\n\n## Pitfall/, '## Kết luận\n\n\n## Pitfall');
   const result = validateForClose(parseInvestigation(source));
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => e.includes('Kết luận')));
 });
 
-test('V2 closing without a pitfall is refused', () => {
+test('CP-11-V10 closing without a pitfall is refused', () => {
   const source = COMPLETE.replace(/## Pitfall\n\n[\s\S]*?\n\n## Việc cần làm tiếp/, '## Pitfall\n\n\n## Việc cần làm tiếp');
   const result = validateForClose(parseInvestigation(source));
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => e.includes('Pitfall')));
 });
 
-test('V3 a hypothesis with no stated test method is refused, by id', () => {
+test('CP-11-V3 a hypothesis with no stated test method is refused, by id', () => {
   const source = COMPLETE.replace('**Cách kiểm:** gọi Graph bằng token đang lưu, xem mã trả về', '**Cách kiểm:**');
   const result = validateForClose(parseInvestigation(source));
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => e.includes('H1') && e.includes('cách kiểm')));
 });
 
-test('V4 a conclusion with no evidence behind it is refused', () => {
+test('CP-11-V4 a conclusion with no evidence behind it is refused', () => {
   const source = COMPLETE.replace(/## Bằng chứng\n\n[\s\S]*?\n\n## Kết luận/, '## Bằng chứng\n\n\n## Kết luận');
   const result = validateForClose(parseInvestigation(source));
   assert.equal(result.ok, false);
@@ -117,7 +117,7 @@ test('a hypothesis still marked unchecked blocks closing', () => {
   assert.ok(result.errors.some((e) => e.includes('H1')));
 });
 
-test('EC1 an untouched template counts as empty everywhere', () => {
+test('CP-11-EC9 an untouched template counts as empty everywhere', () => {
   // Read the real template, not a paraphrase: a hand-copied fixture once left
   // out the five "**Nhãn:** <...>" lines that made the bug possible, so the
   // test passed while an untouched Pitfall block closed an investigation.
@@ -144,7 +144,7 @@ test('every gap is reported at once, not one per run', () => {
   assert.ok(result.errors.length >= 2);
 });
 
-test('V8 a half-filled pitfall block is refused, naming the untouched lines', () => {
+test('CP-11-V8 a half-filled pitfall block is refused, naming the untouched lines', () => {
   // The block is copied verbatim into the pitfall library, so one real line
   // among four placeholders would file template text there for good.
   const source = COMPLETE.replace(
@@ -170,7 +170,7 @@ test('a fully filled pitfall block passes', () => {
   assert.equal(validateForClose(parseInvestigation(COMPLETE)).ok, true);
 });
 
-test('EC7 a JSX tag in the pitfall is content, not a leftover hint', () => {
+test('CP-11-EC7 a JSX tag in the pitfall is content, not a leftover hint', () => {
   // "<SaveButton />" is a real answer to "which area is affected". Refusing it
   // tells the author they left a field blank when they filled it in.
   for (const answer of ['<SaveButton />', '<Modal />', '<select>']) {
@@ -191,7 +191,7 @@ test('a template hint with separators is still caught', () => {
   }
 });
 
-test('V9 every hint the template ships is recognised, however short', () => {
+test('CP-11-V9 every hint the template ships is recognised, however short', () => {
   // Guessing by shape let one-word hints through: `<ngày>`, `<vì sao>`, `<...>`
   // all lack the whitespace an earlier rule looked for. Drive the check off
   // every hint in the real template rather than off a heuristic.
@@ -208,7 +208,7 @@ test('V9 every hint the template ships is recognised, however short', () => {
   }
 });
 
-test('V9 a hypothesis whose method is the template hint is caught', () => {
+test('CP-11-V11 a hypothesis whose method is the template hint is caught', () => {
   // The rule "state how you will test before you test" was going unenforced
   // whenever the author left the shorter of the two template hints in place.
   const source = COMPLETE.replace('**Cách kiểm:** đọc log scheduler 7 ngày gần nhất',
@@ -219,7 +219,7 @@ test('V9 a hypothesis whose method is the template hint is caught', () => {
     result.errors.join(' · '));
 });
 
-test('EC8 an investigation saved with CRLF reads the same as one with LF', () => {
+test('CP-11-EC8 an investigation saved with CRLF reads the same as one with LF', () => {
   // Windows editors write CRLF, and this repo has core.autocrlf on. A trailing
   // CR defeated every end-of-line anchor: the hypotheses disappeared and the
   // gate insisted none were written, which is a lie about a filled-in file.
@@ -243,4 +243,98 @@ test('CRLF does not hide a genuinely unfilled section either', () => {
   const result = validateForClose(parseInvestigation(source));
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => e.includes('Kết luận')));
+});
+
+test('CP-11-V12 a bullet-listed placeholder is still a placeholder', () => {
+  // Bullet-hoá một danh sách năm dòng là thói quen markdown bình thường. Không
+  // nhận ra thì cả năm dòng chữ mẫu được chép nguyên vào knowledge base — đúng
+  // thứ V6/V8 sinh ra để chặn.
+  const hoSo = COMPLETE.replace(
+    /## Pitfall[\s\S]*?(?=\n## |$)/,
+    ['## Pitfall',
+     '',
+     '- **Gặp:** <ngày · id · bối cảnh>',
+     '- **Triệu chứng:** <thấy gì>',
+     '- **Nguyên nhân:** <vì sao>',
+     '- **Vùng ảnh hưởng:** <file nào>',
+     '- **Phòng tránh:** <lần sau làm gì>',
+     ''].join('\n'));
+
+  const r = validateForClose(parseInvestigation(hoSo));
+  assert.equal(r.ok, false, 'chữ mẫu có dấu đầu dòng vẫn là chữ mẫu');
+  assert.ok(r.errors.some((e) => /Gặp/.test(e)), `phải nêu tên dòng, thấy: ${r.errors.join(' | ')}`);
+});
+
+test('CP-11-V13 every markdown list prefix still counts as a placeholder', () => {
+  // Lần trước chỉ thêm `[-*+]` vì "bullet-hoá là thói quen bình thường". Đánh số,
+  // blockquote, checkbox cũng vậy — và cả ba vẫn lọt. Vá một trong bốn cách viết
+  // không phải là vá.
+  for (const dau of ['', '- ', '* ', '1. ', '2) ', '> ', '- [ ] ', '> - ']) {
+    const hoSo = COMPLETE.replace(
+      /## Pitfall[\s\S]*?(?=\n## |$)/,
+      ['## Pitfall', '',
+       `${dau}**Gặp:** <ngày · id · bối cảnh>`,
+       `${dau}**Triệu chứng:** <thấy gì>`,
+       ''].join('\n'));
+    const r = validateForClose(parseInvestigation(hoSo));
+    assert.equal(r.ok, false, `tiền tố ${JSON.stringify(dau)} vẫn là chữ mẫu`);
+  }
+});
+
+test('CP-11-V14 real content with a list prefix is not mistaken for a placeholder', () => {
+  // Mặt còn lại: nới ra không được nuốt nội dung thật.
+  const hoSo = COMPLETE.replace(
+    /## Pitfall[\s\S]*?(?=\n## |$)/,
+    ['## Pitfall', '',
+     '- **Gặp:** 2026-09-06 · INV-1 · gate đỏ chập chờn',
+     '- **Triệu chứng:** hai gate liên tiếp tranh cổng',
+     '- **Nguyên nhân:** shell thoát trước tiến trình con',
+     '- **Vùng ảnh hưởng:** lib/dev-server.mjs',
+     '- **Phòng tránh:** giết theo cây rồi đợi nó chết',
+     ''].join('\n'));
+  const r = validateForClose(parseInvestigation(hoSo));
+  assert.equal(r.ok, true, `nội dung thật có bullet vẫn hợp lệ: ${r.errors.join(' | ')}`);
+});
+
+test('CP-11-V15 a bulleted method line is read, not reported as blank', () => {
+  // `parseHypotheses` neo cứng `^**Cách kiểm:**` trong khi `PLACEHOLDER` vừa được
+  // dạy rằng bullet là bình thường. Không nhận thì gate bảo người viết bỏ trống
+  // ô họ vừa điền.
+  const s = [
+    '# INV-1: x', '', '## Giả thuyết', '',
+    '### H1: một giả thuyết',
+    '- **Cách kiểm:** gọi Graph bằng token đang lưu',
+    '**Kết quả:** đúng',
+  ].join('\n');
+  const p = parseInvestigation(s);
+  assert.equal(p.hypotheses[0].method, 'gọi Graph bằng token đang lưu');
+});
+
+test('CP-11-V16 a ticked checkbox in either case is still a list prefix', () => {
+  // GitHub sinh `[X]` hoa khi người ta tick ô trên giao diện. Chỉ nhận `x`
+  // thường thì đúng cách người dùng thật hay tạo ra lại lọt.
+  for (const dau of ['- [ ] ', '- [x] ', '- [X] ', '* [X] ', '1. [x] ']) {
+    const hoSo = COMPLETE.replace(
+      /## Pitfall[\s\S]*?(?=\n## |$)/,
+      ['## Pitfall', '', `${dau}**Gặp:** <ngày · id · bối cảnh>`, ''].join('\n'));
+    assert.equal(validateForClose(parseInvestigation(hoSo)).ok, false,
+      `checkbox ${JSON.stringify(dau)} vẫn là tiền tố danh sách`);
+  }
+});
+
+test('CP-11-V17 both hypothesis lines accept a list prefix, not just one', () => {
+  // Vá một dòng mà bỏ dòng kia còn tệ hơn không vá: hồ sơ bullet-hoá cả hai —
+  // cách viết markdown tự nhiên nhất — parse được `Cách kiểm` mà mất `Kết quả`,
+  // rồi gate báo "chưa có kết quả kiểm" cho ô người ta vừa điền.
+  for (const dau of ['', '- ', '1. ', '> ', '  ']) {
+    const s = [
+      '# INV-1: x', '', '## Giả thuyết', '',
+      '### H1: một giả thuyết',
+      `${dau}**Cách kiểm:** gọi Graph bằng token đang lưu`,
+      `${dau}**Kết quả:** đúng như dự đoán`,
+    ].join('\n');
+    const gt = parseInvestigation(s).hypotheses[0];
+    assert.equal(gt.method, 'gọi Graph bằng token đang lưu', `method với ${JSON.stringify(dau)}`);
+    assert.equal(gt.result, 'đúng như dự đoán', `result với ${JSON.stringify(dau)}`);
+  }
 });

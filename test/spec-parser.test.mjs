@@ -23,6 +23,21 @@ Trang Browse Members dùng chung endpoint này.
 | V1 | Validation | Mã quốc gia không tồn tại | 400 kèm thông báo | P1 |
 `;
 
+
+const MINIMAL = [
+  '# T-1: Tiêu đề',
+  'Loại: fix',
+  'Phạm vi: src/',
+  '',
+  '## Test cases',
+  '| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |',
+  '|----|-----|-------|---------|---------|',
+  '| H1 | Happy | a | b | P0 |',
+].join('\n');
+
+const SPEC_WITH_COMMAND = MINIMAL.replace(
+  'Phạm vi: src/', 'Phạm vi: src/' + '\n' + 'Lệnh test: npm run test:deep');
+
 test('parseSpec reads the task id and title', () => {
   const spec = parseSpec(SAMPLE);
   assert.equal(spec.taskId, 'T-001');
@@ -150,4 +165,20 @@ Phạm vi: src/second
 `);
   assert.equal(spec.type, 'fix');
   assert.equal(spec.scope, 'src/first');
+});
+
+test('CP-19-H1 a spec can declare the test command it needs', () => {
+  // Compass có hai suite: nhanh và sâu. Task nào cần suite sâu mà gate chạy
+  // suite nhanh thì nó báo thiếu test cho những ca đang xanh.
+  const spec = parseSpec(SPEC_WITH_COMMAND);
+  assert.equal(spec.testCommand, 'npm run test:deep');
+});
+
+test('CP-19-H2 a spec without the field leaves the command to config', () => {
+  assert.equal(parseSpec(MINIMAL).testCommand, null, 'không khai thì để config quyết');
+});
+
+test('CP-19-V1 an empty command line counts as not declared', () => {
+  const spec = parseSpec(SPEC_WITH_COMMAND.replace('npm run test:deep', '   '));
+  assert.equal(spec.testCommand, null, 'khai rỗng không được thành lệnh rỗng');
 });

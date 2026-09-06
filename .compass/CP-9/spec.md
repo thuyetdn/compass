@@ -1,6 +1,7 @@
 # CP-9: Deep integration test running all six gates against a real project
 Loại: feature-s
 Phạm vi: test/deep-integration.test.mjs, package.json
+Lệnh test: npm test && npm run test:deep
 
 ## Mục tiêu
 Bug dev-server (CP-8) chỉ lộ khi chạy `check` đủ sáu gate trên task có design contract. 403

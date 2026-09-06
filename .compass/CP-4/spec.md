@@ -1,6 +1,7 @@
 # CP-4: UI gate that measures computed style against a design contract
 Loại: feature-m
 Phạm vi: lib/design-contract.mjs, lib/tolerance.mjs, lib/browser.mjs, lib/dev-server.mjs, commands/ui.mjs
+Lệnh test: npm test && npm run test:deep
 
 ## Mục tiêu
 Screenshot trông giống không phải bằng chứng. Gate `ui` mở trang thật trong browser, đọc
@@ -55,3 +56,11 @@ sau treo. Phải dọn kể cả khi lỗi.
 | S2 | Security | devUrl trỏ ra ngoài localhost | Cảnh báo rõ trước khi mở | P1 |
 | P1 | Performance | Đo nhiều thuộc tính trên một selector | Chỉ một lần truy vấn cho mỗi selector, không lặp | P1 |
 | P2 | Performance | Dev server bị kill khi gate lỗi | Không còn tiến trình con sót lại | P0 |
+| P3 | Performance | Gọi stop hai lần liên tiếp | Lần hai không ném lỗi, không treo | P1 |
+| V5 | Validation | Contract không phải JSON, ở tầng gate | Exit 2 (V1 kiểm cùng ca ở tầng parser) | P1 |
+| V6 | Validation | Element thiếu selector, ở tầng gate | Exit 2, nêu tên element thiếu | P1 |
+| E5 | Error | Config có `dev` nhưng thiếu `devUrl` | Exit 2, nói rõ thiếu trường nào | P1 |
+| EC5 | Edge | Contract có mảng elements rỗng, ở tầng gate | Gate exit 0, không đo gì | P1 |
+| P4 | Performance | Thuộc tính longhand (`row-gap`, `min-width`) | Hưởng dung sai của shorthand, không rơi về 0px | P0 |
+| P5 | Performance | Tên khớp nhiều mục trong bảng dung sai | Chọn mục cụ thể nhất, không chọn mục gặp trước | P1 |
+| V7 | Validation | Contract parse ra `null`, số, mảng | Báo lỗi, không ném TypeError ra ngoài lệnh | P0 |

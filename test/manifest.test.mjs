@@ -17,7 +17,7 @@ function makeTree(files) {
 
 const TREE = { 'src/a.jsx': 'const a = 1;\n', 'src/b.jsx': 'const b = 2;\n' };
 
-test('H3 a manifest carries one hash per scanned file', () => {
+test('CP-10-H3 a manifest carries one hash per scanned file', () => {
   const root = makeTree(TREE);
   const manifest = buildManifest(root, ['src/a.jsx', 'src/b.jsx']);
 
@@ -27,7 +27,7 @@ test('H3 a manifest carries one hash per scanned file', () => {
   assert.match(manifest.generatedAt, /^\d{4}-/);
 });
 
-test('H4 nothing changed means nothing to report', () => {
+test('CP-10-H4 nothing changed means nothing to report', () => {
   const root = makeTree(TREE);
   const manifest = buildManifest(root, ['src/a.jsx', 'src/b.jsx']);
   const result = compareManifest(root, manifest, ['src/a.jsx', 'src/b.jsx']);
@@ -38,7 +38,7 @@ test('H4 nothing changed means nothing to report', () => {
   assert.deepEqual(result.added, []);
 });
 
-test('H5 an edited file is reported by name', () => {
+test('CP-10-H7 an edited file is reported by name', () => {
   const root = makeTree(TREE);
   const manifest = buildManifest(root, ['src/a.jsx', 'src/b.jsx']);
   writeFileSync(path.join(root, 'src', 'a.jsx'), 'const a = 999;\n');
@@ -48,7 +48,7 @@ test('H5 an edited file is reported by name', () => {
   assert.deepEqual(result.changed, ['src/a.jsx']);
 });
 
-test('E1 a deleted file is reported as missing', () => {
+test('CP-10-E4 a deleted file is reported as missing', () => {
   const root = makeTree(TREE);
   const manifest = buildManifest(root, ['src/a.jsx', 'src/b.jsx']);
   rmSync(path.join(root, 'src', 'b.jsx'));
@@ -58,7 +58,7 @@ test('E1 a deleted file is reported as missing', () => {
   assert.deepEqual(result.missing, ['src/b.jsx']);
 });
 
-test('EC1 a file added after generation is reported', () => {
+test('CP-10-EC14 a file added after generation is reported', () => {
   const root = makeTree(TREE);
   const manifest = buildManifest(root, ['src/a.jsx', 'src/b.jsx']);
   writeFileSync(path.join(root, 'src', 'c.jsx'), 'const c = 3;\n');
@@ -68,14 +68,14 @@ test('EC1 a file added after generation is reported', () => {
   assert.deepEqual(result.added, ['src/c.jsx']);
 });
 
-test('V2 a manifest with no sources map counts as stale rather than crashing', () => {
+test('CP-10-V8 a manifest with no sources map counts as stale rather than crashing', () => {
   const root = makeTree(TREE);
   const result = compareManifest(root, { generatedAt: 'x' }, ['src/a.jsx']);
   assert.equal(result.stale, true);
   assert.match(result.reason, /manifest/i);
 });
 
-test('V3 a null manifest counts as never generated', () => {
+test('CP-10-V7 a null manifest counts as never generated', () => {
   const root = makeTree(TREE);
   const result = compareManifest(root, null, ['src/a.jsx']);
   assert.equal(result.stale, true);

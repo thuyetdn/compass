@@ -1,6 +1,7 @@
 # CP-5: Visual gate comparing screenshots against a baseline
 Loại: feature-s
 Phạm vi: lib/png.mjs, lib/image-diff.mjs, commands/visual.mjs
+Lệnh test: npm test && npm run test:deep
 
 ## Mục tiêu
 Gate `ui` đo số của những thuộc tính người ta nghĩ ra để khai. Cái nó không thấy: chữ tràn,
@@ -51,3 +52,4 @@ giảm, không phải cách chữa — phải nói thẳng giới hạn này.
 | EC2 | Edge | Khác nhiều hơn ngưỡng một chút | Vượt, gate fail | P0 |
 | EC3 | Edge | Ảnh 1x1 pixel | Không chia cho 0, tính đúng tỉ lệ | P1 |
 | S1 | Security | Chunk PNG khai kích thước khổng lồ | Từ chối, không cấp phát bộ nhớ vô hạn | P0 |
+| EC4 | Edge | Ảnh PNG 1x1, ở tầng decoder | Giải mã ra đúng một pixel (EC3 kiểm cùng ca ở tầng so ảnh) | P1 |

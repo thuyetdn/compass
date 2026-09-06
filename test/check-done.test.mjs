@@ -7,6 +7,7 @@ import { checkCommand } from '../commands/check.mjs';
 import { doneCommand } from '../commands/done.mjs';
 import { statusCommand } from '../commands/status.mjs';
 import { gatePath } from '../lib/paths.mjs';
+import { readGate } from '../lib/gate-store.mjs';
 import { getSalt, signRecord } from '../lib/signature.mjs';
 
 const SPEC = `# T-1: Tiêu đề
@@ -398,7 +399,7 @@ test('doneCommand still passes when the test gate carries its configHash', async
   assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
 });
 
-test('S1 editing code after every gate is green blocks done, naming the gate', async () => {
+test('CP-7-S1 editing code after every gate is green blocks done, naming the gate', async () => {
   const root = makeTask(GREEN);
   await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0, 'phải xanh trước đã');
@@ -412,7 +413,7 @@ test('S1 editing code after every gate is green blocks done, naming the gate', a
   assert.match(result.output, /test/);
 });
 
-test('H5 running check then done with nothing touched still passes', async () => {
+test('CP-7-H5 running check then done with nothing touched still passes', async () => {
   const root = makeTask(GREEN);
   await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
@@ -420,7 +421,7 @@ test('H5 running check then done with nothing touched still passes', async () =>
   assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
 });
 
-test('V1 a gate record with no sourceHash is refused as coming from an older build', async () => {
+test('CP-7-V1 a gate record with no sourceHash is refused as coming from an older build', async () => {
   const root = makeTask(GREEN);
   await checkCommand({ cwd: root, taskId: 'T-1' });
 
@@ -437,10 +438,353 @@ test('V1 a gate record with no sourceHash is refused as coming from an older bui
   assert.match(result.output, /phiên bản cũ|không ghi lại/);
 });
 
-test('V2 the spec gate is not asked for a sourceHash — it never reads code', async () => {
+test('CP-7-V2 the spec gate is not asked for a sourceHash — it never reads code', async () => {
   const root = makeTask(GREEN);
   await checkCommand({ cwd: root, taskId: 'T-1' });
   const gate = JSON.parse(readFileSync(gatePath(root, 'T-1'), 'utf8'));
   assert.equal(gate.spec.sourceHash, undefined);
   assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+});
+
+// CP-16 — gate chạy thêm ngoài danh sách bắt buộc vẫn phải xanh. Loại `bug`
+// không đòi `review`, nhưng chạy nó rồi để đỏ mà `done` xanh thì đúng là "báo
+// xong khi chưa xong", ngay tại cổng sinh ra để chặn.
+
+// Ghi một bản ghi gate đã ký vào sổ, như thể gate đó vừa chạy.
+function ghiGate(root, name, exitCode) {
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const salt = getSalt(root);
+  const record = { gate: name, taskId: 'T-1', exitCode };
+  data[name] = { ...record, sig: signRecord(record, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+}
+
+test('CP-16-H1 a green gate outside the required list still closes', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  ghiGate(root, 'review', 0);
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 0, result.output);
+});
+
+test('CP-16-H2 a red gate outside the required list blocks done', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  ghiGate(root, 'review', 1);
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /review/);
+});
+
+test('CP-16-H3 the message names a command that actually works', async () => {
+  // `compass check --only=<gate>` TỪ CHỐI gate ngoài danh sách loại task, nên
+  // bảo người ta chạy nó là bảo họ đâm vào tường. Lệnh chạy được là
+  // `compass <gate> <id>`.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  ghiGate(root, 'review', 1);
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.match(result.output, /compass review T-1/, 'phải chỉ đúng lệnh chạy lại được');
+  assert.doesNotMatch(result.output, /--only=review/, 'lệnh đó bị từ chối, đừng gợi ý');
+  assert.match(result.output, /gate\.json/, 'phải nói xoá ở đâu, không chỉ nói "xoá bản ghi"');
+});
+
+test('CP-16-H4 every red gate outside the list is named, not just the first', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  ghiGate(root, 'review', 1);
+  ghiGate(root, 'convention', 1);
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+
+  // Đếm đúng dòng "đã chạy và đỏ". Chỉ tìm chữ `convention` là rỗng nghĩa: nó
+  // xuất hiện vì lý do khác (thiếu sourceHash), nên chèn `break` sau gate đầu
+  // tiên vẫn xanh — reviewer đã chứng minh đúng như vậy.
+  const dongDo = result.output.split('\n').filter((l) => l.includes('đã chạy và đỏ'));
+  assert.equal(dongDo.length, 2, `phải nêu cả hai gate, thấy: ${dongDo.length}`);
+  assert.ok(dongDo.some((l) => l.includes('"review"')));
+  assert.ok(dongDo.some((l) => l.includes('"convention"')));
+});
+
+test('CP-16-V1 a gate outside the list that never ran does not block', async () => {
+  // Loại `fix` không đòi `ui`. Thiếu `ui` là bình thường, không phải lỗi.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.doesNotMatch(result.output, /ui/);
+});
+
+test('CP-16-V2 a red required gate is still reported the old way', async () => {
+  const root = makeTask(RED);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /chưa pass/, 'gate bắt buộc dùng thông báo cũ');
+  assert.doesNotMatch(result.output, /không bắt buộc gate này/);
+});
+
+test('CP-16-V3 a red done record from a previous run does not block itself', async () => {
+  // `readGates` trả về cả khoá `done`. Không loại ra thì lần done đỏ đầu tiên
+  // chặn mọi lần sau, kể cả khi đã sửa hết.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  ghiGate(root, 'done', 1);
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 0, result.output);
+});
+
+test('CP-16-E1 an unknown key in gate.json is ignored, not crashed on', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  ghiGate(root, 'khonghecogate', 1);
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 0, result.output);
+});
+
+test('CP-16-EC1 a task type requiring every gate has nothing outside the list', async () => {
+  const specM = SPEC.replace('Loại: fix', 'Loại: feature-m');
+  const root = makeTask(GREEN, specM);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  ghiGate(root, 'review', 1);
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  // `review` là gate bắt buộc của feature-m, nên nó phải rơi vào nhánh cũ.
+  assert.equal(result.exitCode, 1);
+  assert.doesNotMatch(result.output, /không bắt buộc gate này/);
+});
+
+test('CP-16-EC2 deleting the red record lets the task close', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  ghiGate(root, 'review', 1);
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 1);
+
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  delete data.review;
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+});
+
+test('CP-16-V4 a stale green gate outside the list also blocks', async () => {
+  // Chỉ soi `exitCode` thì bản ghi xanh từ ba tuần trước vẫn đóng được task —
+  // "đỏ thì tin, xanh thì tin luôn cả khi đã mốc".
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+
+  // Bản ghi xanh nhưng sourceHash nói về code khác.
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const salt = getSalt(root);
+  const record = {
+    gate: 'convention', taskId: 'T-1', exitCode: 0,
+    sourceHash: 'hash-cua-mot-ban-code-khac',
+  };
+  data.convention = { ...record, sig: signRecord(record, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, 'bản ghi xanh mà mốc vẫn phải chặn');
+  assert.match(result.output, /convention/);
+});
+
+test('CP-16-E2 a record missing exitCode is blocked, and said so plainly', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const salt = getSalt(root);
+  const record = { gate: 'review', taskId: 'T-1' };
+  data.review = { ...record, sig: signRecord(record, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.doesNotMatch(result.output, /exit code undefined/,
+    'thiếu trường là bản ghi hỏng, đừng mô tả thành "exit code undefined"');
+});
+
+test('CP-16-H5 a stale out-of-list gate is told the command that fixes it', async () => {
+  // Ba vòng kiểm hash nói "Chạy lại: compass check" — câu viết hồi mọi gate bị
+  // soi đều bắt buộc. Với gate chạy thêm, `check` không chạm tới nó: chạy xong
+  // vẫn đỏ y nguyên, và người dùng quay vòng.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const salt = getSalt(root);
+  const rec = { gate: 'convention', taskId: 'T-1', exitCode: 0, sourceHash: 'hash-moc-meo' };
+  data.convention = { ...rec, sig: signRecord(rec, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1);
+  assert.match(result.output, /compass convention T-1/, 'phải chỉ lệnh chạm được gate này');
+  assert.doesNotMatch(result.output, /Chạy: compass check T-1/,
+    'check không sửa được gate ngoài danh sách — đừng gợi ý nó');
+});
+
+test('CP-16-H6 a required gate still gets the check hint', async () => {
+  // Mặt còn lại: gate bắt buộc thì `check` đúng là lệnh cần chạy.
+  const root = makeTask(RED);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  const result = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.match(result.output, /compass check T-1/);
+});
+
+// CP-21 — cổng cuối cũng phải để lại bằng chứng.
+
+test('CP-21-H1 a green done writes a signed record into the ledger', async () => {
+  // Mọi gate khác đều ký và lưu; riêng cổng quyết định "xong hay chưa" thì
+  // không, nên không lệnh nào biết task đã đóng.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+
+  const gate = readGate(root, 'T-1', 'done');
+  assert.ok(gate, 'phải có bản ghi done');
+  assert.equal(gate.exitCode, 0);
+  assert.ok(gate.sig, 'phải ký như mọi bản ghi khác');
+  assert.ok(gate.closedAt, 'phải ghi lúc đóng');
+});
+
+test('CP-21-H2 status says a closed task is closed', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const truoc = statusCommand({ cwd: root, taskId: 'T-1' });
+  assert.match(truoc.output, /đang mở/, 'chưa đóng thì phải nói đang mở');
+
+  doneCommand({ cwd: root, taskId: 'T-1' });
+  const sau = statusCommand({ cwd: root, taskId: 'T-1' });
+  assert.match(sau.output, /ĐÃ ĐÓNG/);
+});
+
+test('CP-21-H3 running done twice stays green', async () => {
+  // Bản ghi `done` không được tự chặn lần sau — đóng một lần là hết đường kiểm
+  // lại thì không ai dám chạy.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+  const lai = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(lai.exitCode, 0, lai.output);
+});
+
+test('CP-21-V1 a red done writes no green record', async () => {
+  const root = makeTask(RED);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 1);
+  assert.equal(readGate(root, 'T-1', 'done'), null, 'đỏ thì không được để lại dấu xanh');
+});
+
+test('CP-21-V2 a hand-edited done record is caught', async () => {
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  doneCommand({ cwd: root, taskId: 'T-1' });
+
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  data.done.gateCount = 99;
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const r = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(r.exitCode, 1);
+  assert.match(r.output, /chữ ký/);
+});
+
+test('CP-16-S1 a red gate in a repo slot still blocks done', async () => {
+  // `slotFor` lưu bản ghi thành `convention@be`. So nguyên chuỗi với
+  // IMPLEMENTED_GATES thì mọi bản ghi đa repo bị bỏ qua như khoá lạ, và gate đỏ
+  // ở một repo lọt thẳng qua cổng cuối.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const salt = getSalt(root);
+  const rec = { gate: 'convention', taskId: 'T-1', repo: 'be', exitCode: 1 };
+  data['convention@be'] = { ...rec, sig: signRecord(rec, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const r = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(r.exitCode, 1, 'gate đỏ ở repo vẫn là gate đỏ');
+  assert.match(r.output, /convention/);
+});
+
+test('CP-16-S2 a problem carrying no advice still gets the check hint', async () => {
+  // Đoán "gate có bắt buộc không" từ chuỗi trả lời sai câu hỏi. Thứ cần biết là
+  // "problem này đã tự nói cách xử lý chưa" — và dòng "Spec đã thay đổi" thì
+  // chưa, nên bỏ hint đi là bỏ luôn đường ra.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const salt = getSalt(root);
+  const rec = { gate: 'review', taskId: 'T-1', exitCode: 0, specHash: 'sha256:khac-hoan-toan' };
+  data.review = { ...rec, sig: signRecord(rec, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const r = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(r.exitCode, 1);
+  assert.match(r.output, /Chạy: compass check/, 'problem không tự có lời khuyên thì phải còn hint');
+});
+
+test('CP-16-S3 a required gate is told to run check, not the gate command', async () => {
+  // Nhánh `batBuoc = true` của `cachChayLai` chưa từng được canh: khuyên
+  // `compass spec T-1` cho gate bắt buộc, và mách xoá bằng chứng, đều sai.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+  writeFileSync(path.join(root, 'src-moi.mjs'), 'export const x = 1;\n');
+
+  const r = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(r.exitCode, 1);
+  assert.match(r.output, /Chạy lại: compass check T-1/, 'gate bắt buộc thì chạy check');
+  assert.doesNotMatch(r.output, /xoá khoá "test"/, 'đừng mách xoá bằng chứng của gate bắt buộc');
+});
+
+test('CP-16-S4 a REQUIRED gate red in a repo slot still blocks done', async () => {
+  // `test@be` rơi giữa hai vòng: vòng gate-bắt-buộc tra khoá trần `test`, vòng
+  // gate-ngoài-danh-sách bỏ qua vì `test` nằm trong `required`. Không vòng nào
+  // đọc `exitCode` của nó, và một gate BẮT BUỘC đỏ lọt thẳng qua cổng cuối.
+  //
+  // S1 không bắt được vì nó dùng `convention@be` — gate không bắt buộc với `fix`.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const salt = getSalt(root);
+  const rec = {
+    gate: 'test', taskId: 'T-1', repo: 'be', exitCode: 1,
+    sourceHash: data.test.sourceHash,
+    configHash: data.test.configHash,
+    specHash: data.test.specHash,
+  };
+  data['test@be'] = { ...rec, sig: signRecord(rec, salt) };
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  const r = doneCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(r.exitCode, 1, 'gate bắt buộc đỏ ở repo vẫn là gate đỏ');
+  assert.match(r.output, /test@be/);
+  assert.doesNotMatch(r.output, /xoá khoá "test@be"/,
+    'gate bắt buộc thì đừng mách xoá bằng chứng');
+});
+
+test('CP-16-E3 a null entry in the ledger is reported, not crashed on', async () => {
+  // Ba vòng kiểm khác đều có chốt `if (!record)`; vòng CP-16 thêm vào thì thiếu,
+  // nên một khoá `null` làm `done` ném TypeError thay vì báo sổ hỏng.
+  const root = makeTask(GREEN);
+  await checkCommand({ cwd: root, taskId: 'T-1' });
+
+  const file = gatePath(root, 'T-1');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  data['ui@fe'] = null;
+  writeFileSync(file, JSON.stringify(data, null, 2));
+
+  let r;
+  assert.doesNotThrow(() => { r = doneCommand({ cwd: root, taskId: 'T-1' }); });
+  assert.equal(r.exitCode, 1);
+  assert.match(r.output, /sổ hỏng|không phải bản ghi/);
 });

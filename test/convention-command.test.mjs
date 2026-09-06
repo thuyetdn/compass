@@ -59,7 +59,7 @@ function makeRepo({ conventions, files = {} } = {}) {
   return root;
 }
 
-test('H3 clean source passes the gate', () => {
+test('CP-3-H3 clean source passes the gate', () => {
   const root = makeRepo({
     conventions: HEX_CONVENTIONS,
     files: { 'src/App.jsx': 'const c = "text-primary";\n' },
@@ -69,7 +69,7 @@ test('H3 clean source passes the gate', () => {
   assert.match(result.output, /PASSED/);
 });
 
-test('H4 a violation fails the gate and names file and line', () => {
+test('CP-3-H4 a violation fails the gate and names file and line', () => {
   const root = makeRepo({
     conventions: HEX_CONVENTIONS,
     files: { 'src/App.jsx': 'ok\nconst c = "#ff00aa";\n' },
@@ -82,14 +82,14 @@ test('H4 a violation fails the gate and names file and line', () => {
   assert.match(result.output, /no-hex-color/);
 });
 
-test('H5 a project with no conventions.md passes and says so', () => {
+test('CP-3-H5 a project with no conventions.md passes and says so', () => {
   const root = makeRepo({ files: { 'src/App.jsx': 'const c = "#ff00aa";\n' } });
   const result = conventionCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0, result.output);
   assert.match(result.output, /không có luật|chưa có/i);
 });
 
-test('V2 an unsupported rule type fails the gate rather than being ignored', () => {
+test('CP-3-V2 an unsupported rule type fails the gate rather than being ignored', () => {
   const root = makeRepo({
     conventions: `\`\`\`rule
 id: needs-ast
@@ -106,7 +106,7 @@ severity: error
   assert.match(result.output, /require-import/);
 });
 
-test('EC1 a warn-level violation shows up but keeps the gate green', () => {
+test('CP-3-EC1 a warn-level violation shows up but keeps the gate green', () => {
   const root = makeRepo({
     conventions: HEX_CONVENTIONS.replace('severity: error', 'severity: warn'),
     files: { 'src/App.jsx': 'const c = "#ff00aa";\n' },
@@ -142,4 +142,15 @@ test('the violation message from the rule is shown', () => {
   });
   const result = conventionCommand({ cwd: root, taskId: 'T-1' });
   assert.match(result.output, /semantic token/);
+});
+
+test('CP-3-E1 an unreadable conventions.md is a usage error, not a crash', () => {
+  // Tạo thư mục trùng tên file: đọc nó ném EISDIR. Đó là ca "không đọc được"
+  // gần với thực tế nhất mà test dựng được — quyền file thì khác nhau theo OS.
+  const root = makeRepo({ files: { 'src/App.jsx': 'const c = "x";\n' } });
+  mkdirSync(path.join(root, '.knowledge', 'decided', 'conventions.md'), { recursive: true });
+
+  const result = conventionCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2, 'lỗi đọc file là lỗi dùng, không phải gate đỏ');
+  assert.doesNotMatch(result.output, /PASSED/);
 });

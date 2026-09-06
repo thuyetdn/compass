@@ -60,7 +60,7 @@ function makePng(width, height, pixels, { colourType = 6, bitDepth = 8 } = {}) {
 
 const RED = [255, 0, 0, 255];
 
-test('H1 decodes an 8-bit RGBA png', () => {
+test('CP-5-H1 decodes an 8-bit RGBA png', () => {
   const png = makePng(2, 1, [...RED, 0, 255, 0, 255]);
   const image = decodePng(png);
   assert.equal(image.width, 2);
@@ -69,17 +69,17 @@ test('H1 decodes an 8-bit RGBA png', () => {
   assert.deepEqual([...image.pixels.slice(4, 8)], [0, 255, 0, 255]);
 });
 
-test('H2 decodes an rgb png, filling alpha with 255', () => {
+test('CP-5-H2 decodes an rgb png, filling alpha with 255', () => {
   const png = makePng(1, 1, RED, { colourType: 2 });
   const image = decodePng(png);
   assert.deepEqual([...image.pixels], RED);
 });
 
-test('V1 a file that is not a png is rejected by name', () => {
+test('CP-5-V1 a file that is not a png is rejected by name', () => {
   assert.throws(() => decodePng(Buffer.from('this is not a png at all')), /PNG/);
 });
 
-test('V2 a 16-bit png is refused, saying so', () => {
+test('CP-5-V2 a 16-bit png is refused, saying so', () => {
   const png = makePng(1, 1, RED, { bitDepth: 16 });
   assert.throws(() => decodePng(png), /16/);
 });
@@ -89,7 +89,7 @@ test('a palette png is refused rather than guessed at', () => {
   assert.throws(() => decodePng(png), /chưa hỗ trợ|colour type|kiểu màu/i);
 });
 
-test('S1 a png declaring an impossible size is refused before allocating', () => {
+test('CP-5-S1 a png declaring an impossible size is refused before allocating', () => {
   const png = makePng(1, 1, RED);
   // Rewrite IHDR width to 100000 x 100000 — 40GB if allocated.
   png.writeUInt32BE(100000, 16);
@@ -97,7 +97,7 @@ test('S1 a png declaring an impossible size is refused before allocating', () =>
   assert.throws(() => decodePng(png), /lớn|kích thước/i);
 });
 
-test('EC3 a 1x1 png decodes to exactly one pixel', () => {
+test('CP-5-EC4 a 1x1 png decodes to exactly one pixel', () => {
   const image = decodePng(makePng(1, 1, RED));
   assert.equal(image.width, 1);
   assert.equal(image.pixels.length, 4);

@@ -43,3 +43,7 @@ Quét file bằng regex trên toàn repo có thể chậm với repo lớn. Cầ
 | EC1 | Edge | Luật severity warn có vi phạm | Gate vẫn pass, vi phạm hiện ra dạng cảnh báo | P0 |
 | EC2 | Edge | Vi phạm nằm trong node_modules | Không tính là vi phạm | P0 |
 | S1 | Security | Pattern chứa cấu trúc gây bùng nổ backtrack | Có giới hạn, không treo vô hạn | P1 |
+| V4 | Validation | Luật khai `type` chưa hỗ trợ, ở tầng parser | Parser trả lỗi nêu tên type đó (V2 kiểm cùng ca ở tầng gate) | P1 |
+| H6 | Happy | Source sạch, ở tầng runner | Trả về mảng vi phạm rỗng (H3 kiểm cùng ca ở tầng gate) | P1 |
+| H7 | Happy | Source vi phạm, ở tầng runner | Vi phạm mang đúng tên file và số dòng | P1 |
+| EC3 | Edge | Luật severity warn có vi phạm, ở tầng runner | Vi phạm được trả về nhưng không đánh dấu chặn | P1 |

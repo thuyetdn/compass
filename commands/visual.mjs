@@ -16,6 +16,8 @@ const CONTRACT_FILE = 'design-contract.json';
 const BASELINE_DIR = 'baseline';
 const DEFAULT_THRESHOLD = 0.001; // 0.1% of pixels
 const CHANNEL_TOLERANCE = 3;     // absorbs anti-aliasing, not real change
+// Mặc định 60 giây, đủ cho một dev server bình thường. Dự án nặng có thể
+// khai `devTimeoutMs` trong config để nới ra — hoặc siết lại cho test.
 const DEV_TIMEOUT_MS = 60000;
 const PAGE_TIMEOUT_MS = 30000;
 
@@ -103,7 +105,7 @@ export async function visualCommand({ cwd, taskId }) {
   let browser;
 
   try {
-    const up = await waitForUrl(cfg.config.devUrl, { timeoutMs: DEV_TIMEOUT_MS });
+    const up = await waitForUrl(cfg.config.devUrl, { timeoutMs: cfg.config.devTimeoutMs ?? DEV_TIMEOUT_MS });
     if (!up.ok) {
       return {
         exitCode: 2,

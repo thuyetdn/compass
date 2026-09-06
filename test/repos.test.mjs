@@ -13,7 +13,7 @@ function makeRoot(config, dirs = []) {
   return root;
 }
 
-test('H1 a config with no repos yields one repo pointing at the root', () => {
+test('CP-12-H1 a config with no repos yields one repo pointing at the root', () => {
   const root = makeRoot({ test: 'npm test' });
   const result = resolveRepos(root, { test: 'npm test' });
 
@@ -23,7 +23,7 @@ test('H1 a config with no repos yields one repo pointing at the root', () => {
   assert.equal(result.repos[0].config.test, 'npm test');
 });
 
-test('H2 two declared repos come back with names and directories', () => {
+test('CP-12-H2 two declared repos come back with names and directories', () => {
   const config = {
     test: 'npm test',
     repos: { backend: { test: 'yarn test' }, frontend: { test: 'pnpm test' } },
@@ -36,7 +36,7 @@ test('H2 two declared repos come back with names and directories', () => {
   assert.equal(result.repos.find((r) => r.name === 'backend').dir, path.join(root, 'backend'));
 });
 
-test('H3 a repo overrides one field and inherits the rest', () => {
+test('CP-12-H3 a repo overrides one field and inherits the rest', () => {
   const config = {
     test: 'npm test',
     dev: 'npm run dev',
@@ -51,7 +51,7 @@ test('H3 a repo overrides one field and inherits the rest', () => {
   assert.equal(backend.config.devUrl, 'http://localhost:5173/');
 });
 
-test('H4 a repo declaring nothing inherits everything', () => {
+test('CP-12-H4 a repo declaring nothing inherits everything', () => {
   const config = { test: 'npm test', repos: { app: {} } };
   const root = makeRoot(config, ['app']);
   const app = resolveRepos(root, config).repos[0];
@@ -64,7 +64,7 @@ test('the repos map itself is not copied into a repo config', () => {
   assert.equal(resolveRepos(root, config).repos[0].config.repos, undefined);
 });
 
-test('V1 a repos value that is not an object is refused', () => {
+test('CP-12-V1 a repos value that is not an object is refused', () => {
   const config = { test: 'npm test', repos: ['backend'] };
   const root = makeRoot(config);
   const result = resolveRepos(root, config);
@@ -72,7 +72,7 @@ test('V1 a repos value that is not an object is refused', () => {
   assert.match(result.errors[0], /repos/);
 });
 
-test('V2 a repo with no test command anywhere is refused by name', () => {
+test('CP-12-V2 a repo with no test command anywhere is refused by name', () => {
   const config = { repos: { backend: { dev: 'x' } } };
   const root = makeRoot(config, ['backend']);
   const result = resolveRepos(root, config);
@@ -80,7 +80,7 @@ test('V2 a repo with no test command anywhere is refused by name', () => {
   assert.ok(result.errors.some((e) => e.includes('backend') && e.includes('test')));
 });
 
-test('V3 a repo directory that does not exist is refused with its path', () => {
+test('CP-12-V3 a repo directory that does not exist is refused with its path', () => {
   const config = { test: 'npm test', repos: { missing: {} } };
   const root = makeRoot(config);
   const result = resolveRepos(root, config);
@@ -88,7 +88,7 @@ test('V3 a repo directory that does not exist is refused with its path', () => {
   assert.ok(result.errors.some((e) => e.includes('missing')));
 });
 
-test('S1 a repo path climbing out of the root is refused', () => {
+test('CP-12-S1 a repo path climbing out of the root is refused', () => {
   const config = { test: 'npm test', repos: { escape: { path: '../elsewhere' } } };
   const root = makeRoot(config);
   const result = resolveRepos(root, config);
@@ -96,7 +96,7 @@ test('S1 a repo path climbing out of the root is refused', () => {
   assert.ok(result.errors.some((e) => e.includes('escape')));
 });
 
-test('EC3 a repo whose path is "." resolves to the root itself', () => {
+test('CP-12-EC3 a repo whose path is "." resolves to the root itself', () => {
   const config = { test: 'npm test', repos: { self: { path: '.' } } };
   const root = makeRoot(config);
   const result = resolveRepos(root, config);
@@ -104,7 +104,7 @@ test('EC3 a repo whose path is "." resolves to the root itself', () => {
   assert.equal(result.repos[0].dir, root);
 });
 
-test('H5 a scope naming one repo selects only that one', () => {
+test('CP-12-H5 a scope naming one repo selects only that one', () => {
   const config = { test: 'npm test', repos: { backend: {}, frontend: {} } };
   const root = makeRoot(config, ['backend', 'frontend']);
   const { repos } = resolveRepos(root, config);
@@ -113,7 +113,7 @@ test('H5 a scope naming one repo selects only that one', () => {
   assert.deepEqual(selected.map((r) => r.name), ['backend']);
 });
 
-test('H6 a scope touching both repos selects both', () => {
+test('CP-12-H6 a scope touching both repos selects both', () => {
   const config = { test: 'npm test', repos: { backend: {}, frontend: {} } };
   const root = makeRoot(config, ['backend', 'frontend']);
   const { repos } = resolveRepos(root, config);
@@ -122,7 +122,7 @@ test('H6 a scope touching both repos selects both', () => {
   assert.deepEqual(selected.map((r) => r.name).sort(), ['backend', 'frontend']);
 });
 
-test('EC2 a scope separated by commas or newlines is split either way', () => {
+test('CP-12-EC2 a scope separated by commas or newlines is split either way', () => {
   const config = { test: 'npm test', repos: { a: {}, b: {} } };
   const root = makeRoot(config, ['a', 'b']);
   const { repos } = resolveRepos(root, config);
@@ -130,7 +130,7 @@ test('EC2 a scope separated by commas or newlines is split either way', () => {
   assert.equal(reposForScope(repos, 'a/x.ts\nb/y.ts').length, 2);
 });
 
-test('EC1 a repo name that prefixes another does not swallow it', () => {
+test('CP-12-EC1 a repo name that prefixes another does not swallow it', () => {
   // "app" must not match "app-admin/..." — that is a different repo.
   const config = { test: 'npm test', repos: { app: {}, 'app-admin': {} } };
   const root = makeRoot(config, ['app', 'app-admin']);
@@ -140,7 +140,7 @@ test('EC1 a repo name that prefixes another does not swallow it', () => {
   assert.deepEqual(reposForScope(repos, 'app/src/x.ts').map((r) => r.name), ['app']);
 });
 
-test('E1 a scope matching no repo returns nothing rather than everything', () => {
+test('CP-12-E1 a scope matching no repo returns nothing rather than everything', () => {
   const config = { test: 'npm test', repos: { backend: {}, frontend: {} } };
   const root = makeRoot(config, ['backend', 'frontend']);
   const { repos } = resolveRepos(root, config);

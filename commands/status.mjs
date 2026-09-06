@@ -76,6 +76,15 @@ export function statusCommand({ cwd, taskId }) {
     }
   }
 
+
+  // Task đã đóng thì nói ngay dòng đầu. Liệt kê gate mà không nói xong hay chưa
+  // thì nhìn vào không phân biệt được task hoàn thành với task đang làm dở.
+  if (gates.done && gates.done.exitCode === 0) {
+    const luc = gates.done.closedAt ? ` (${gates.done.closedAt})` : "";
+    lines.push(`Trạng thái: ĐÃ ĐÓNG${luc}`);
+  } else {
+    lines.push("Trạng thái: đang mở");
+  }
   lines.push('');
 
   for (const name of rules?.gates ?? []) {

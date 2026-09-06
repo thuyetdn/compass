@@ -49,7 +49,7 @@ test('a task with no design contract passes and says why', async () => {
   assert.match(result.output, /chưa có hợp đồng/);
 });
 
-test('V3 a non-numeric threshold in config is rejected', async () => {
+test('CP-5-V3 a non-numeric threshold in config is rejected', async () => {
   const root = makeRepo({
     config: { test: 'true', dev: 'x', devUrl: 'http://localhost:1/', visualThreshold: 'nhiều' },
     contract: CONTRACT,

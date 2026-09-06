@@ -24,6 +24,13 @@ là thứ của cả task, không của riêng repo nào.
 
 Dự án một repo phải chạy y như cũ. Không có `repos` trong config thì mọi hành vi giữ nguyên.
 
+Ca trong spec không chia theo repo. Task đụng hai repo khai chung một bảng, và không có
+chỗ nào nói ca nào chạy ở đâu — bắt mỗi repo phải đủ mọi ca thì repo backend đòi cả ca
+frontend, và ngược lại.
+
+Nên gate `test` gom kết quả **mọi repo** rồi mới đối chiếu một lần. Repo nào chạy ca nào
+là chuyện của người viết test; thứ Compass cần biết là cuối cùng mọi ca đã chạy chưa.
+
 ## Rủi ro hồi quy
 `writeGate` hiện ghi một bản ghi cho mỗi gate. Chạy `test` ở hai repo sẽ ghi đè lẫn nhau, và
 `done` chỉ thấy repo cuối — mất bằng chứng của repo kia mà không ai biết.
@@ -44,6 +51,7 @@ loạt — đó là dấu hiệu tốt, không phải hỏng.
 | H4 | Happy | Output nêu rõ repo nào | Mỗi dòng kết quả có tên repo | P0 |
 | H5 | Happy | Cả hai repo xanh | check exit 0 | P0 |
 | H6 | Happy | done sau check đa repo | Exit 0, thấy đủ bản ghi | P0 |
+| H7 | Happy | Ca chia đôi giữa hai repo | Gộp kết quả rồi mới đối chiếu, không repo nào đòi đủ | P0 |
 | V1 | Validation | Một repo đỏ, một xanh | check fail, nêu đúng repo đỏ | P0 |
 | V2 | Validation | Phạm vi không khớp repo nào | Báo rõ, không âm thầm chạy hết | P0 |
 | V3 | Validation | Repo khai devUrl, repo kia không | ui chỉ chạy ở repo có devUrl | P0 |
@@ -59,3 +67,6 @@ loạt — đó là dấu hiệu tốt, không phải hỏng.
 | P1 | Performance | Hai repo chạy tuần tự | Không có hai dev server sống cùng lúc | P0 |
 | P2 | Performance | Repo đơn không chậm thêm | Thời gian check không tăng đáng kể | P1 |
 | P3 | Performance | Dừng ngay khi repo đầu fail | Không chạy tiếp repo sau | P1 |
+| S3 | Security | `compass test <id>` gọi thẳng từ CLI | Chạy đúng repo trong phạm vi, không ghi đè bằng chứng đa repo | P0 |
+| S4 | Security | Bản ghi khe `@repo` có hash mốc | Vẫn bị soi hash — lọc theo phần gate, không theo nguyên khe | P0 |
+| S5 | Security | Lời khuyên cho khe `@repo` | Nêu tên gate, `compass test@be` không phải lệnh | P1 |

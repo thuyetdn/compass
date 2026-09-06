@@ -44,21 +44,39 @@ function makeRepo({ knowledge = true, files = {} } = {}) {
 
 const APP = { 'src/Button.jsx': 'export function Button({ variant = "a", size }) { return <b>{size}</b>; }\n' };
 
-test('V1 a project with no .knowledge passes and says so', () => {
+// Quét một cây nguồn giả n file, mỗi file import file kế tiếp. Trả về mili-giây.
+function doQuet(n) {
+  const files = {};
+  for (let i = 0; i < n; i++) {
+    files[`src/C${i}.jsx`] =
+      `import { C${(i + 1) % n} } from "./C${(i + 1) % n}.jsx";
+` +
+      `export function C${i}({ a, b }) { return null; }
+`;
+  }
+  const root = makeRepo({ files });
+  const t0 = Date.now();
+  const r = knowledgeCommand({ cwd: root, sync: true });
+  const ms = Date.now() - t0;
+  assert.equal(r.exitCode, 0, r.output);
+  return ms;
+}
+
+test('CP-10-V1 a project with no .knowledge passes and says so', () => {
   const root = makeRepo({ knowledge: false, files: APP });
   const result = knowledgeCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0, result.output);
   assert.match(result.output, /chưa dùng/);
 });
 
-test('V3 derived that was never generated counts as stale', () => {
+test('CP-10-V3 derived that was never generated counts as stale', () => {
   const root = makeRepo({ files: APP });
   const result = knowledgeCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1);
   assert.match(result.output, /chưa sinh/);
 });
 
-test('H6 --sync generates derived and the gate passes afterwards', () => {
+test('CP-10-H6 --sync generates derived and the gate passes afterwards', () => {
   const root = makeRepo({ files: APP });
   const synced = knowledgeCommand({ cwd: root, taskId: 'T-1', sync: true });
   assert.equal(synced.exitCode, 0, synced.output);
@@ -68,7 +86,7 @@ test('H6 --sync generates derived and the gate passes afterwards', () => {
   assert.equal(after.exitCode, 0, after.output);
 });
 
-test('H5 editing a source after sync fails the gate and names the file', () => {
+test('CP-10-H5 editing a source after sync fails the gate and names the file', () => {
   const root = makeRepo({ files: APP });
   knowledgeCommand({ cwd: root, taskId: 'T-1', sync: true });
   writeFileSync(path.join(root, 'src', 'Button.jsx'),
@@ -80,7 +98,7 @@ test('H5 editing a source after sync fails the gate and names the file', () => {
   assert.match(result.output, /Đã sửa/);
 });
 
-test('EC1 adding a source after sync fails the gate', () => {
+test('CP-10-EC1 adding a source after sync fails the gate', () => {
   const root = makeRepo({ files: APP });
   knowledgeCommand({ cwd: root, taskId: 'T-1', sync: true });
   writeFileSync(path.join(root, 'src', 'Card.jsx'), 'export function Card() { return null; }\n');
@@ -90,7 +108,7 @@ test('EC1 adding a source after sync fails the gate', () => {
   assert.match(result.output, /Mới thêm/);
 });
 
-test('E1 deleting a source after sync fails the gate', () => {
+test('CP-10-E1 deleting a source after sync fails the gate', () => {
   const root = makeRepo({ files: { ...APP, 'src/Card.jsx': 'export function Card() { return null; }\n' } });
   knowledgeCommand({ cwd: root, taskId: 'T-1', sync: true });
   rmSync(path.join(root, 'src', 'Card.jsx'));
@@ -100,7 +118,7 @@ test('E1 deleting a source after sync fails the gate', () => {
   assert.match(result.output, /Đã xóa/);
 });
 
-test('V2 a corrupt manifest is treated as stale, not as fresh', () => {
+test('CP-10-V2 a corrupt manifest is treated as stale, not as fresh', () => {
   const root = makeRepo({ files: APP });
   knowledgeCommand({ cwd: root, taskId: 'T-1', sync: true });
   writeFileSync(path.join(root, '.knowledge', 'derived', '.manifest'), '{ hỏng');
@@ -134,7 +152,7 @@ test('--sync warns about components whose props it could not read', () => {
   assert.match(result.output, /confident/);
 });
 
-test('S2 syncing does not move the source hash other gates recorded', () => {
+test('CP-10-S2 syncing does not move the source hash other gates recorded', () => {
   const root = makeRepo({ files: APP });
   const before = hashSource(root);
   knowledgeCommand({ cwd: root, taskId: 'T-1', sync: true });
@@ -151,14 +169,14 @@ test('the gate record is written and signed', () => {
   assert.ok(gate.sig.startsWith('sha256:'));
 });
 
-test('P2 a second run with nothing changed passes again', () => {
+test('CP-10-P2 a second run with nothing changed passes again', () => {
   const root = makeRepo({ files: APP });
   knowledgeCommand({ cwd: root, taskId: 'T-1', sync: true });
   assert.equal(knowledgeCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
   assert.equal(knowledgeCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
 });
 
-test('S3 the knowledge gate records a sourceHash so done can catch stale docs', () => {
+test('CP-10-S3 the knowledge gate records a sourceHash so done can catch stale docs', () => {
   const root = makeRepo({ files: APP });
   knowledgeCommand({ cwd: root, taskId: 'T-1', sync: true });
   knowledgeCommand({ cwd: root, taskId: 'T-1' });
@@ -194,4 +212,41 @@ test('an invalid task id is refused like every other command', () => {
   const root = makeRepo({ files: APP });
   const result = knowledgeCommand({ cwd: root, taskId: '../escape' });
   assert.equal(result.exitCode, 2);
+});
+
+test('CP-10-E2 a derived path that cannot be written is a usage error', () => {
+  // Tạo thư mục trùng tên file máy sẽ ghi: ghi vào đó ném EISDIR. Phải báo lỗi
+  // dùng, không được crash và cũng không được lặng lẽ coi như sync xong.
+  const root = makeRepo({ files: { 'src/Nut.jsx': 'export function Nut() { return null; }\n' } });
+  mkdirSync(path.join(root, '.knowledge', 'derived', 'components.json'), { recursive: true });
+
+  const result = knowledgeCommand({ cwd: root, sync: true });
+  assert.equal(result.exitCode, 2, 'không ghi được derived/ là lỗi dùng');
+  assert.doesNotMatch(result.output, /PASSED/);
+});
+
+test('CP-10-EC2 syncing does not move the source hash', () => {
+  // `derived/` là máy sinh, không phải mã nguồn. Nếu sync làm sourceHash lệch
+  // thì mọi gate vừa chạy xong đều thành "bằng chứng nói về bản cũ".
+  const root = makeRepo({ files: { 'src/Nut.jsx': 'export function Nut() { return null; }\n' } });
+  const truoc = hashSource(root);
+  const result = knowledgeCommand({ cwd: root, sync: true });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.equal(hashSource(root), truoc, 'sync không được đụng vào sourceHash');
+});
+
+test('CP-10-P1 the scan grows with the file count, not its square', () => {
+  // Đo **hình dạng**, không đo tốc độ: ngưỡng tuyệt đối không canh được gì vì
+  // 120 file chạy 25ms, còn dư 200 lần trước khi chạm 5 giây.
+  //
+  // Và phải đo ở thang đủ lớn. Bản trước chọn 150→600, nơi số hạng bậc hai
+  // chưa kịp trội: code vẫn O(component × file) mà tỉ số chỉ 2.9, test xanh.
+  // Ở 500→2000 thì cùng code đó cho tỉ số 6.8, và 1000→4000 cho 10.2.
+  const do1 = doQuet(500);
+  const do2 = doQuet(2000);
+
+  // Bốn lần số file. Tuyến tính thì ~4x, bậc hai thì ~16x. Chốt ở 8 — đủ xa cả
+  // hai phía để nhiễu máy không làm test chập chờn.
+  const tiSo = do2 / Math.max(do1, 1);
+  assert.ok(tiSo < 8, `gấp 4 lần file làm thời gian gấp ${tiSo.toFixed(1)} lần — bậc hai`);
 });

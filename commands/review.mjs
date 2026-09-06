@@ -60,10 +60,25 @@ export function reviewCommand({ cwd, taskId }) {
     const current = collectDiff(root, diffOptions);
     const recorded = readGate(root, taskId, 'review')?.diffHash ?? null;
 
+    // Mọi nhánh thoát của pha hai đều phải ghi sổ. `done` đọc sổ chứ không chạy
+    // lại gate, nên một nhánh quên ghi là một đường cho verdict xanh cũ sống sót:
+    // xoá brief đi thì `review` đỏ, nhưng `gate.json` vẫn nói xanh và task đóng
+    // được. Gate `review` cũng không có sourceHash để `done` bắt bù.
+    const ghiDo = (lyDo) => writeGate(root, taskId, {
+      gate: 'review',
+      exitCode: 1,
+      reason: lyDo,
+      diffHash: current.ok ? sha256(current.diff) : null,
+      specHash: hashFile(file),
+      startedAt: new Date().toISOString(),
+      durationMs: 0,
+    });
+
     // Findings without a brief describe a review nobody was briefed for. The
     // brief is what an agent was given; with none, there is nothing to trust —
     // and deleting gate.json must not turn a stale verdict back into a pass.
     if (!existsSync(briefFile) || !recorded) {
+      ghiDo(!existsSync(briefFile) ? 'brief-missing' : 'record-missing');
       return {
         exitCode: 1,
         output: [
@@ -89,6 +104,7 @@ export function reviewCommand({ cwd, taskId }) {
     // reporting the brief id it could not contain.
     const parsed = parseFindings(source);
     if (!parsed.findings) {
+      ghiDo('findings-malformed');
       return {
         exitCode: 2,
         output: [

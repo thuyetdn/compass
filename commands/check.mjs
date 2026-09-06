@@ -11,6 +11,8 @@ import { uiCommand } from './ui.mjs';
 import { visualCommand } from './visual.mjs';
 import { reviewCommand } from './review.mjs';
 import { GATE_ORDER } from '../lib/gates.mjs';
+import { resolveRepos, reposForScope } from '../lib/repos.mjs';
+import { loadConfig } from '../lib/config.mjs';
 
 const IMPLEMENTED = {
   spec: specCommand,
@@ -56,6 +58,32 @@ export async function checkCommand({ cwd, taskId, only }) {
     gates = gates.filter((g) => g === only);
   }
 
+  // `spec`, `knowledge`, `review` đọc spec, tài liệu và diff — đều là thứ của
+  // cả task, không của riêng repo nào. Chạy một lần ở gốc.
+  const CHUNG = ['spec', 'knowledge', 'review'];
+
+  const cfg = loadConfig(root);
+  if (!cfg.ok) return { exitCode: 2, output: cfg.errors.join("\n") };
+
+  const resolved = resolveRepos(root, cfg.config);
+  if (!resolved.ok) {
+    return { exitCode: 2, output: resolved.errors.join("\n") };
+  }
+  const daChon = reposForScope(resolved.repos, spec.scope);
+  if (daChon.length === 0) {
+    return {
+      exitCode: 2,
+      output: [
+        `Phạm vi "${spec.scope}" không khớp repo nào đã khai.`,
+        `Repo có: ${resolved.repos.map((r) => r.name).join(", ")}`,
+      ].join("\n"),
+    };
+  }
+
+  // Gate cần trình duyệt chỉ chạy ở repo khai devUrl. Backend không khai thì bỏ
+  // qua repo đó — không thêm quy ước đặt tên nào phải nhớ.
+  const CAN_TRINH_DUYET = ['ui', 'visual'];
+
   const lines = [];
   const skipped = [];
 
@@ -64,10 +92,33 @@ export async function checkCommand({ cwd, taskId, only }) {
     if (!run) { skipped.push(gate); continue; }
 
     // A gate may be async (ui drives a browser); awaiting a sync return is harmless.
-    const result = await run({ cwd: root, taskId });
-    lines.push(result.output);
-    if (result.exitCode !== 0) {
-      return { exitCode: result.exitCode, output: lines.join('\n') };
+    // Một repo, không khai `repos`: `repo.name` là null và mọi thứ chạy y như
+    // trước — cùng thư mục, cùng khe bản ghi.
+    // `test` tự lặp bên trong: nó cần gộp kết quả mọi repo rồi mới đối chiếu
+    // ID một lần. Chia ca theo repo thì backend đòi cả ca frontend.
+    if (gate === 'test') {
+      const result = await run({ cwd: root, taskId, repos: daChon, gateRoot: root });
+      lines.push(result.output);
+      if (result.exitCode !== 0) return { exitCode: result.exitCode, output: lines.join("\n") };
+      continue;
+    }
+
+    const chay = CHUNG.includes(gate) ? [{ name: null, dir: root }] : daChon;
+
+    // Tuần tự, không song song: hai dev server tranh cổng là lỗi chập chờn đã
+    // tốn nhiều giờ ở CP-8. Vài giây không đáng đổi lấy chuyện đó.
+    for (const repo of chay) {
+      if (CAN_TRINH_DUYET.includes(gate) && repo.config && !repo.config.devUrl) {
+        skipped.push(`${gate}${repo.name ? "@" + repo.name : ""} (không khai devUrl)`);
+        continue;
+      }
+
+      const result = await run({ cwd: repo.dir, taskId, repo: repo.name, gateRoot: root });
+      lines.push(repo.name === null ? result.output : `[${repo.name}] ${result.output}`);
+      if (result.exitCode !== 0) {
+        // Dừng ngay: chạy tiếp repo sau chỉ tốn thời gian cho một kết quả đã đỏ.
+        return { exitCode: result.exitCode, output: lines.join("\n") };
+      }
     }
   }
 

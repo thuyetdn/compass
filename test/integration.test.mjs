@@ -110,14 +110,14 @@ test('done refuses after a gate record is hand-edited', () => {
   assert.match(done.stdout, /chữ ký/);
 });
 
-test('test_H1_the workspace helper removes its directory afterwards', () => {
+test('CP-1-H1 the workspace helper removes its directory afterwards', () => {
   const created = makeWorkspace();
   assert.ok(existsSync(created), 'thư mục phải tồn tại khi vừa tạo');
   cleanupWorkspaces();
   assert.ok(!existsSync(created), 'thư mục phải bị xóa sau khi dọn');
 });
 
-test('test_H2_every workspace created in one run is removed together', () => {
+test('CP-1-H2 every workspace created in one run is removed together', () => {
   const dirs = [makeWorkspace(), makeWorkspace(), makeWorkspace()];
   for (const d of dirs) assert.ok(existsSync(d));
   cleanupWorkspaces();

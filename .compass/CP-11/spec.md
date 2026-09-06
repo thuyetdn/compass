@@ -70,3 +70,12 @@ lại chứ không đoán.
 | EC7 | Edge | Pitfall ghi tên thẻ JSX | Không chặn nhầm — đó là nội dung thật | P0 |
 | V9 | Validation | Gợi ý template một từ, không khoảng trắng | Vẫn bị chặn — mọi gợi ý trong template đều phải bắt được | P0 |
 | EC8 | Edge | Hồ sơ lưu bằng CRLF | Đọc và đóng được y như LF | P0 |
+| H7 | Happy | Hồ sơ điền đủ, ở tầng parser | Parser cho phép đóng (H3 kiểm cùng ca ở tầng lệnh) | P1 |
+| V10 | Validation | Đóng khi chưa ghi pitfall, ở tầng parser | Từ chối, nêu thiếu pitfall | P1 |
+| EC9 | Edge | Template chưa động tới, đọc từ file thật | Mọi mục tính là rỗng — không phải bản chép tay | P1 |
+| V11 | Validation | Giả thuyết có "Cách kiểm" đúng bằng gợi ý template | Tính là chưa điền | P1 |
+| V12 | Validation | Chữ mẫu có dấu đầu dòng (`- **Gặp:** <...>`) | Vẫn là chữ mẫu — bullet-hoá không làm nó thành nội dung | P0 |
+| H8 | Happy | Đóng xong thì pitfall vào knowledge base | Nội dung chép đúng, có tiêu đề điều tra | P0 |
+| V13 | Validation | Chữ mẫu sau mọi tiền tố markdown (`1.`, `>`, `- [ ]`) | Vẫn là chữ mẫu — vá một trong bốn cách viết không phải vá | P0 |
+| V14 | Validation | Nội dung thật có dấu đầu dòng | Không bị chặn oan | P0 |
+| V15 | Validation | Dòng "Cách kiểm" có dấu đầu dòng | Đọc được — đừng bảo người ta bỏ trống ô vừa điền | P1 |

@@ -37,21 +37,21 @@ function makeRepo({ config = { test: 'true' }, contract } = {}) {
   return root;
 }
 
-test('H5 a task with no design contract passes and says so', async () => {
+test('CP-4-H5 a task with no design contract passes and says so', async () => {
   const root = makeRepo();
   const result = await uiCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0, result.output);
   assert.match(result.output, /chưa có hợp đồng|không có hợp đồng/i);
 });
 
-test('V1 a contract that is not JSON fails with a usage error', async () => {
+test('CP-4-V5 a contract that is not JSON fails with a usage error', async () => {
   const root = makeRepo({ contract: '{ broken' });
   const result = await uiCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 2);
   assert.match(result.output, /JSON/);
 });
 
-test('V3 a contract element missing its selector is named', async () => {
+test('CP-4-V6 a contract element missing its selector is named', async () => {
   const root = makeRepo({
     contract: JSON.stringify({ elements: [{ name: 'Nút gửi', properties: { color: '#000' } }] }),
   });
@@ -60,7 +60,7 @@ test('V3 a contract element missing its selector is named', async () => {
   assert.match(result.output, /Nút gửi/);
 });
 
-test('E4 a contract with no dev command in config is a usage error', async () => {
+test('CP-4-E4 a contract with no dev command in config is a usage error', async () => {
   const root = makeRepo({
     config: { test: 'true' },
     contract: JSON.stringify({
@@ -72,7 +72,7 @@ test('E4 a contract with no dev command in config is a usage error', async () =>
   assert.match(result.output, /dev/);
 });
 
-test('E4 a config with dev but no devUrl is a usage error', async () => {
+test('CP-4-E5 a config with dev but no devUrl is a usage error', async () => {
   const root = makeRepo({
     config: { test: 'true', dev: 'npm run dev' },
     contract: JSON.stringify({
@@ -84,7 +84,7 @@ test('E4 a config with dev but no devUrl is a usage error', async () => {
   assert.match(result.output, /devUrl/);
 });
 
-test('E1 a project without playwright is told how to install it', async () => {
+test('CP-4-E1 a project without playwright is told how to install it', async () => {
   const root = makeRepo({
     config: { test: 'true', dev: 'npm run dev', devUrl: 'http://localhost:5173/' },
     contract: JSON.stringify({
@@ -96,7 +96,7 @@ test('E1 a project without playwright is told how to install it', async () => {
   assert.match(result.output, /playwright/i);
 });
 
-test('EC4 an empty contract passes with nothing measured', async () => {
+test('CP-4-EC5 an empty contract passes with nothing measured', async () => {
   const root = makeRepo({
     config: { test: 'true', dev: 'npm run dev', devUrl: 'http://localhost:5173/' },
     contract: JSON.stringify({ elements: [] }),
@@ -121,7 +121,7 @@ test('a missing task id is a usage error', async () => {
   assert.equal(result.exitCode, 2);
 });
 
-test('E3 a selector the page never renders is reported as drift, by name', async () => {
+test('CP-4-E3 a selector the page never renders is reported as drift, by name', async () => {
   // The real path: the browser answers found:false, and the gate must turn that
   // into a named drift rather than skipping the element.
   const { buildMeasureScript } = await import('../lib/browser.mjs');

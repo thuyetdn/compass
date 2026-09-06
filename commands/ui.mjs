@@ -12,6 +12,8 @@ import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 
 const CONTRACT_FILE = 'design-contract.json';
+// Mặc định 60 giây, đủ cho một dev server bình thường. Dự án nặng có thể
+// khai `devTimeoutMs` trong config để nới ra — hoặc siết lại cho test.
 const DEV_TIMEOUT_MS = 60000;
 const PAGE_TIMEOUT_MS = 30000;
 
@@ -118,7 +120,7 @@ export async function uiCommand({ cwd, taskId }) {
   let browser;
 
   try {
-    const up = await waitForUrl(cfg.config.devUrl, { timeoutMs: DEV_TIMEOUT_MS });
+    const up = await waitForUrl(cfg.config.devUrl, { timeoutMs: cfg.config.devTimeoutMs ?? DEV_TIMEOUT_MS });
     if (!up.ok) {
       return {
         exitCode: 2,
