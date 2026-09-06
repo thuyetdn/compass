@@ -10,11 +10,49 @@ import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 
 
 
-export function statusCommand({ cwd, taskId }) {
-  if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass status <id>' };
+// Không có task id thì in cấu hình. Đòi task id ở đây từng khoá người dùng vào
+// một vòng tròn: kiểm config thì phải có task, có task thì phải viết spec, mà
+// viết spec thì cần biết config đọc ra đúng chưa. Dựng config là lúc rẻ nhất để
+// bắt lockfile đoán sai — đắt hơn nhiều nếu phải đợi gate đỏ giữa chừng.
+function cauHinh(root) {
+  const cfg = loadConfig(root);
+  if (!cfg.ok) {
+    return { exitCode: 2, output: [`Config có lỗi:`, ...cfg.errors.map((e) => `  ${e}`)].join('\n') };
+  }
 
+  const resolved = resolveRepos(root, cfg.config);
+  if (!resolved.ok) {
+    return {
+      exitCode: 2,
+      output: [`Cấu hình repo có lỗi:`, ...resolved.errors.map((e) => `  ${e}`)].join('\n'),
+    };
+  }
+
+  const lines = [`Gốc Compass: ${root}`, ''];
+
+  // Một repo không khai `repos` vẫn phải xem được — `resolveRepos` trả về một
+  // repo tên null, và đó là dự án bình thường chứ không phải cấu hình thiếu.
+  const nhieu = cfg.config.repos !== undefined;
+  lines.push(nhieu ? `Repo (${resolved.repos.length}):` : 'Một repo (không khai "repos"):');
+
+  for (const repo of resolved.repos) {
+    const ten = repo.name ?? '(gốc)';
+    lines.push(`  ${ten}`);
+    lines.push(`      test: ${repo.config.test}`);
+    // Chỉ in devUrl của repo có khai. In "(không có)" cho mọi backend là nhiễu,
+    // và tệ hơn: nó gợi ý rằng thiếu devUrl là chỗ cần sửa.
+    if (repo.config.devUrl) lines.push(`      devUrl: ${repo.config.devUrl}`);
+  }
+
+  lines.push('', 'Đọc kỹ lệnh test từng repo — sai ở đây thì gate `test` đỏ mà không rõ vì sao.');
+  return { exitCode: 0, output: lines.join('\n') };
+}
+
+export function statusCommand({ cwd, taskId }) {
   const root = findRoot(cwd);
   if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
+
+  if (!taskId) return cauHinh(root);
 
   const file = specPath(root, taskId);
   if (!existsSync(file)) {

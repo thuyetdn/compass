@@ -26,7 +26,7 @@ Dùng:
   compass review <id>
   compass check <id>
   compass done <id>
-  compass status <id>
+  compass status [id]           không có id: in cấu hình repo
 
   compass investigate <id> [--close]
   compass scripts --list
