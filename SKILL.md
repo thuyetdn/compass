@@ -43,11 +43,8 @@ Lệnh **có** nhưng ném `MODULE_NOT_FOUND` → symlink đứt vì repo bị �
 
 Người đọc đang mệt, đang vội, và đã biết code.
 
-**1. Kết luận trước, bối cảnh sau.** Họ quyết định đọc tiếp hay không sau câu đầu tiên.
-
-> ❌ Tôi đã tiến hành phân tích và nhận thấy rằng có một vấn đề khá nghiêm trọng...
->
-> ✅ Parser xếp sai một test đã pass.
+**1. Kết luận trước, bối cảnh sau.** Họ quyết định đọc tiếp hay không sau câu đầu tiên: "Parser xếp
+sai một test đã pass", không phải "tôi đã tiến hành phân tích và nhận thấy...".
 
 **2. Nói chuyện gì xảy ra, đừng tả máy chạy ra sao.** Họ mở được file; họ cần biết **hậu quả**.
 
@@ -55,11 +52,7 @@ Người đọc đang mệt, đang vội, và đã biết code.
 >
 > ✅ Reporter không in tên test thì Compass báo thiếu, dù bạn đã viết đủ.
 
-**3. Số thay cho tính từ.** "Nhanh hơn nhiều" không kiểm chứng được.
-
-> ❌ Gate này chạy khá nhanh và khá đáng tin.
->
-> ✅ 26ms trên 85 file. Chưa bắt được hồi quy CP-8 — đã thử bốn vòng.
+**3. Số thay cho tính từ.** "Chạy khá nhanh" không kiểm chứng được; "26ms trên 85 file" thì có.
 
 **4. Chỉ ra chỗ đáng ngờ trước khi bị hỏi.** Giả định ngầm, nhánh chưa xử lý, chỗ dễ vỡ.
 
@@ -115,7 +108,8 @@ Trước khi viết gì:
 
 1. Đọc code thật của vùng sẽ sửa
 2. Nếu dự án có `.knowledge/index.md` → đọc bản đồ, rồi chỉ nạp mảnh liên quan
-3. Không nuốt cả thư mục docs vào context
+3. **Đọc `.knowledge/decided/pitfalls.md`** nếu có — bẫy người trước đã sập, tốn cả buổi mỗi cái
+4. Không nuốt cả thư mục docs vào context
 
 *Knowledge base cho biết **ở đâu** và **tại sao**. Code cho biết **thực tế là gì**. Khi lệch nhau, code thắng về sự thật — nhưng phải báo người, không tự sửa docs.*
 
@@ -384,9 +378,17 @@ compass investigate INV-1 --close  đóng — chỉ khi đủ bằng chứng và
 
 `--close` chặn nếu thiếu bằng chứng, thiếu kết luận, thiếu pitfall, hay còn chữ mẫu. Đóng được thì pitfall tự chép vào `.knowledge/decided/pitfalls.md` — lần sau đọc được.
 
-### Thư viện script
+### Script và dữ liệu
 
 Script viết lúc điều tra lưu vào `.compass/scripts/`, mỗi cái mở đầu bằng một dòng comment nói nó làm gì.
+
+Kết quả chạy — query, log, dump — lưu vào `.compass/<id>/data/`, **đừng paste vào chat**: phiên đóng
+là mất, và hồ sơ dẫn "query trả 47 dòng" mà không ai kiểm lại được thì đó là lời khai, không phải
+bằng chứng. Tên file theo khuôn `<task-id>-<việc>-<ngày>.<đuôi>`, khớp tên script sinh ra nó:
+`inv1-prod-queries.sql` → `INV-1-prod-queries-0907.csv`. Không phải nghĩ tên, chỉ điền vào khuôn.
+
+`data/` được `.gitignore` che sẵn vì query production trả về email và tên khách hàng. Dự án dựng
+trước tháng 9/2026 có `.gitignore` chỉ một dòng `.salt` — tự thêm `data/` vào.
 
 ```
 compass scripts        liệt kê những gì đã có

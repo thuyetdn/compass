@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, chmodSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { getSalt } from '../lib/signature.mjs';
 import { initCommand } from '../commands/init.mjs';
 import { investigateCommand } from '../commands/investigate.mjs';
@@ -98,4 +99,96 @@ test('CP-28-EC2 compass init vẫn tạo .gitignore đúng một dòng .salt', (
   // Hai chỗ cùng ghi một file — nhân đôi dòng là dấu hiệu chúng đá nhau.
   const soDong = noiDung.split('\n').filter((l) => l.trim() === '.salt').length;
   assert.equal(soDong, 1, `.salt xuất hiện ${soDong} lần: ${JSON.stringify(noiDung)}`);
+});
+
+// CP-30 — `data/` chứa kết quả query production, tức email và tên khách hàng.
+// Bốn ca dưới hỏi git thật (`git check-ignore`) chứ không so chuỗi mẫu: mẫu
+// gitignore đúng trông rất giống mẫu sai, và chỉ git mới phán được.
+function repoGit(noiDungIgnore) {
+  const root = mkdtempSync(path.join(tmpdir(), 'compass-gi-'));
+  for (const d of ['data', 'output', 'evidence']) {
+    mkdirSync(path.join(root, '.compass', 'INV-1', d), { recursive: true });
+  }
+  execFileSync('git', ['init', '-q', '.'], { cwd: root });
+  writeFileSync(path.join(root, '.compass', '.gitignore'), noiDungIgnore);
+  for (const f of ['.compass/.salt', '.compass/INV-1/data/q.csv',
+                   '.compass/INV-1/output/v.mp4', '.compass/INV-1/evidence/gate.json']) {
+    writeFileSync(path.join(root, f), 'x');
+  }
+  return root;
+}
+
+function biBoQua(root, rel) {
+  try {
+    execFileSync('git', ['check-ignore', rel], { cwd: root, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test('CP-30-H1 getSalt viết .gitignore che cả .salt lẫn data/', () => {
+  const root = duAn();
+  getSalt(root);
+  const noiDung = readFileSync(ignorePath(root), 'utf8');
+  rmSync(root, { recursive: true, force: true });
+
+  assert.match(noiDung, /(^|\n)\.salt(\n|$)/);
+  assert.match(noiDung, /data\//);
+});
+
+test('CP-30-H2 git bỏ qua file trong data/', () => {
+  const root = repoGit('.salt\n*/data/\n');
+  const bo = biBoQua(root, '.compass/INV-1/data/q.csv');
+  rmSync(root, { recursive: true, force: true });
+  assert.ok(bo, 'kết quả query phải bị git bỏ qua — nó có dữ liệu khách hàng');
+});
+
+test('CP-30-V1 git KHÔNG bỏ qua file trong output/', () => {
+  const root = repoGit('.salt\n*/data/\n');
+  const bo = biBoQua(root, '.compass/INV-1/output/v.mp4');
+  rmSync(root, { recursive: true, force: true });
+  // Sản phẩm là thứ người dùng mang đi dùng, có khi muốn commit. Che nhầm nó
+  // thì mẫu đang quá rộng.
+  assert.ok(!bo, 'output/ không được che');
+});
+
+test('CP-30-EC1 git KHÔNG bỏ qua file trong evidence/', () => {
+  const root = repoGit('.salt\n*/data/\n');
+  const bo = biBoQua(root, '.compass/INV-1/evidence/gate.json');
+  rmSync(root, { recursive: true, force: true });
+  // Bằng chứng phải review được. Che nó là mất luôn thứ Compass tồn tại vì nó.
+  assert.ok(!bo, 'evidence/ không được che');
+});
+
+test('CP-30-E1 .gitignore có sẵn thì không thêm dòng data/', () => {
+  const root = duAn();
+  writeFileSync(ignorePath(root), '.salt\n');
+  getSalt(root);
+  const noiDung = readFileSync(ignorePath(root), 'utf8');
+  rmSync(root, { recursive: true, force: true });
+
+  // Giữ luật CP-28: đã có thì không đụng. Dự án cũ phải tự thêm — SKILL.md nói.
+  assert.equal(noiDung, '.salt\n');
+});
+
+test('CP-30-EC2 .gitignore do getSalt viết ra chạy đúng với git thật', () => {
+  // Ba ca trên đưa cho git chuỗi mẫu tôi gõ tay. Ca này lấy đúng file `getSalt`
+  // sinh ra — nếu mẫu trong code lệch khỏi mẫu tôi tin là đúng, chỉ ca này thấy.
+  const tam = duAn();
+  getSalt(tam);
+  const thatSu = readFileSync(ignorePath(tam), 'utf8');
+  rmSync(tam, { recursive: true, force: true });
+
+  const root = repoGit(thatSu);
+  const ketQua = {
+    data: biBoQua(root, '.compass/INV-1/data/q.csv'),
+    output: biBoQua(root, '.compass/INV-1/output/v.mp4'),
+    evidence: biBoQua(root, '.compass/INV-1/evidence/gate.json'),
+    salt: biBoQua(root, '.compass/.salt'),
+  };
+  rmSync(root, { recursive: true, force: true });
+
+  assert.deepEqual(ketQua, { data: true, output: false, evidence: false, salt: true },
+    `mẫu thật cho kết quả sai: ${JSON.stringify(ketQua)} — nội dung: ${JSON.stringify(thatSu)}`);
 });
