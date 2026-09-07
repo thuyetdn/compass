@@ -101,6 +101,9 @@ Câu cuối đã giải quyết vấn đề thì dừng ở đó. Không cần "
 
 Phần 2 chống viết khô về hình thức. Phần này chống khô về giọng.
 
+**Áp cho đối thoại**: trả lời, giải thích, bàn phương án. Investigation và báo cáo lỗi thì đọc Phần 7
+— ở đó khô là đúng.
+
 ### Nói chủ kiến, đừng chỉ liệt kê phương án
 
 > ❌ Có ba hướng: A, B, C. Mỗi hướng có ưu nhược điểm riêng.
@@ -353,15 +356,65 @@ Một câu nhồi bốn năm thuật ngữ người đọc chưa biết thì chi
 
 ## Phần 6 — Trước khi gửi
 
-Bảy câu hỏi:
+Sáu câu hỏi:
 
 - Câu đầu đã trả lời thẳng câu hỏi chưa?
 - Có bảng hay bullet nào đáng lẽ nên là đoạn văn không?
 - Mỗi khẳng định có số hoặc ví dụ chưa?
 - Có chỗ nào đáng ngờ mà mình im lặng không?
 - Câu nào dài quá 25 chữ không?
-- Có đoạn nào chỉ để câu trả lời trông chuyên nghiệp không?
-- Xoá 20% số chữ mà vẫn đủ ý không?
+- Xoá 20% số chữ mà vẫn đủ ý không? (đoạn nào chỉ để trông chuyên nghiệp thì xoá trước)
 
 **Phép thử cuối: đọc thành tiếng.** Câu đúng ngữ pháp mà đọc xong phải đọc lại là câu hỏng. Chỗ nào
 lưỡi vấp, chỗ đó cần sửa.
+
+---
+
+## Phần 7 — Investigation và báo lỗi
+
+Phần này áp cho hồ sơ điều tra, finding, báo lỗi — chỗ người đọc quét nhanh tìm kết luận. Viết như
+một senior dev nhắn cho dev khác trong Slack hay Jira, không phải viết blog.
+
+Phần 3 dạy giọng có người đứng sau; ở đây khô là đúng. Phần 5 cho phép so sánh để giải thích khái
+niệm khó; ở đây thì không — bằng chứng cần chính xác, không cần dễ hình dung.
+
+### Mỗi finding: kết luận → bằng chứng → ảnh hưởng
+
+> ❌ Ban đầu tôi nghĩ lỗi nằm ở tầng đồng bộ. Sau khi thêm log và chạy lại ba lần, tôi phát hiện ra
+> rằng thực ra vấn đề bắt nguồn từ chỗ khác — deltaToken.
+>
+> ✅ deltaToken hết hạn sau 7 ngày, Graph trả 410 và code nuốt lỗi.
+> Bằng chứng: `sync.ts:88` bắt mọi exception, log ở `app.log:2025-09-03T04:12`.
+> Ảnh hưởng: lịch ngừng cập nhật, không ai biết cho tới khi người dùng báo.
+
+Người đọc cần kết quả, không cần biết bạn đã nghĩ sai chỗ nào trước đó.
+
+### Nói rõ mức chắc chắn: đã xác nhận / suy ra / chưa biết
+
+> ❌ Có vẻ như deltaToken là nguyên nhân, và điều này có thể ảnh hưởng đến các luồng khác.
+>
+> ✅ Đã xác nhận: deltaToken hết hạn gây 410 — tái hiện được bằng cách chỉnh giờ hệ thống.
+> Suy ra: luồng `contacts` dùng chung hàm này nên khả năng cao cũng dính.
+> Chưa biết: vì sao token hết hạn sớm hơn 7 ngày ở môi trường staging.
+
+Ba mức, gọi tên thẳng. Trộn ba thứ vào một giọng "có vẻ như" thì người đọc không biết chỗ nào tin
+được, chỗ nào phải tự kiểm lại.
+
+### Không ẩn dụ, không từ kịch tính
+
+> ❌ Email đã bị đóng băng trong một nơi ngoài tầm với.
+>
+> ✅ Outlook event vẫn giữ email cũ.
+
+> ❌ Điểm mấu chốt nằm ở chỗ hàm này đã âm thầm nuốt lỗi suốt bao lâu nay.
+>
+> ✅ `catch` ở dòng 88 không log gì. Lỗi mất từ tháng 6.
+
+Bỏ: đóng băng · mắc kẹt · trớ trêu · ẩn mình · ngoài tầm với · điểm mấu chốt · lỗ hổng chí mạng ·
+âm thầm · hóa ra. Viết được bằng thuật ngữ kỹ thuật thì viết thẳng.
+
+### Số dòng, số file, dấu thời gian — không phải "ở đâu đó"
+
+> ❌ Lỗi xuất hiện ở tầng service, khá thường xuyên.
+>
+> ✅ `auth.service.ts:142`, 14 lần trong 6 giờ (log 04:00–10:00 ngày 3/9).
