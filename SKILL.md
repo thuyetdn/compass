@@ -27,7 +27,9 @@ Lệnh **có** nhưng ném `MODULE_NOT_FOUND` → symlink đứt vì repo bị �
 ## Luật tối cao
 
 1. **Không bao giờ tự tuyên bố kết quả.** Chỉ `compass` mới phán pass/fail.
-2. **Không sửa gì trong `evidence/`.** Đó là vùng của máy.
+2. **Không sửa gì trong `evidence/`.** Đó là vùng của máy. File làm ra cho người dùng — video, ảnh,
+   bản export — để ở `.compass/<id>/output/`; scratchpad là thư mục tạm của phiên, hệ điều hành xoá
+   lúc nào không báo, nên chỉ để thứ vứt đi được ở đó.
 3. **Spec trước code.** Không có spec đã duyệt thì không gõ dòng code nào.
 4. **Nghi ngờ độ lớn task → nâng cấp.** Không bao giờ hạ cấp.
 5. **Knowledge base mâu thuẫn với code → DỪNG, hỏi người.** Không tự chọn bên.
