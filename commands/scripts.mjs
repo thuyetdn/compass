@@ -23,13 +23,18 @@ function readHead(file) {
   }
 }
 
+// A declaration names an export file; it is not a description of the script.
+// Listing one as the purpose would replace the author's own sentence.
+const OUT_MARKER = /^\s*(?:--|#|\/\/|\/\*+)\s*@out\s*:/i;
+
 // A purpose line is whatever the author wrote first in a comment. Anything
 // else and the entry says so rather than inventing a description.
 function purposeOf(head) {
-  for (const raw of head.split('\n')) {
+  for (const raw of head.split(/\r?\n/)) {
     const line = raw.trim();
     if (line === '') continue;
     if (line.startsWith('#!')) continue;
+    if (OUT_MARKER.test(line)) continue;
     // A bare block-comment opener carries no text; the description is on the
     // next line. Returning "*" here would look like a purpose nobody wrote.
     if (line === '/*' || line === '/**' || line === '*' || line === '*/') continue;

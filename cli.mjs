@@ -12,6 +12,7 @@ import { doneCommand } from './commands/done.mjs';
 import { statusCommand } from './commands/status.mjs';
 import { investigateCommand } from './commands/investigate.mjs';
 import { scriptsCommand } from './commands/scripts.mjs';
+import { dataCommand } from './commands/data.mjs';
 
 const USAGE = `compass — quy trình có bằng chứng
 
@@ -30,6 +31,7 @@ Dùng:
 
   compass investigate <id> [--close]
   compass scripts --list
+  compass data <id> <file.sql>  đối chiếu tên file khai trong .sql với data/
 `;
 
 function parseFlags(argv) {
@@ -91,6 +93,9 @@ async function main() {
         break;
       case 'scripts':
         result = scriptsCommand({ cwd });
+        break;
+      case 'data':
+        result = dataCommand({ cwd, taskId, sqlPath: rest[1] });
         break;
       case 'status':
         result = statusCommand({ cwd, taskId });

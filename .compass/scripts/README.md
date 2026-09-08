@@ -6,3 +6,17 @@ git-tracked — lần sau gặp lại câu hỏi cũ thì có sẵn mà dùng.
 Mỗi script mở đầu bằng một dòng comment nói nó làm gì; `compass scripts` đọc đúng dòng đó.
 
 Mặc định chỉ đọc. Script có ghi phải đòi cờ `--write` và hỏi lại trước khi ghi.
+
+## File `.sql` nhiều query
+
+Khai tên file kết quả ngay trên từng query, để khỏi phải nghĩ tên lúc export:
+
+```sql
+-- @out: INV-4-q0-status-dist-0908.csv
+select ...;
+
+-- @out: -          ← ca chạy tay, có placeholder phải thay
+select ... where Email = '<EMAIL>';
+```
+
+`compass data <id> <file.sql>` đối chiếu khai báo với file thật trong `.compass/<id>/data/`.

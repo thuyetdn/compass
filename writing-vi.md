@@ -418,3 +418,88 @@ Bỏ: đóng băng · mắc kẹt · trớ trêu · ẩn mình · ngoài tầm v
 > ❌ Lỗi xuất hiện ở tầng service, khá thường xuyên.
 >
 > ✅ `auth.service.ts:142`, 14 lần trong 6 giờ (log 04:00–10:00 ngày 3/9).
+
+---
+
+## Phần 8 — Viết cho người khác đọc
+
+**Phạm vi: chỉ văn bản gửi ra ngoài phiên làm việc.** Ticket, email, báo cáo, tin nhắn cho đồng
+nghiệp — nơi có người đọc và người đó phải quyết định gì đó.
+
+**KHÔNG áp dụng cho `investigation.md` và `spec.md`.** Hai loại file đó ngược lại: càng đầy đủ càng
+tốt, vì chúng là **bằng chứng**. Mang quy tắc "điều tra ra mười thứ viết bốn thứ" đi cắt hồ sơ điều
+tra là phá đúng thứ Compass sinh ra để bảo vệ.
+
+Bảy phần trên dạy **viết câu cho hay** — Phần 7 dạy cả cách xếp một finding. Phần này dạy **chọn câu
+nào để viết**. Vấn đề là biên tập, không phải văn phong: một bản mà mọi câu đều đạt chuẩn bảy phần
+trên vẫn có thể tệ vì dài gấp ba lần cần thiết.
+
+**Phép thử chung: xóa câu đó đi, người đọc có ra quyết định khác không? Không thì bỏ.**
+
+### Đừng giải thích cái người đọc đã biết
+
+> ❌ Trang chỉ hỏi một câu duy nhất: người này có đang là order PIC của package nào còn sống không.
+> Nó không quan tâm gì tới bản thân contact.
+>
+> ✅ Skynet check người này có đang là order PIC của package nào còn active không, không quan tâm
+> contact status.
+
+### Cảm xúc của bạn về cái bug không phải thông tin
+
+> ❌ Bực nhất là dòng cache đó vẫn đang giữ giá trị đúng — Yes — nằm ngay bên cạnh. Bước ghi đè không
+> thèm đọc.
+>
+> ✅ Dòng cache vẫn giữ giá trị đúng là Yes. Bước ghi đè không đọc mà cứ ghi No.
+
+### Một ý nói một lần
+
+Nói lại ở cuối bài không phải nhấn mạnh. Nó báo cho người đọc biết bạn không tin lần đầu họ hiểu.
+
+> ❌ (mở bài) Trang Skynet và HubSpot lệch nhau vì hai bên dùng luật khác nhau.
+> … (kết bài) Hiện tại trang hứa một đằng, flow làm một nẻo.
+>
+> ✅ Chỉ giữ câu mở bài.
+
+### Giữ nguyên từ nghề
+
+Dịch `cache` thành "bản sao trong database riêng" làm câu dài hơn mà không rõ hơn.
+
+> ❌ Flow giữ một bản sao contact trong cơ sở dữ liệu riêng, mỗi lần chạy thì làm mới lại.
+>
+> ✅ Flow lưu danh sách contact sync trong database riêng, mỗi lần chạy thì refresh.
+
+### Bỏ câu chuyển tiếp rỗng
+
+> ❌ Heikki Rotko đúng y như vậy. Anh là PIC của package 7806 đang active.
+>
+> ✅ Checked Heikki Rotko mà Konsta nhắc đến đang bị như vậy. Contact này là PIC của package 7806
+> đang active.
+
+Bản ✅ vẫn có câu dẫn, nhưng câu đó **mang thông tin**: đây là ca Konsta báo, và đã kiểm rồi.
+
+### Điều tra ra mười thứ thì viết bốn thứ
+
+Quy tắc khó nhất, hỏng nhiều nhất. Tìm ra được cái gì thì muốn viết cái đó — công sức bỏ ra là thật.
+Nhưng ticket không phải chỗ chứng minh mình điều tra kỹ. Người đọc cần **đủ để ra quyết định**, không
+cần đủ để đánh giá bạn.
+
+Ở ca INV-4, agent nhồi thêm hai phát hiện đúng mà không cần thiết: "Konsta mô tả sai hiện trường" và
+"không có team skynet-connector nào". Cả hai đều đúng. Cả hai đều là chỉ trích đồng nghiệp trong một
+ticket nhiều người đọc. Bỏ cả hai, để dành cho lúc nói riêng.
+
+**Cách chọn:** liệt kê mọi thứ tìm được, hỏi từng cái *"thiếu cái này thì người đọc có ra quyết định
+sai không?"*. Không thì cắt. Phần cắt ra để trong hồ sơ điều tra — không mất đi đâu.
+
+### Cắt rồi vẫn phải đủ
+
+Cắt quá tay cũng hỏng. Ở ca INV-4, bản viết lại mô tả bước ghi đè là "quét những dòng chưa refresh
+quá 5 tiếng rồi update thành No" và "ý đồ chắc là để tắt cờ cho người không còn là PIC" — nhưng
+thiếu câu nói **vì sao đó là lỗi**. Đọc xong thấy logic nghe hợp lý, và bỏ qua luôn cái bug lớn nhất.
+
+Thiếu một câu:
+
+> ✅ "Chưa được refresh" không có nghĩa "không còn là PIC" — chỉ có nghĩa contact rơi khỏi flow vì
+> lý do nào đó.
+
+**Phép thử:** cắt xong đọc lại như người chưa biết gì. Chỗ nào họ gật đầu bỏ qua mà lẽ ra phải dừng
+lại, chỗ đó thiếu.

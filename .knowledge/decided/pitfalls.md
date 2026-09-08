@@ -153,3 +153,143 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Nguyên nhân:** `property.startsWith(name)` chỉ bắt tiền tố. Tên CSS ghép bằng dấu gạch và phần quyết định nằm ở bất kỳ đoạn nào: `row-gap`, `min-width`, `border-top-width`.
 **Vùng ảnh hưởng:** lib/tolerance.mjs
 **Phòng tránh:** khớp theo **đoạn** tên, và khi nhiều tên cùng khớp thì chọn tên cụ thể nhất — không chọn tên gặp trước. Duyệt theo thứ tự khai báo thì một lần sắp xếp lại danh sách là đổi hành vi.
+
+## CP-32: Quét trạng thái xong rồi quét lại bằng regex là tự mở lại lỗ vừa bịt
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 1
+**Triệu chứng:** một dòng `-- @out: -` nằm trong khối comment `/* … */` được tính là khai báo thật, và ghi đè khai báo đúng ở trên. Gate xanh cho một file kết quả không tồn tại và không hề bị đòi.
+**Nguyên nhân:** hàm tách câu lệnh theo dõi cẩn thận chuỗi và comment để biết `;` nào là ranh giới thật. Rồi hàm tìm khai báo **vứt hết trạng thái đó đi**, quét lại từng dòng bằng regex. Mọi công sức phân biệt code với comment mất sạch ở lần quét thứ hai.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs, và mọi chỗ có hai lần quét trên cùng một văn bản
+**Phòng tránh:** một lần quét, trả về mọi thứ người gọi cần. Khi đã bỏ công theo dõi trạng thái thì đừng quét lại — lần quét thứ hai không có trạng thái, nên nó luôn dễ tin vào thứ *trông giống*. Dấu hiệu nhận ra: hàm A tính ra thông tin, hàm B tính lại cùng thông tin đó từ đầu.
+
+## CP-32: reviewBase bỏ lại thì brief phình thành cả nhánh
+
+**Gặp:** 2026-09-08 · CP-32 · lúc chạy gate review
+**Triệu chứng:** brief 497KB, 74 file, cho một task sửa 4 file. Diff gộp cả việc của 17 commit thuộc các task đã đóng.
+**Nguyên nhân:** `reviewBase` trong config trỏ tới commit của một task cũ và không ai cập nhật. Nhánh `compass-phase-1` sống qua nhiều task, nên "từ base tới HEAD" là cả nhánh chứ không phải một task.
+**Vùng ảnh hưởng:** .compass/config.json, và mọi dự án làm nhiều task trên một nhánh dài
+**Phòng tránh:** cập nhật `reviewBase` về `HEAD` **khi bắt đầu** mỗi task, không phải lúc chạy gate. Brief rộng quá thì reviewer đọc loãng và bỏ sót — mà gate vẫn xanh, nên không có gì báo cho bạn biết.
+
+## CP-32: Test gọi thẳng hàm thư viện thì không canh được cách gate dùng nó
+
+**Gặp:** 2026-09-08 · CP-32 · mutation test sau khi vá blind review
+**Triệu chứng:** xoá tham số chống-đếm-trùng khỏi lệnh gate mà không test nào đỏ, dù có một test viết riêng cho đúng lỗi đó
+**Nguyên nhân:** test gọi `matchDeclaredFile(q, actual, taken)` trực tiếp và tự truyền `taken`. Nó chứng minh hàm chạy đúng khi được gọi đúng — không chứng minh gate gọi đúng. Chỗ hỏng nằm ở lời gọi, không nằm trong hàm.
+**Vùng ảnh hưởng:** test/data-command.test.mjs, và mọi test viết ở tầng thư viện cho một lỗi phát hiện ở tầng lệnh
+**Phòng tránh:** lỗi tìm thấy ở tầng nào thì test ở tầng đó. Test tầng thư viện thêm vào cũng tốt, nhưng nó không thay được. Cách kiểm: mutation ở tầng lệnh — sống sót nghĩa là test đang canh chỗ khác.
+
+## CP-32: Bịt lỗ theo từng đường thì đường thứ ba vẫn hở
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 1 và 2, cùng một lỗ
+**Triệu chứng:** vòng 1 bắt marker giả trong khối comment; vá xong, vòng 2 bắt marker giả **cuối một dòng code** — cùng hậu quả, gate xanh cho file kết quả không tồn tại
+**Nguyên nhân:** vòng 1 hỏi "comment này có thật không". Câu hỏi đúng là "dòng này có phải một lời khai không". Comment cuối dòng code là comment thật, nên bản vá vòng 1 cho nó qua. Ba đường vào cùng một lỗ: trong block comment, trong chuỗi, và sau code.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs
+**Phòng tránh:** khi vá một lỗ, hỏi "còn đường nào khác tới đây". Liệt kê hết đường vào trước khi viết bản vá, đừng vá đường vừa thấy. Ở đây điều kiện đúng là "không có gì đứng trước `--` trên dòng vật lý này" — một phép kiểm phủ cả ba đường, thay vì ba phép kiểm riêng.
+
+## CP-32: Không có quy tắc phá vỡ thế cân bằng nào đúng thì đừng chọn bừa
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 2
+**Triệu chứng:** code giữ khai báo **cuối** khi một query có hai khai báo, kèm comment giải thích "chạy lại thì người ta thêm tên mới lên trên" — chính tình huống đó lại làm code giữ tên **cũ**. Mutation đổi sang lấy cái đầu: 38 test vẫn xanh.
+**Nguyên nhân:** thêm tên mới lên trên hay xuống dưới đều là thói quen bình thường, nên không quy tắc nào đúng quá nửa số ca. Chọn một cái rồi viết comment biện minh làm nó trông có chủ đích.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs, và mọi chỗ "nhiều đầu vào, chọn một"
+**Phòng tránh:** dữ liệu không trả lời được thì báo lỗi, đừng đoán. Ở đây hai khai báo cho một query là lời khai mâu thuẫn — bắt người sửa mất một giây, còn đoán sai làm bằng chứng trỏ sai file mà không ai biết. Dấu hiệu: comment phải giải thích *vì sao* chọn hướng này thay vì chỉ nói nó làm gì.
+
+## CP-32: Fixture một-kết-quả không phân biệt được hai chiều lỗi
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 5
+**Triệu chứng:** test comment lồng nhau xanh kể cả khi bỏ phép giảm độ sâu — comment không bao giờ đóng, mà test vẫn xanh
+**Nguyên nhân:** fixture khẳng định "tìm được 1 query". Lỗi đếm thừa cho ra 2 nên bị bắt; lỗi đếm thiếu cũng cho ra 1, y hệt kết quả đúng. Một con số không phân biệt được "đúng" với "thiếu" khi cả hai bằng nhau.
+**Vùng ảnh hưởng:** test/query-outputs.test.mjs, và mọi test đếm số phần tử
+**Phòng tránh:** hỏi "lỗi theo chiều ngược lại cho ra kết quả gì". Nếu bằng với kết quả đúng thì fixture phải có thêm phần tử phía sau — ở đây là một query nữa sau comment, để việc comment không đóng làm mất nó. Con số ở giữa dải mới đo được cả hai chiều.
+
+## CP-32: sed không thay được mà vẫn báo test xanh
+
+**Gặp:** 2026-09-08 · CP-32 · lúc kiểm lỗ test vòng 6
+**Triệu chứng:** `sed -i` với regex chứa `\d{4}` không đổi gì, test xanh, đọc thành "mutation sống sót" — kết luận đúng nhưng bằng chứng rỗng
+**Nguyên nhân:** shell và sed hiểu khác nhau về dấu escape, nên pattern không khớp gì cả. File không đổi, test đương nhiên xanh.
+**Vùng ảnh hưởng:** mọi phép mutation testing
+**Phòng tránh:** script mutation phải **in ra dòng trước và sau khi thay**, và tự thoát với mã lỗi nếu không thấy chuỗi cần tìm. Pitfall heredoc của CP-15 đã ghi điều này rồi mà vẫn tái phát bằng `sed` — quy tắc là "chứng minh bản vá đã đổi đúng chỗ", không phải "tránh heredoc".
+
+## CP-32: Bịt đường marker giả lọt vào, quên đường khai báo thật bị mất
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 7, sau bốn vòng liền báo sạch
+**Triệu chứng:** gate exit 0 và in "1/1 file có trong data/" trong khi một file khai báo không có mặt, không được miễn, và không hề được nhắc tới. Đúng cái duy nhất tính năng này sinh ra để chặn.
+**Nguyên nhân:** file kết thúc khi còn `/*`, `'` hay `$$` chưa đóng thì mọi thứ sau đó bị ăn thành comment hoặc chuỗi — kể cả các dòng `@out:`. Hàm quét biết trạng thái đó nhưng **vứt đi** ở lần `push` cuối. Sáu vòng trước đều đi bịt đường *marker giả lọt vào*; không ai xét chiều ngược lại là *khai báo thật bị mất*.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs
+**Phòng tránh:** một lỗ có hai chiều. Bịt xong chiều "thứ không đáng tin lọt vào", hỏi ngay "thứ đáng tin có thể mất đi không". Ở đây `/* a /* b */` là comment đóng hoàn chỉnh ở mọi dialect trừ Postgres — nên bộ đếm độ sâu thêm vào để xử lý comment lồng lại tự tạo ca dừng giữa cấu trúc. Trạng thái đã có trong tay thì phải khai ra, đừng để nó chết trong hàm.
+
+## CP-32: Backup cạnh file nguồn thì lọt vào bản phát hành
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 7
+**Triệu chứng:** `lib/query-outputs.mjs.datebak` — bản sao y hệt module thật — nằm trong `npm pack`, 11KB code trùng sẽ lệch nhau ngay lần sửa đầu
+**Nguyên nhân:** script mutation ghi backup thành `${file}.mutbak` cạnh file gốc, mà `package.json` khai `"files": ["lib/", "commands/"]` cả thư mục. Không có gì lọc theo đuôi.
+**Vùng ảnh hưởng:** mọi script tạo file tạm cạnh file nguồn
+**Phòng tránh:** file tạm ghi ra `os.tmpdir()`, đừng ghi cạnh nguồn. `.gitignore` không cứu được ở đây — `npm pack` đọc `files` trong package.json chứ không đọc gitignore, nên file bị git bỏ qua vẫn xuất bản ra ngoài.
+
+## CP-32: Một lỗ có ba chiều, không phải hai
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 8, sau khi vòng 7 đã vá "khai báo bị mất"
+**Triệu chứng:** gate exit 0 và in "1 query đã khai · 1 chạy tay" trong khi một query production thật không hề được đòi file. Lần thứ ba cùng một hậu quả, đường vào thứ ba.
+**Nguyên nhân:** `hasCode` chỉ được đặt ở dòng cuối vòng lặp, mà ba nhánh mở chuỗi/comment đều `continue` trước đó. Nên một câu lệnh đã bị comment ra — `/* select ... */;` — không tính là câu lệnh, và dòng `@out: -` của nó **đi theo** sang query kế tiếp, biến một export thật thành "chạy tay".
+**Vùng ảnh hưởng:** lib/query-outputs.mjs
+**Phòng tránh:** ba chiều của một lỗ đối chiếu: thứ giả **lọt vào** (vòng 1-2), thứ thật **mất đi** (vòng 7), thứ thật **gán sai chỗ** (vòng 8). Vá hai chiều đầu rồi vẫn phải hỏi chiều thứ ba. Dấu hiệu ở đây rất rõ mà sáu vòng bỏ qua: code đã lưu `declLine: 1` và `line: 9` — nó giữ bằng chứng khai báo không thuộc query đó, và không bao giờ so hai số ấy.
+
+## CP-32: Escape backslash là chuyện riêng của MySQL
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 8
+**Triệu chứng:** `where Path = 'D:\exports\';` — chuỗi đóng hoàn chỉnh — bị báo "chưa đóng", và lời khuyên đưa ra là đóng một thứ đã đóng
+**Nguyên nhân:** coi `\` là ký tự escape trong mọi dialect. Chỉ MySQL làm vậy; Postgres từ 9.1, SQL Server, Oracle, SQLite đều coi nó là ký tự thường. Đường dẫn Windows kết thúc bằng dấu đó là chuyện thường gặp.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs, và mọi parser đọc chuỗi SQL
+**Phòng tránh:** chỉ nhân đôi dấu nháy (`''`) là quy tắc chung của mọi dialect — dùng đúng nó thôi. Đánh đổi phải nói rõ: MySQL viết `'a\''` sẽ bị báo lỗi, nhưng **báo lỗi** khác hẳn **im lặng đọc sai**, và tác giả sửa được bằng `''`.
+
+## CP-32: Query bị vô hiệu hoá thì khai báo của nó đi lạc sang query sau
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 9, đường thứ tư tới cùng một hậu quả
+**Triệu chứng:** gate exit 0, in "3/3 file có trong data/", trong khi query production ở dòng 14 không có khai báo, không có file, và được ghi công bằng tên file của một query đã bị comment
+**Nguyên nhân:** vô hiệu hoá một query bằng cách thêm `--` vào từng dòng, hay bọc trong `/* … */`, không để lại `;` ở vị trí code. Vòng 8 chỉ vá dạng còn `;`. Khối comment đó "mang khai báo đi" sang query kế tiếp, và không gì kiểm khoảng cách giữa hai thứ.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs
+**Phòng tránh:** phân biệt *comment mô tả query sau* với *SQL đã bị vô hiệu hoá* — ở đây bằng cách xem dòng comment có mở đầu bằng từ khoá SQL không. Bản vá đầu tôi coi mọi comment có nội dung là ranh giới, làm đỏ 6 test và chặn oan mọi script có tiêu đề. Phép phân biệt phải hẹp đúng mức: rộng quá thì chặn việc hợp lệ, hẹp quá thì lọt.
+
+**Bốn đường, cùng một hậu quả.** Vòng 1-2: marker giả lọt vào. Vòng 7: khai báo bị mất trong cấu trúc chưa đóng. Vòng 8: khai báo của câu lệnh đã comment (còn `;`) đi lạc. Vòng 9: cùng vậy nhưng không còn `;`, cộng thêm `;` rỗng. Bốn vòng "sạch" liên tiếp ở giữa (3,4,5,6) không có nghĩa hết lỗ — chỉ nghĩa là vòng đó chưa tìm ra.
+
+## CP-32: CR trần cũng là dấu ngắt dòng
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 9
+**Triệu chứng:** một CR lẻ trên dòng khai báo làm cả khai báo lẫn query của nó biến mất, không lỗi nào; file dùng CR làm dấu ngắt dòng thì đọc ra "không có query nào"
+**Nguyên nhân:** vòng lặp chỉ tăng số dòng và đóng comment ở `LF`. Một `--` gặp CR thì comment chạy tới hết file.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs
+**Phòng tránh:** pitfall CRLF của CP-15 nói "tách dòng bằng `/\r?\n/`" — đúng cho `split`, nhưng vòng quét từng ký tự cần luật riêng: `LF` hoặc CR đều kết thúc dòng, và `CRLF` là một dấu chứ không phải hai. Cùng một lớp lỗi, hai chỗ phải sửa khác nhau.
+
+## CP-32: Vá xong phải hỏi phép bảo vệ cũ còn tác dụng không
+
+**Gặp:** 2026-09-08 · CP-32 · mutation sau bản vá vòng 9
+**Triệu chứng:** hai mutation vốn chết nay sống sót, ở hai dòng tôi không sửa
+**Nguyên nhân:** bản vá mới che luôn việc của chúng. Cắt `CR` cuối dòng thành vô nghĩa vì chỗ cắt dòng đã dừng ở CR; còn `markContent` ở `;` thì vẫn cần — nhưng `lastCommentContentLine` che phần lớn ca nên mutation trông như dư.
+**Vùng ảnh hưởng:** mọi lần vá vào code đã có phép bảo vệ
+**Phòng tránh:** mutation sống sót sau một bản vá có hai nghĩa khác nhau, và phải phân biệt bằng cách chạy: dựng một loạt đầu vào, mutation rồi so kết quả. Không khác gì thì thật sự dư — xoá đi. Có khác thì đó là lỗ test, viết test. Đoán thì nửa số lần sẽ xoá mất một phép bảo vệ đang làm việc: ở đây `;` rỗng vẫn làm khai báo nhảy sang query sau, và tôi suýt xoá dòng chặn nó.
+
+## CP-32: Đoán ngữ nghĩa thì sai cả hai chiều cùng lúc
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 10, sau bản vá vòng 9
+**Triệu chứng:** phép phân biệt "SQL bị comment" với "văn mô tả" bằng cách xem dòng có mở đầu bằng từ khoá SQL: **lọt** sáu cách vô hiệu hoá query (`-- (select …)`, `-- union all …`, `-- values (…)`, `-- merge into`, dòng nối `--   from t`, khối `/*` mở bằng dòng tiêu đề), đồng thời **chặn oan** năm câu văn thường (`-- update: Konsta changed this`, `-- Select the right threshold first`)
+**Nguyên nhân:** danh sách từ khoá không phải một ranh giới. Thêm từ vào thì chặn thêm văn thường; bớt đi thì lọt thêm query. Không có bộ từ khoá nào đúng, vì thông tin cần thiết — "dòng này là code hay là lời nói về code" — không nằm trong văn bản.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs
+**Phòng tránh:** đổi câu hỏi sang thứ đo được. Ở đây là **bố cục**: một query bị vô hiệu hoá luôn có dòng trống tách nó khỏi query sau, nên "khai báo cách query bởi một dòng trống rồi nội dung khác" bắt được cả sáu ca mà không cần hiểu nội dung. 12/12 ca đúng, so với 6/12 của phép đoán từ khoá.
+
+**Dấu hiệu nhận ra sớm:** khi một phép kiểm cần *danh sách* để đúng, và danh sách đó không thể đầy đủ về nguyên tắc, thì phép kiểm sai — không phải danh sách thiếu.
+
+## CP-32: Mười vòng review, sáu lỗi chặn, bốn vòng sạch ở giữa
+
+**Gặp:** 2026-09-08 · CP-32 · toàn bộ quá trình
+**Triệu chứng:** vòng 3,4,5,6 đều báo sạch. Vòng 7,8,9,10 mỗi vòng tìm một lỗi Major, tất cả cùng một hậu quả: gate exit 0 trong khi một file khai báo không có mặt và không ai nhắc tới.
+**Nguyên nhân:** năm đường khác nhau tới cùng một hậu quả — marker giả lọt vào, khai báo mất trong cấu trúc chưa đóng, khai báo của query đã comment (còn `;`) đi lạc, cùng vậy nhưng không còn `;`, và `;` rỗng. Mỗi vòng bịt một đường; đường tiếp theo chỉ lộ ra khi có người tìm đúng chỗ.
+**Vùng ảnh hưởng:** mọi tính năng đối chiếu hai danh sách, và cách đọc kết quả review
+**Phòng tránh:** "review sạch" nghĩa là *vòng đó không tìm ra*, không phải *hết lỗ*. Với tính năng mà một lỗi im lặng làm gate xanh sai, hãy liệt kê **hậu quả** cần chặn rồi hỏi "có mấy đường tới đó", thay vì soi từng đoạn code. Và khi vá lần thứ tư vào cùng một chỗ, đó là lúc đổi cách tiếp cận — không phải vá khéo hơn.
+
+## CP-32: Hạ một phép kiểm xuống cảnh báo thì phải kiểm chính cảnh báo đó
+
+**Gặp:** 2026-09-08 · CP-32 · blind review vòng 12
+**Triệu chứng:** sau khi đổi `stranded` từ lỗi thành cảnh báo, lỗ được ghi là "exit 0 **kèm cảnh báo**". Thực tế có cả một lớp ca exit 0 mà **không cảnh báo gì** — file viết không có dòng trống.
+**Nguyên nhân:** tín hiệu sinh cảnh báo vẫn là "có dòng trống rồi có nội dung". Khi hạ mức từ chặn xuống báo, tôi kiểm phần *hành vi gate* (không chặn nữa) mà không kiểm phần *phát hiện* còn đúng phạm vi không. Cảnh báo im lặng còn tệ hơn lỗi sai, vì tài liệu đã hứa nó sẽ nói.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs, và mọi lần hạ mức một phép kiểm
+**Phòng tránh:** hạ mức không phải sửa một dòng `severity`. Cảnh báo là lời hứa "chỗ này tôi sẽ nói cho anh biết" — phải kiểm nó phủ đúng những ca mình vừa thôi chặn. Và tài liệu ghi lỗ còn lại thì phải ghi đúng: viết "kèm cảnh báo" trong khi có ca im lặng là dạng sai tệ nhất, vì người đọc tin vào đó.

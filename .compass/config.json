@@ -1,5 +1,4 @@
 {
   "test": "npm test",
-  "testReporter": "tap",
-  "reviewBase": "f60ce9b"
+  "reviewBase": "9fd11a8"
 }

@@ -63,8 +63,13 @@ chút, giấu đi thì người khác sập bẫy.
 
 ### Viết tiếng Việt
 
-Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 34 cặp câu **❌ → ✅** chia
+Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 44 cặp câu **❌ → ✅** chia
 theo từ ngữ, định dạng và giọng. Bắt chước cặp câu, đừng học tên luật.
+
+**Viết ticket, email, báo cáo gửi đồng nghiệp → đọc thêm Phần 8.** Bảy phần đầu dạy viết câu cho
+hay; Phần 8 dạy chọn câu nào để viết. Một bản mà mọi câu đều đạt chuẩn vẫn tệ nếu dài gấp ba lần cần
+thiết. Phần 8 **không** áp cho `investigation.md` và `spec.md` — hai file đó càng đầy đủ càng tốt, vì
+chúng là bằng chứng.
 
 **Mặc định là văn xuôi.** Bảng chỉ dùng khi so nhiều thứ theo cùng một tiêu chí; ba ý rời nhau thì
 viết thành đoạn. Đóng khung hết vào bảng thì câu chữ có sạch mấy cũng đọc như tài liệu.
@@ -393,6 +398,71 @@ trước tháng 9/2026 có `.gitignore` chỉ một dòng `.salt` — tự thêm
 ```
 compass scripts        liệt kê những gì đã có
 ```
+
+#### Một file `.sql`, nhiều query
+
+Khuôn trên tính theo một script một kết quả. File `.sql` mười query thì cả mười cùng một `<việc>`,
+nên khai tên ngay trên từng query — lúc bạn còn biết nó trả về cái gì:
+
+```sql
+-- Q0 — mỗi status có bao nhiêu package?
+-- @out: INV-4-q0-status-dist-0908.csv
+select clp.Status, count(*) from crmlaaspackages clp group by clp.Status;
+
+-- Q1 — một contact cụ thể. THAY <EMAIL> rồi chạy tay.
+-- @out: -
+select * from mastercontact where Email = '<EMAIL>';
+```
+
+`-- @out: -` nghĩa là "ca chạy tay, đừng đợi file" — dùng cho query có placeholder phải thay.
+Vẫn phải khai, để không ai lặng lẽ bỏ sót một query.
+
+```
+compass data <id> <file.sql>
+```
+
+Lệnh đối chiếu khai báo với file thật trong `data/`:
+
+```
+✗ Gate data FAILED
+    dòng 20: ✓ INV-4-q0-status-dist-0908.csv
+    dòng 32: (chạy tay, không đợi file)
+    dòng 71: ✓ INV-4-q2-status-gap-0915.csv (khai 0908, thấy 0915)
+    dòng 95: ✗ INV-4-q2b-status-gap-sample-0908.csv — chưa có trong data/
+
+  16 query đã khai · 2/14 file có trong data/ · 2 chạy tay
+```
+
+Ngày lệch thì vẫn tính là có, kèm lời nhắc — chạy lại query hôm khác không phải sửa file `.sql`.
+Tên trùng nhau, sai khuôn, hay query chưa khai đều làm gate đỏ. Một file chỉ thỏa **một** khai báo:
+hai query cùng gốc tên mà chỉ có một file thì query thứ hai báo thiếu.
+
+Gate này **không** nằm trong `check` hay `done`. Nó chạy khi bạn gọi, vì task không đụng database
+thì không có gì để đối chiếu.
+
+**Giới hạn:** gate kiểm hình dạng tên, không kiểm ý nghĩa. `INV-4-xyz-0908.csv` qua được như
+`INV-4-status-gap-0908.csv`. Nó canh bạn khỏi quên và khỏi đặt trùng — tên có tả đúng query hay
+không vẫn là việc của bạn.
+
+**Lỗ còn lại, biết trước để khỏi sập.** Comment một query ra mà để lại dòng `@out:` của nó thì khai
+báo đó thuộc về query kế tiếp. Gate in dấu `⚠` chỉ đúng hai dòng số:
+
+```
+⚠ Dòng 1: khai "-" cách query ở dòng 3 một khoảng — kiểm xem nó thuộc query nào
+```
+
+Nó **không** phán, vì phán được thì phải biết một dòng comment là code đã tắt hay lời nói về code —
+văn bản không chứa thông tin đó. Ba cách đoán đều sai cả hai chiều: đọc từ khoá SQL thì lọt sáu ca
+và chặn oan năm câu văn thường; đòi dòng trống thì lọt mọi file viết liền.
+
+Ca nguy hiểm nhất thì gate **có** chặn: nếu query thật cũng có khai báo riêng, hai khai báo cho một
+query là mâu thuẫn đo được, gate đỏ và chỉ ra cả hai dòng. Chỉ khi query thật **không** khai gì thì
+dấu `⚠` là thứ duy nhất báo bạn — đọc nó.
+
+Dấu `⚠` bật khi giữa khai báo và query có **một dòng comment đầy đủ** — `--` hay `/* … */`, kể cả
+khi query nằm chung dòng với nó. Nó **không** bật khi khai báo đứng sát query, sau khối tiêu đề, sau
+một dòng trống, hay khi comment nằm trong thân query. Đó là ranh giới đo được; bố cục nào lọt ra
+ngoài thì gate im, nên đừng coi nó là lưới kín.
 
 Thư mục này git-tracked. Lần sau gặp lại câu hỏi cũ thì tìm thấy mà dùng, khỏi viết lại.
 
