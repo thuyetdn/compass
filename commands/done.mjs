@@ -6,7 +6,26 @@ import { readGates, verifyAllGates, writeGate, parseSlot } from '../lib/gate-sto
 import { hashFile } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
-import { IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES } from '../lib/gates.mjs';
+import { IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
+
+// Một bản ghi "gate không chạy được" mà `done` chấp nhận thay cho bản ghi xanh.
+// Hẹp hết mức có thể: chỉ gate cần trình duyệt, và chỉ đúng một lý do — cái duy
+// nhất `check` sinh ra. Rộng hơn thì đây thành cửa sau, vì bất kỳ gate nào cũng
+// tự khai là không chạy được rồi đi thẳng qua cổng cuối.
+//
+// `done` KHÔNG đọc `config.json` để tự suy ra lý do. Config là thứ được tin
+// (SKILL.md), nên suy từ nó nghĩa là xoá `devUrl` sau một lần `ui` chạy đỏ thì
+// gate đỏ đó biến mất. Bản ghi đã ký thì không có cửa đó — chữ ký phủ cả
+// `skipReason`, nên sửa lời khai là chữ ký lệch.
+//
+// Danh tính không kiểm ở đây: `verifyAllGates` đã chặn bản ghi sửa tay, chuyển
+// khe, hay chép từ task khác trước khi vòng nào chạm tới nó.
+function laBoQuaHopLe(record, slot) {
+  if (!record || typeof record !== 'object') return false;
+  if (record.skipped !== true) return false;
+  if (!BROWSER_GATES.includes(parseSlot(slot).gate)) return false;
+  return record.skipReason === LY_DO_KHONG_DEVURL;
+}
 
 
 
@@ -79,10 +98,19 @@ export function doneCommand({ cwd, taskId }) {
   const required = rules.gates.filter((g) => IMPLEMENTED_GATES.includes(g));
   const unimplemented = rules.gates.filter((g) => !IMPLEMENTED_GATES.includes(g));
 
+  // Gate bắt buộc mà `check` đã từ chối chạy vì repo không có trang nào để mở.
+  // Gom lại để báo cáo cuối nói ra — đóng task với hai gate chưa từng chạy là
+  // một sự thật, giấu đi thì cổng cuối nói dối.
+  const boQua = [];
+
   for (const name of required) {
     const record = gates[name];
     if (!record) {
       problems.push(`Gate "${name}" chưa chạy.`);
+      continue;
+    }
+    if (laBoQuaHopLe(record, name)) {
+      boQua.push(name);
       continue;
     }
     if (typeof record.exitCode !== 'number') {
@@ -119,6 +147,13 @@ export function doneCommand({ cwd, taskId }) {
     // làm `done` ném TypeError thay vì báo bản ghi hỏng.
     if (!record || typeof record !== "object") {
       themKemLoiKhuyen(`Khoá "${name}" trong sổ gate không phải bản ghi — sổ hỏng. Xoá khoá đó rồi chạy lại: compass ${ten} ${taskId}`);
+      continue;
+    }
+    // Một khe repo bỏ qua hợp lệ. Vòng bắt buộc phía trên chỉ tra khe trần, nên
+    // `ui@frontend` rơi xuống đây; không có chốt này thì `exitCode: null` bị đọc
+    // là bản ghi hỏng và task đa repo không đóng được.
+    if (laBoQuaHopLe(record, name)) {
+      boQua.push(name);
       continue;
     }
     if (typeof record.exitCode !== 'number') {
@@ -195,6 +230,12 @@ export function doneCommand({ cwd, taskId }) {
     // danh sách thì `check` chạy xong vẫn đỏ y nguyên, và người dùng quay vòng.
     const deuTuCoLoiKhuyen = problems.length > 0 && problems.every((p) => tuCoLoiKhuyen.has(p));
     const lines = [fail('done', problems)];
+    // Nói cả trên nhánh đỏ. Task tắc vì gate khác vẫn đang thiếu hai lớp đo, và
+    // người đọc cần biết ngay — đợi tới lúc mọi thứ xanh mới nói thì họ đã quyết
+    // định xong từ lâu.
+    if (boQua.length) {
+      lines.push('', `Gate ${boQua.join(', ')} chưa từng chạy: ${LY_DO_KHONG_DEVURL}.`);
+    }
     if (!deuTuCoLoiKhuyen) lines.push('', hint('Chạy: compass check ' + taskId));
     if (unimplemented.length) {
       lines.push('');
@@ -212,15 +253,25 @@ export function doneCommand({ cwd, taskId }) {
   writeGate(root, taskId, {
     gate: 'done',
     exitCode: 0,
-    gateCount: soi.length,
+    // `gateCount` đếm gate đã đo, không đếm gate bỏ qua. Ai đọc sổ sau này phải
+    // thấy đúng số phép đo đứng sau task, và `skipped` nói phần còn thiếu.
+    gateCount: soi.length - boQua.length,
     gates: soi,
+    skipped: boQua,
     closedAt: new Date().toISOString(),
     specHash: currentSpecHash,
     sourceHash: currentSourceHash,
     configHash: currentConfigHash,
   });
 
-  const lines = [pass('done', `${soi.length} gate đã pass`)];
+  // Đếm gate thật sự đã đo. Gộp cả gate bỏ qua vào con số này là nói "6 gate đã
+  // pass" cho một task chỉ đo được 4 — đúng kiểu báo xong khi chưa xong mà cổng
+  // này sinh ra để chặn.
+  const daDo = soi.filter((name) => !boQua.includes(name));
+  const lines = [pass('done', `${daDo.length} gate đã pass`)];
+  if (boQua.length) {
+    lines.push(`Gate ${boQua.join(', ')} chưa từng chạy: ${LY_DO_KHONG_DEVURL}. Repo không có trang nào để đo, nên hai lớp này không có bằng chứng nào cả.`);
+  }
   if (unimplemented.length) {
     lines.push(`Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này và không được kiểm tra.`);
   }

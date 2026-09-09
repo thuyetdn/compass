@@ -788,3 +788,412 @@ test('CP-16-E3 a null entry in the ledger is reported, not crashed on', async ()
   assert.equal(r.exitCode, 1);
   assert.match(r.output, /sổ hỏng|không phải bản ghi/);
 });
+
+// ---- CP-33: `done` demands browser gates that `check` refused to run ----
+
+// A feature-m task requires ui/visual. Built once here because every CP-33 case
+// needs the same shape: the gates are only required at this task type.
+function makeFeatureM(extraConfig = {}) {
+  const layers = [
+    ['H', 'Happy', 4], ['V', 'Validation', 4], ['E', 'Error', 4],
+    ['X', 'Edge', 4], ['S', 'Security', 3], ['P', 'Performance', 2],
+  ];
+  const rows = ['| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |', '|----|-----|-------|---------|---------|'];
+  const oks = [];
+  let n = 0;
+  for (const [prefix, layer, count] of layers) {
+    for (let i = 1; i <= count; i++) {
+      rows.push(`| ${prefix}${i} | ${layer} | Case ${++n} | Pass | P0 |`);
+      oks.push(`ok ${n} - test_${prefix}${i}_a`);
+    }
+  }
+  const spec = `# T-FM: Feature trung bình
+Loại: feature-m
+Phạm vi: src/
+
+## Mục tiêu
+Làm gì đó lớn.
+
+## Ràng buộc
+Không có.
+
+## Rủi ro hồi quy
+Không có.
+
+## Test cases
+${rows.join('\n')}
+`;
+  const cmd = 'node -e "' + oks.map((l) => `console.log('${l}')`).join('; ') + '"';
+  const root = mkdtempSync(path.join(tmpdir(), 'compass-cp33-'));
+  mkdirSync(path.join(root, '.compass', 'T-FM', 'evidence'), { recursive: true });
+  writeFileSync(
+    path.join(root, '.compass', 'config.json'),
+    JSON.stringify({ test: cmd, ...extraConfig }),
+  );
+  writeFileSync(path.join(root, '.compass', 'T-FM', 'spec.md'), spec);
+  return root;
+}
+
+// `review` is required at feature-m and needs an outside agent, so it can never
+// be green here. Every CP-33 case reads the ui/visual verdict out of the problem
+// list instead of the exit code, which review would dominate.
+function saysNotRun(output, gate) {
+  return new RegExp(`Gate "${gate}[^"]*" chưa chạy`).test(output);
+}
+
+test('CP-33-H1 check records a skip for ui and visual when no devUrl is declared', async () => {
+  const root = makeFeatureM();
+  try {
+    // `review` đỏ ở đây vì thư mục tạm không phải repo git, và nó chạy SAU
+    // ui/visual. Ca này hỏi `check` có ghi lại lý do bỏ qua không, nên nó đọc sổ
+    // chứ không đọc mã thoát — mã thoát thuộc về một gate khác.
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    for (const gate of ['ui', 'visual']) {
+      const rec = readGate(root, 'T-FM', gate);
+      assert.ok(rec, `${gate} phải có bản ghi, không phải khoảng trống`);
+      assert.equal(rec.skipped, true, `${gate} phải đánh dấu bỏ qua`);
+      assert.match(rec.skipReason, /devUrl/, 'bản ghi phải nói vì sao bỏ qua');
+      // Not exitCode 0: a reader must tell "did not run" from "measured and correct".
+      assert.notEqual(rec.exitCode, 0, `${gate} bỏ qua không được trông như đã đo`);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-H2 done no longer reports a skipped browser gate as never run', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
+    assert.equal(saysNotRun(r.output, 'visual'), false, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-H3 done names the skipped gates and why they never ran', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.match(r.output, /ui/);
+    assert.match(r.output, /visual/);
+    assert.match(r.output, /devUrl/, 'báo cáo đóng task phải mang theo chỗ trống này');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-V1 a hand-written skip on a non-browser gate is refused', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    // Forge a properly signed skip for `review` — signature valid, gate wrong.
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    const salt = getSalt(root);
+    const forged = { gate: 'review', skipped: true, skipReason: 'không khai devUrl', taskId: 'T-FM' };
+    data.review = { ...forged, sig: signRecord(forged, salt) };
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(r.exitCode, 1);
+    // Bị từ chối là điều cần canh, không phải câu chữ. `done` gọi nó là bản ghi
+    // hỏng — chính xác hơn "chưa chạy", vì bản ghi có tồn tại, chỉ là vô giá trị.
+    assert.match(r.output, /Gate "review"/, r.output);
+    assert.doesNotMatch(r.output, /Gate "review" .*PASSED/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-V2 a skip stating some other reason is refused', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    const salt = getSalt(root);
+    const forged = { gate: 'ui', skipped: true, skipReason: 'tôi thấy không cần', taskId: 'T-FM' };
+    data.ui = { ...forged, sig: signRecord(forged, salt) };
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(r.exitCode, 1);
+    // Lý do lạ thì bản ghi không đủ tư cách bỏ qua, và `done` rơi về nhánh cũ:
+    // `exitCode` không phải số nên nó là bản ghi hỏng.
+    assert.match(r.output, /Gate "ui" có bản ghi không ghi exit code/, r.output);
+    assert.doesNotMatch(r.output, /tôi thấy không cần/, 'đừng nhắc lại lời khai giả như thể nó hợp lệ');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-E1 a red ui run still blocks after devUrl is removed', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    // A real measurement that failed. Dropping devUrl must not launder it.
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    const salt = getSalt(root);
+    const red = { gate: 'ui', exitCode: 1, taskId: 'T-FM' };
+    data.ui = { ...red, sig: signRecord(red, salt) };
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(r.exitCode, 1);
+    assert.match(r.output, /ui/);
+    assert.doesNotMatch(r.output, /Gate "ui" chưa chạy/, 'đỏ là đã chạy, không phải chưa chạy');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-S1 a skip copied from another task is rejected', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    const salt = getSalt(root);
+    // Signed correctly, but for a different task.
+    const other = { gate: 'ui', skipped: true, skipReason: 'không khai devUrl', taskId: 'T-OTHER' };
+    data.ui = { ...other, sig: signRecord(other, salt) };
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(r.exitCode, 1);
+    assert.match(r.output, /task khác|thuộc task/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-S2 a skip edited by hand loses its signature', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    // Take the real skip and rewrite the reason, leaving the old signature.
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    data.ui.skipReason = 'không khai devUrl (thật ra tôi tự ghi)';
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(r.exitCode, 1);
+    assert.match(r.output, /sửa tay|chữ ký/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-S3 adding devUrl later does not turn the skip into a pass', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    // The gate never re-ran; only config changed. done reads the ledger.
+    const cfg = path.join(root, '.compass', 'config.json');
+    const config = JSON.parse(readFileSync(cfg, 'utf8'));
+    config.devUrl = 'http://localhost:5173/';
+    writeFileSync(cfg, JSON.stringify(config));
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
+    assert.match(r.output, /devUrl/, 'vẫn phải nói rõ gate chưa từng chạy');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-EC3 a fix task writes no skip record and reports nothing', async () => {
+  const root = makeTask(GREEN);
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(readGate(root, 'T-1', 'ui'), null, 'fix không đòi ui thì đừng ghi gì');
+    assert.equal(readGate(root, 'T-1', 'visual'), null);
+
+    const r = doneCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 0, r.output);
+    assert.doesNotMatch(r.output, /devUrl/, 'không có gì bỏ qua thì đừng báo');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Dựng gốc feature-m nhiều repo. `makeFeatureM` ở trên chỉ làm một repo, và
+// khe bản ghi mang tên repo là chỗ CP-13 từng để hai repo đè lên nhau.
+function makeFeatureMRepos(repos, dirs) {
+  const root = makeFeatureM();
+  const cfg = path.join(root, '.compass', 'config.json');
+  const config = JSON.parse(readFileSync(cfg, 'utf8'));
+  // Lệnh test in đủ 21 ID nằm ở phần chung, và repo con thừa hưởng nó theo từng
+  // trường. Repo nào tự khai `test` thì gate `test` chỉ thấy phần ID của repo đó
+  // và đỏ trước khi `check` kịp tới `ui` — ca này hỏi về `ui`, không phải `test`.
+  const withTest = {};
+  for (const [name, own] of Object.entries(repos)) withTest[name] = { ...own };
+  writeFileSync(cfg, JSON.stringify({ ...config, repos: withTest }, null, 2));
+
+  const specFile = path.join(root, '.compass', 'T-FM', 'spec.md');
+  const spec = readFileSync(specFile, 'utf8').replace('Phạm vi: src/', `Phạm vi: ${dirs.join(', ')}`);
+  writeFileSync(specFile, spec);
+  for (const d of dirs) mkdirSync(path.join(root, d), { recursive: true });
+  return root;
+}
+
+test('CP-33-H4 a repo that declares devUrl gets a real record, not a skip', async () => {
+  // devUrl có thì gate chạy thật. Bản ghi phải là phép đo, không phải lời khai
+  // bỏ qua — nếu không thì khai devUrl xong vẫn không ai đo gì.
+  const root = makeFeatureM({ dev: 'true', devUrl: 'http://localhost:9/' });
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+    const rec = readGate(root, 'T-FM', 'ui');
+    if (rec) {
+      assert.notEqual(rec.skipped, true, 'khai devUrl rồi thì đừng ghi bỏ qua');
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-H5 an existing pass record is read exactly as before', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    // Hình dạng bản ghi ui thật của CP-6, chép nguyên: đường skip mới thêm
+    // không được đổi cách đọc một bản ghi đã đo.
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    const salt = getSalt(root);
+    const daDo = {
+      gate: 'ui',
+      exitCode: 0,
+      checkedAt: new Date().toISOString(),
+      specHash: data.ui.specHash,
+      sourceHash: data.ui.sourceHash,
+      contractHash: null,
+      measured: 0,
+      driftCount: 0,
+      taskId: 'T-FM',
+    };
+    data.ui = { ...daDo, sig: signRecord(daDo, salt) };
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
+    assert.doesNotMatch(r.output, /Gate ui.*chưa từng chạy/, 'đã đo thì đừng báo là bỏ qua');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-V3 a skip missing its identity fields is treated as a stale record', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+
+    // Không có `taskId`: bản ghi từ bản Compass cũ. Nó không chứng minh được gì
+    // về task này, nên bỏ qua hợp lệ hay không cũng không xét tới.
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    const salt = getSalt(root);
+    const cu = { gate: 'ui', exitCode: null, skipped: true, skipReason: 'không khai devUrl' };
+    data.ui = { ...cu, sig: signRecord(cu, salt) };
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(r.exitCode, 1);
+    assert.match(r.output, /bản Compass cũ|chưa có taskId/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-E2 a later write replaces the skip, leaving one state not two', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(readGate(root, 'T-FM', 'ui').skipped, true);
+
+    // Cùng một khe, ghi đè bằng một phép đo thật. Sổ là map theo khe nên không
+    // thể giữ hai bản ghi; `done` phải đọc ra đúng một trạng thái.
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    const salt = getSalt(root);
+    const daDo = {
+      gate: 'ui', exitCode: 0, taskId: 'T-FM',
+      specHash: data.ui.specHash, sourceHash: data.ui.sourceHash,
+    };
+    data.ui = { ...daDo, sig: signRecord(daDo, salt) };
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    const rec = readGate(root, 'T-FM', 'ui');
+    assert.equal(rec.skipped, undefined, 'bản ghi sau phải thay hẳn bản trước');
+
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.doesNotMatch(r.output, /Gate ui.*chưa từng chạy/, 'một trạng thái, không phải hai');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-EC1 a skip in one repo does not satisfy the other repo', async () => {
+  const root = makeFeatureMRepos(
+    { fe: { dev: 'true', devUrl: 'http://localhost:9/' }, be: {} },
+    ['fe/src', 'be/src'],
+  );
+  try {
+    // Chạy riêng `ui`. Chạy cả chuỗi thì gate `test` đỏ trước ở chế độ đa repo
+    // (mỗi repo chỉ in phần ID của nó — chuyện của CP-13), và `check` không bao
+    // giờ tới `ui`, tức là ca này sẽ đo nhầm thứ khác.
+    await checkCommand({ cwd: root, taskId: 'T-FM', only: 'ui' });
+
+    // `be` không khai devUrl nên có bản ghi bỏ qua; `fe` khai nên không có.
+    const beSkip = readGate(root, 'T-FM', 'ui', 'be');
+    assert.ok(beSkip, 'repo không khai devUrl phải để lại bản ghi');
+    assert.equal(beSkip.skipped, true);
+
+    const feRec = readGate(root, 'T-FM', 'ui', 'fe');
+    if (feRec) assert.notEqual(feRec.skipped, true, 'repo khai devUrl không được ghi bỏ qua');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-EC2 only the repo without devUrl is named as skipped', async () => {
+  const root = makeFeatureMRepos(
+    { fe: { dev: 'true', devUrl: 'http://localhost:9/' }, be: {} },
+    ['fe/src', 'be/src'],
+  );
+  try {
+    const r = await checkCommand({ cwd: root, taskId: 'T-FM', only: 'ui' });
+    assert.match(r.output, /ui@be/, r.output);
+    assert.doesNotMatch(r.output, /ui@fe \(không khai devUrl\)/, 'repo khai devUrl không phải chỗ bỏ qua');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-33-EC4 --only=ui writes the same skip record as a full run', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM', only: 'ui' });
+    const rec = readGate(root, 'T-FM', 'ui');
+    assert.ok(rec, 'gọi riêng một gate cũng phải để lại bản ghi');
+    assert.equal(rec.skipped, true);
+    assert.match(rec.skipReason, /devUrl/);
+    assert.notEqual(rec.exitCode, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

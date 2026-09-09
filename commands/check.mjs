@@ -1,5 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { findRoot, specPath } from '../lib/paths.mjs';
+import { writeGate } from '../lib/gate-store.mjs';
+import { hashFile } from '../lib/hash.mjs';
+import { hashSource } from '../lib/source-hash.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
 import { specCommand } from './spec.mjs';
@@ -10,7 +13,7 @@ import { knowledgeCommand } from './knowledge.mjs';
 import { uiCommand } from './ui.mjs';
 import { visualCommand } from './visual.mjs';
 import { reviewCommand } from './review.mjs';
-import { GATE_ORDER } from '../lib/gates.mjs';
+import { GATE_ORDER, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
 import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 import { loadConfig } from '../lib/config.mjs';
 
@@ -82,7 +85,7 @@ export async function checkCommand({ cwd, taskId, only }) {
 
   // Gate cần trình duyệt chỉ chạy ở repo khai devUrl. Backend không khai thì bỏ
   // qua repo đó — không thêm quy ước đặt tên nào phải nhớ.
-  const CAN_TRINH_DUYET = ['ui', 'visual'];
+  const CAN_TRINH_DUYET = BROWSER_GATES;
 
   const lines = [];
   const skipped = [];
@@ -109,7 +112,29 @@ export async function checkCommand({ cwd, taskId, only }) {
     // tốn nhiều giờ ở CP-8. Vài giây không đáng đổi lấy chuyện đó.
     for (const repo of chay) {
       if (CAN_TRINH_DUYET.includes(gate) && repo.config && !repo.config.devUrl) {
-        skipped.push(`${gate}${repo.name ? "@" + repo.name : ""} (không khai devUrl)`);
+        skipped.push(`${gate}${repo.name ? "@" + repo.name : ""} (${LY_DO_KHONG_DEVURL})`);
+        // Ghi lại, không chỉ in ra. `done` đòi đủ gate bắt buộc của loại task, và
+        // `ui`/`visual` nằm trong đó từ feature-m. Không để lại bản ghi thì `done`
+        // báo "chưa chạy" một gate mà chính `check` vừa từ chối chạy, rồi khuyên
+        // chạy lại `check` — vòng lặp không có lối ra, gặp thật ở CP-32.
+        //
+        // Chỉ ghi cho gate BẮT BUỘC. Ghi cho mọi loại task thì `fix` cũng có bản
+        // ghi skip, mà `done` không đòi nó — sổ mọc thêm dòng không ai đọc.
+        if (!rules.gates.includes(gate)) continue;
+        writeGate(root, taskId, {
+          gate,
+          // Không phải 0: đọc sổ phải phân biệt được "chưa chạy" với "đã đo và
+          // đúng". Một bản ghi `exitCode: 0` không có phép đo nào đằng sau là
+          // bằng chứng giả.
+          exitCode: null,
+          skipped: true,
+          skipReason: LY_DO_KHONG_DEVURL,
+          checkedAt: new Date().toISOString(),
+          specHash: hashFile(specPath(root, taskId)),
+          // `ui`/`visual` là gate đọc code, nên `done` soi `sourceHash` cả trên
+          // bản ghi skip. Thiếu trường thì nó bị coi là bản ghi phiên bản cũ.
+          sourceHash: hashSource(root),
+        }, repo.name);
         continue;
       }
 
