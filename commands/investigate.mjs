@@ -5,6 +5,7 @@ import { findRoot, taskDir, evidenceDir, validateTaskId } from '../lib/paths.mjs
 import { parseInvestigation, validateForClose } from '../lib/investigation-parser.mjs';
 import { writeGate } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
+import { replaceEntry, appendBlock } from '../lib/pitfall-file.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 
 const TEMPLATE = path.join(
@@ -118,12 +119,19 @@ export function investigateCommand({ cwd, taskId, close }) {
     if (!existsSync(pitfallFile)) {
       writeFileSync(pitfallFile, '# Bẫy đã từng sập\n\nMỗi mục đến từ một điều tra đã đóng.\n');
     }
-    const title = markdown.split('\n')[0].replace(/^#\s*/, '').trim();
-    // A file that does not end in a newline would run the heading into the last
-    // paragraph of the previous entry.
+    const title = markdown.split(/\r?\n/)[0].replace(/^#\s*/, '').trim();
     const existing = readFileSync(pitfallFile, 'utf8');
-    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n';
-    appendFileSync(pitfallFile, `${separator}\n## ${title}\n\n${parsed.pitfall}\n`);
+    // Đóng lại một điều tra là chuyện thường: sửa hồ sơ làm `docHash` lệch và
+    // gate buộc đóng lại. Chỉ append thì mỗi lần đóng lại là thêm một bản —
+    // INV-1 và INV-5 đã có hai bản mỗi cái, phải dọn tay.
+    const thay = replaceEntry(existing, title, parsed.pitfall);
+    if (thay === null) {
+      // A file that does not end in a newline would run the heading into the
+      // last paragraph of the previous entry.
+      appendFileSync(pitfallFile, appendBlock(existing, title, parsed.pitfall));
+    } else {
+      writeFileSync(pitfallFile, thay);
+    }
     pitfallWritten = true;
   } catch { /* recorded below as not written */ }
 

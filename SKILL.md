@@ -63,7 +63,7 @@ chút, giấu đi thì người khác sập bẫy.
 
 ### Viết tiếng Việt
 
-Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 44 cặp câu **❌ → ✅** chia
+Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 47 cặp câu **❌ → ✅** chia
 theo từ ngữ, định dạng và giọng. Bắt chước cặp câu, đừng học tên luật.
 
 **Viết ticket, email, báo cáo gửi đồng nghiệp → đọc thêm Phần 8.** Bảy phần đầu dạy viết câu cho
@@ -395,12 +395,24 @@ compass investigate INV-1 --close  đóng — chỉ khi đủ bằng chứng và
 
 ### Script và dữ liệu
 
-Script viết lúc điều tra lưu vào `.compass/scripts/`, mỗi cái mở đầu bằng một dòng comment nói nó làm gì.
+Mọi file sinh ra lúc điều tra đều lưu vào `.compass/scripts/`, mỗi cái mở đầu bằng một dòng comment
+nói nó làm gì. Đừng để ở `output/` — thư mục đó bị `.gitignore` che, và công cụ để đó là mất.
+
+Ba loại, ba chỗ:
+
+| Loại | Đặt ở | Vì sao riêng |
+|---|---|---|
+| Chạy bằng `node` (`.mjs`) | `scripts/` | Đúng nghĩa "script" |
+| Query dán vào client (`.sql`) | `scripts/queries/` | Có `-- @out:`, và `compass data` đọc nó |
+| Công cụ mở bằng trình duyệt (`.html`) | `scripts/tools/` | Có giao diện, không chạy bằng lệnh |
+
+`compass scripts` quét cả thư mục con, nên chia ra không mất gì. Comment mô tả nhận `//`, `#`, `--`,
+`/* */` và `<!-- -->` — viết bằng cú pháp của chính loại file đó.
 
 Kết quả chạy — query, log, dump — lưu vào `.compass/<id>/data/`, **đừng paste vào chat**: phiên đóng
 là mất, và hồ sơ dẫn "query trả 47 dòng" mà không ai kiểm lại được thì đó là lời khai, không phải
 bằng chứng. Tên file theo khuôn `<task-id>-<việc>-<ngày>.<đuôi>`, khớp tên script sinh ra nó:
-`inv1-prod-queries.sql` → `INV-1-prod-queries-0907.csv`. Không phải nghĩ tên, chỉ điền vào khuôn.
+`queries/inv1-prod-queries.sql` → `INV-1-prod-queries-0907.csv`. Không phải nghĩ tên, chỉ điền vào khuôn.
 
 `data/` được `.gitignore` che sẵn vì query production trả về email và tên khách hàng. Dự án dựng
 trước tháng 9/2026 có `.gitignore` chỉ một dòng `.salt` — tự thêm `data/` vào.
@@ -430,6 +442,9 @@ Vẫn phải khai, để không ai lặng lẽ bỏ sót một query.
 ```
 compass data <id> <file.sql>
 ```
+
+`<file.sql>` là đường dẫn, nên file `.sql` nằm ở `.compass/scripts/queries/` thì gõ
+`compass data INV-1 .compass/scripts/queries/inv1-prod-0909.sql`.
 
 Lệnh đối chiếu khai báo với file thật trong `data/`:
 

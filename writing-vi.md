@@ -157,7 +157,7 @@ Toàn câu dài thì nghẹt. Toàn câu ngắn thì cộc như điện tín. Tr
 
 ---
 
-## Phần 4 — Mười hai lỗi hay gặp
+## Phần 4 — Mười bốn lỗi hay gặp
 
 ### 1. Chủ ngữ mơ hồ
 
@@ -299,6 +299,37 @@ Ngại làm người khác buồn mà nói vòng thì họ không sửa được
 
 Xưng "bạn", nhưng đừng đặt "bạn" ở đầu mọi câu — tiếng Việt bỏ chủ ngữ được: "Chỉ cần restart
 service."
+
+### 13. Lặp từ mở đầu ở các câu liền nhau
+
+> ❌ Gate đọc gate.json chứ không chạy lại. Gate so bốn thứ để biết bằng chứng còn đúng. Gate nào
+> thiếu sourceHash thì bị chặn.
+>
+> ✅ Gate đọc gate.json chứ không chạy lại. Nó so bốn thứ để biết bằng chứng còn đúng, và chặn bản
+> ghi nào thiếu sourceHash.
+
+> ❌ Việc sửa email cập nhật DB. Việc tạo event đọc DB. Việc sửa lần hai không chạm event.
+>
+> ✅ Sửa email thì DB đổi. Tạo event thì đọc DB. Nhưng lần sửa thứ hai không chạm tới event đã tạo.
+
+Tiếng Việt rất dễ sập cái này vì "Việc X..." / "Điều này..." / "Nó..." lặp lại gần như không tốn
+công. Ba câu liền nhau cùng mở đầu là người đọc thấy văn máy ngay.
+
+Cách sửa: câu thứ hai dùng đại từ, hoặc gộp vào câu trước bằng "và", hoặc bỏ hẳn chủ ngữ.
+
+### 14. Gọi một thứ bằng nhiều tên
+
+> ❌ Nhánh dập false... đoạn ghi đè đó... node Generate hubspot parameters1... phần xoá team member
+> cũ...
+>
+> ✅ Chọn một tên ở lần đầu — Generate hubspot parameters1 — rồi dùng đúng tên đó mọi lần sau.
+
+Cần gọi ngắn thì khai một lần: "node ghi đè (Generate hubspot parameters1)", rồi dùng "node ghi đè"
+xuyên suốt.
+
+Lỗi này nặng nhất trong hồ sơ điều tra: người đọc không biết ba tên là một thứ hay ba thứ, và phải
+đọc lại từ đầu để đoán. Khác với mục 7 — ở đó là dịch hay không dịch một thuật ngữ; ở đây là đổi tên
+giữa đường.
 
 ---
 

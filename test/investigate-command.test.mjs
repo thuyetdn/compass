@@ -334,3 +334,815 @@ test('CP-11-P1 listing scripts reads headers, not whole files', () => {
   assert.match(result.output, /dọn thư mục tạm/, 'header trong tầm vẫn phải đọc được');
   assert.ok(!result.output.includes(SAU_HEADER), 'không được đọc quá vùng header');
 });
+
+// ---- CP-35: đóng lại không được chép trùng, và mô tả trong comment HTML ----
+
+const PITFALL_FILE = ['.knowledge', 'decided', 'pitfalls.md'];
+const NL = String.fromCharCode(10);
+const CRLF = String.fromCharCode(13, 10);
+
+function pitfallsOf(root) {
+  return readFileSync(path.join(root, ...PITFALL_FILE), 'utf8');
+}
+
+function writePitfalls(root, text) {
+  mkdirSync(path.join(root, '.knowledge', 'decided'), { recursive: true });
+  writeFileSync(path.join(root, ...PITFALL_FILE), text);
+}
+
+// Mở rồi điền hồ sơ, sẵn sàng để `--close`.
+function readyToClose(root, id = 'INV-1', doc = FILLED) {
+  investigateCommand({ cwd: root, taskId: id });
+  writeFileSync(path.join(root, '.compass', id, 'investigation.md'), doc.replace(/INV-1\b/g, id));
+  return path.join(root, '.compass', id, 'investigation.md');
+}
+
+// Đếm mục theo heading cấp hai — đó là đơn vị mà `--close` ghi ra.
+function entryTitles(text) {
+  return text.split(/\r?\n/).filter((l) => l.startsWith('## ')).map((l) => l.slice(3).trim());
+}
+
+test('CP-35-H1 the first close appends the pitfall, exactly as before', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    const r = investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    assert.equal(r.exitCode, 0, r.output);
+    assert.match(pitfallsOf(root), /deltaToken sống 30 ngày/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-H2 closing twice leaves one entry, not two', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const titles = entryTitles(pitfallsOf(root));
+    const lan = titles.filter((t) => t.includes('Lịch ngừng cập nhật')).length;
+    assert.equal(lan, 1, `mục xuất hiện ${lan} lần — đóng lại là chuyện thường, không phải chép thêm`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-H3 closing again after the pitfall text changed keeps only the new text', () => {
+  const root = makeRepo();
+  try {
+    const file = readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // Sửa hồ sơ là chuyện làm docHash lệch và buộc đóng lại — chính đường dẫn
+    // tới bug này.
+    writeFileSync(file, readFileSync(file, 'utf8').replace('deltaToken sống 30 ngày', 'deltaToken sống 28 ngày'));
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /28 ngày/);
+    assert.doesNotMatch(text, /30 ngày/, 'bản cũ phải được thay, không phải nằm cạnh bản mới');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC1 replacing the last entry does not eat the file', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    writePitfalls(root, '# Bẫy đã từng sập\n\n## Mục có trước\n\nGiữ nguyên.\n');
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /Mục có trước/, 'mục đứng trước phải còn');
+    assert.match(text, /Giữ nguyên\./);
+    assert.equal(entryTitles(text).length, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC2 replacing the first entry keeps the file title and intro', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    writePitfalls(root, pitfallsOf(root) + '\n## Mục đứng sau\n\nGiữ nguyên.\n');
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /^# Bẫy đã từng sập/, 'tiêu đề file phải còn');
+    assert.match(text, /Mục đứng sau/, 'mục sau phải còn');
+    assert.equal(entryTitles(text).length, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC3 a CRLF pitfalls file is rewritten without stray CR', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // Bẫy CRLF đã tái diễn ở năm file trong dự án này.
+    writePitfalls(root, pitfallsOf(root).replace(/\n/g, '\r\n') + '\r\n## Mục sau\r\n\r\nGiữ.\r\n');
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /Mục sau/, 'mục sau phải còn');
+    assert.equal(
+      entryTitles(text).filter((t) => t.includes('Lịch ngừng cập nhật')).length,
+      1,
+      'CRLF không được làm mục nhân đôi',
+    );
+    for (const t of entryTitles(text)) {
+      assert.doesNotMatch(t, /\r/, 'tiêu đề không được mang \\r');
+    }
+    // Và phải GIỮ CRLF, không chuyển cả file sang LF. Chỉ kiểm "tiêu đề không
+    // mang \r" thì hardcode LF cũng qua — nó xoá sạch \r, và file thật (295 dòng
+    // CRLF) bị đổi hết line ending trong một diff giả.
+    const lfTron = (text.split(NL).length - 1) - (text.split(CRLF).length - 1);
+    assert.equal(lfTron, 0, `${lfTron} dòng LF lẫn vào file CRLF`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC4 a title holding regex metacharacters is matched literally', () => {
+  const root = makeRepo();
+  try {
+    const doc = FILLED.replace('# INV-1: Lịch ngừng cập nhật', '# INV-1: Lỗi (a.b)* ở [gate]');
+    readyToClose(root, 'INV-1', doc);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const titles = entryTitles(pitfallsOf(root));
+    assert.equal(titles.filter((t) => t.includes('Lỗi (a.b)*')).length, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC5 a title that is a prefix of another entry is not confused with it', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // `INV-1` là tiền tố của `INV-10`. Khớp bằng startsWith là thay nhầm mục.
+    const daiHon = pitfallsOf(root).replace('## INV-1:', '## INV-10:');
+    writePitfalls(root, pitfallsOf(root) + '\n' + daiHon.split('\n').filter((l) => !l.startsWith('# Bẫy')).join('\n'));
+
+    // So nguyên khối, không so substring: `includes('INV-10')` vẫn đúng khi thân
+    // mục đã bị ghi đè, nên nó không bắt được corruption.
+    const truoc = pitfallsOf(root);
+    const khoiCu = truoc.slice(truoc.indexOf('## INV-10:'));
+    assert.ok(khoiCu.length > 20, 'điều kiện ban đầu: phải có mục INV-10 với thân');
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    const sau = pitfallsOf(root);
+    assert.ok(sau.includes(khoiCu.trimEnd()), 'mục INV-10 phải còn nguyên từng byte');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC6 a ### subheading inside the entry is replaced with it', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    writePitfalls(root, pitfallsOf(root) + '\n### Chi tiết thêm\n\nDòng này thuộc mục trên.\n\n## Mục sau\n\nGiữ.\n');
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.doesNotMatch(text, /Chi tiết thêm/, 'quét phải dừng ở `## `, không dừng ở mọi heading');
+    assert.match(text, /Mục sau/, 'mục cấp hai kế tiếp phải còn');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S1 replacing one entry leaves every other entry byte-for-byte', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    const giuNguyen = '## Mục A\n\nNội dung A, phải giữ từng byte.\n\n## Mục B\n\nNội dung B.\n';
+    writePitfalls(root, '# Bẫy đã từng sập\n\n' + giuNguyen);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    assert.ok(pitfallsOf(root).includes(giuNguyen.trimEnd()), 'hai mục kia phải nguyên văn');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S2 the entry count is exactly right after a rewrite', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    writePitfalls(root, '# Bẫy đã từng sập\n\n## M1\n\na\n\n## M2\n\nb\n\n## M3\n\nc\n');
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    assert.equal(entryTitles(pitfallsOf(root)).length, 4, 'thêm một mục');
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    assert.equal(entryTitles(pitfallsOf(root)).length, 4, 'đóng lại thì vẫn bốn — không gộp, không thêm');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S3 a fenced ## line truncates the new entry but never eats a neighbour', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // Thân mục có khối code chứa dòng `## `. Dừng ở đó là cắt mục làm hai, và
+    // nửa sau thành một mục không tiêu đề.
+    writePitfalls(root, pitfallsOf(root).replace(
+      'bắt 410 rồi full sync lại',
+      'bắt 410 rồi full sync lại\n\n```md\n## Đây là ví dụ, không phải mục mới\n```\n\nCâu cuối của mục.',
+    ) + '\n## Mục sau\n\nGiữ.\n');
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    // Đánh đổi có ý thức: gate coi dòng `## ` trong khối code là heading, nên
+    // mục mới bị cắt tại đó và phần sau khối vẫn nằm lại. Thấy được ngay khi đọc
+    // file. Đoán ngược lại — "đó không phải heading" — là quét tới cuối file và
+    // xoá sạch mọi mục phía sau, im lặng, exit 0. Ba lần thử đọc fence đều sập.
+    assert.match(text, /Mục sau/, 'điều phải giữ: mục kế tiếp không bao giờ mất');
+    assert.match(text, /deltaToken/, 'mục mới vẫn được ghi');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-E1 a read-only pitfalls file reports not-written instead of throwing', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    // Thư mục thay vì file: mọi lệnh ghi đều lỗi, trên cả Windows lẫn POSIX.
+    mkdirSync(path.join(root, '.knowledge', 'decided', 'pitfalls.md'), { recursive: true });
+
+    let r;
+    assert.doesNotThrow(() => { r = investigateCommand({ cwd: root, taskId: 'INV-1', close: true }); });
+    assert.equal(r.exitCode, 0, 'ghi pitfall lỗi không được chặn việc đóng hồ sơ');
+    assert.equal(readGate(root, 'INV-1', 'investigate').pitfallWritten, false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-E2 an existing entry with an empty body is replaced cleanly', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    writePitfalls(root, '# Bẫy đã từng sập\n\n## INV-1: Lịch ngừng cập nhật\n\n## Mục sau\n\nGiữ.\n');
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /deltaToken sống 30 ngày/, 'mục rỗng phải được điền');
+    assert.equal(entryTitles(text).filter((t) => t.includes('Lịch ngừng')).length, 1);
+    assert.match(text, /Mục sau/);
+    assert.doesNotMatch(text, /\n\n\n\n/, 'đừng để lại khối trắng');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-E3 a file with no trailing newline gets a heading on its own line', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    writePitfalls(root, '# Bẫy đã từng sập\n\n## Mục cũ\n\nKhông có newline cuối.');
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.doesNotMatch(text, /cuối\.## /, 'tiêu đề không được nối vào đoạn trước');
+    assert.equal(entryTitles(text).length, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---- purposeOf: mô tả trong comment HTML ----
+
+function writeScript(root, name, body) {
+  const file = path.join(root, '.compass', 'scripts', name);
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, body);
+  return file;
+}
+
+test('CP-35-H4 an html file describes itself through an HTML comment', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'inv1-timeline.html', '<!-- Dựng timeline từ log để xem thứ tự sự kiện -->\n<html></html>\n');
+    const r = scriptsCommand({ cwd: root });
+    assert.equal(r.exitCode, 0, r.output);
+    assert.match(r.output, /Dựng timeline từ log/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-H5 files in queries/ and tools/ are listed with their subpath', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'queries/inv1-prod-0909.sql', '-- Đếm contact chưa xác thực\nselect 1;\n');
+    writeScript(root, 'tools/inv1-timeline.html', '<!-- Dựng timeline từ log -->\n');
+    writeScript(root, 'port-holders.mjs', '// Ai giữ cổng 5173\n');
+
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /queries\/inv1-prod-0909\.sql/, r.output);
+    assert.match(r.output, /tools\/inv1-timeline\.html/, r.output);
+    assert.match(r.output, /port-holders\.mjs/);
+    assert.match(r.output, /Đếm contact chưa xác thực/);
+    assert.match(r.output, /Dựng timeline từ log/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-V1 a bare <!-- opener reads the description from the next line', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'x.html', '<!--\nSo hai bản export để tìm dòng lệch\n-->\n');
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /So hai bản export/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-V2 a line holding only --> is not a description', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'x.html', '-->\n<html></html>\n');
+    const r = scriptsCommand({ cwd: root });
+    assert.doesNotMatch(r.output, /-->/, r.output);
+    assert.match(r.output, /chưa có dòng comment mô tả/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-V3 an @out declaration written as an HTML comment is not a description', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'x.html', '<!-- @out: INV-1-x-0909.csv -->\n<!-- Mô tả thật nằm đây -->\n');
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /Mô tả thật nằm đây/, r.output);
+    assert.doesNotMatch(r.output, /@out/, 'khai tên file export không phải mô tả');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-V4 a file opening with a doctype has no description', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'x.html', '<!DOCTYPE html>\n<html></html>\n');
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /chưa có dòng comment mô tả/, r.output);
+    assert.doesNotMatch(r.output, /DOCTYPE/, 'doctype không phải mô tả tác giả viết');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC7 <!--no space before the text still reads', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'x.html', '<!--Dựng bảng so sánh-->\n');
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /Dựng bảng so sánh/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC8 a README inside a subdirectory is excluded too', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'queries/README.md', '# Query\n');
+    writeScript(root, 'queries/inv1-a-0909.sql', '-- Có mô tả\nselect 1;\n');
+    const r = scriptsCommand({ cwd: root });
+    assert.doesNotMatch(r.output, /README/, r.output);
+    assert.match(r.output, /inv1-a-0909\.sql/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S4 the listing prints one description line, never more of the file', () => {
+  const root = makeRepo();
+  try {
+    writeScript(root, 'x.html', '<!-- Mô tả một dòng -->\n<p>BÍ MẬT KHÔNG ĐƯỢC IN</p>\n<p>DÒNG NỮA</p>\n');
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /Mô tả một dòng/);
+    assert.doesNotMatch(r.output, /BÍ MẬT/, 'chỉ in dòng mô tả, không in thân file');
+    assert.doesNotMatch(r.output, /DÒNG NỮA/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S5 an unterminated fence inside the entry does not delete its neighbours', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // Fence lẻ trong thân mục làm cờ mắc tới hết file: không heading nào được
+    // thấy nữa, và MỌI mục phía sau bị xoá — im lặng, exit 0, gate xanh.
+    const F = String.fromCharCode(96).repeat(3);
+    writePitfalls(root, pitfallsOf(root).replace(
+      'bắt 410 rồi full sync lại',
+      'bắt 410 rồi full sync lại' + NL + NL + F + 'sh' + NL + 'echo 1',
+    ) + NL + '## Mục Y' + NL + NL + 'Phải còn.' + NL + NL + '## Mục Z' + NL + NL + 'Cũng phải còn.' + NL);
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /Mục Y/, 'mục sau fence lẻ phải còn');
+    assert.match(text, /Mục Z/, 'mục cuối phải còn');
+    assert.match(text, /Phải còn\./);
+    assert.match(text, /Cũng phải còn\./);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S6 an unterminated HTML comment does not leak the file body', () => {
+  const root = makeRepo();
+  try {
+    // Payload phải là thứ CHỈ chốt mới chặn được. Một dòng mở bằng `<` hay một
+    // dòng CSV đều bị nhánh fallback trả null sẵn, nên test dùng chúng vẫn xanh
+    // khi xoá hẳn chốt — đúng cái bẫy spec S8 đã nêu.
+    writeScript(root, 'x.html', '<!--' + NL + '-- BÍ MẬT KHÁCH HÀNG' + NL);
+    const r = scriptsCommand({ cwd: root });
+    assert.doesNotMatch(r.output, /BÍ MẬT/, 'khối chưa đóng thì đừng nhận bừa dòng kế tiếp');
+    assert.match(r.output, /chưa có dòng comment mô tả/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-V5 a bare @out line inside an HTML block is not a description', () => {
+  const root = makeRepo();
+  try {
+    // Dòng tiếp trong khối không có tiền tố comment nên OUT_MARKER không khớp.
+    writeScript(root, 'x.html', '<!--' + NL + '@out: INV-1-x-0909.csv' + NL + 'Mô tả thật nằm đây' + NL + '-->' + NL);
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /Mô tả thật nằm đây/, r.output);
+    assert.doesNotMatch(r.output, /@out/, 'khai tên file export không phải mô tả');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC9 appending to a CRLF file introduces no LF-only line', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    // Mục chưa có nên đi nhánh APPEND, không phải nhánh thay. Đó là chỗ EOL bị
+    // hardcode LF và chèn dòng lệch kiểu vào file CRLF.
+    writePitfalls(root, '# Bẫy đã từng sập' + CRLF + CRLF + '## Mục cũ' + CRLF + CRLF + 'Nội dung.' + CRLF);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /Mục cũ/, 'mục cũ phải còn');
+    assert.match(text, /deltaToken sống 30 ngày/, 'mục mới phải được thêm');
+    // Đếm LF không đi kèm CR: file CRLF thì phải là 0.
+    const lfTron = (text.split(NL).length - 1) - (text.split(CRLF).length - 1);
+    assert.equal(lfTron, 0, `${lfTron} dòng LF lẫn vào file CRLF`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC10 a title that is a true prefix of another is not confused with it', () => {
+  const root = makeRepo();
+  try {
+    // Tiêu đề của điều tra là TIỀN TỐ của một mục đã có. Khớp bằng startsWith
+    // theo chiều này sẽ thay nhầm mục dài hơn — và mục thật thì không bao giờ
+    // được ghi.
+    const doc = FILLED.replace('# INV-1: Lịch ngừng cập nhật', '# INV-1: Lịch');
+    readyToClose(root, 'INV-1', doc);
+    writePitfalls(root, [
+      '# Bẫy đã từng sập', '',
+      '## INV-1: Lịch ngừng cập nhật hoàn toàn', '', 'Mục dài, phải còn nguyên.', '',
+      '## Mục sau', '', 'Cũng phải còn.', '',
+    ].join(NL));
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /Mục dài, phải còn nguyên\./, 'mục có tiêu đề dài hơn không được bị thay');
+    assert.match(text, /Cũng phải còn\./);
+    assert.equal(entryTitles(text).length, 3, 'thêm một mục, không thay mục nào');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S7 two unterminated fences do not delete the entries between them', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // Ghép cặp fence theo thứ tự thì dấu lẻ của mục X ghép với dấu lẻ của mục Z,
+    // và cả khoảng giữa — kể cả heading thật — bị coi là trong khối code.
+    const F = String.fromCharCode(96).repeat(3);
+    writePitfalls(root, pitfallsOf(root).replace(
+      'bắt 410 rồi full sync lại',
+      'bắt 410 rồi full sync lại' + NL + NL + F,
+    ) + [
+      '', '## Mục Y', '', 'Phải còn.', '',
+      '## Mục Z', '', 'Fence lẻ nữa:', '', F, '',
+      '## Mục W', '', 'Cũng phải còn.', '',
+    ].join(NL));
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /Mục Y/, 'mục giữa hai fence lẻ phải còn');
+    assert.match(text, /Mục Z/);
+    assert.match(text, /Mục W/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S8 an unterminated HTML comment never leaks a data row', () => {
+  const root = makeRepo();
+  try {
+    // Chốt cũ chỉ nhận dòng mở bằng `<`, nên một dòng CSV vẫn lọt ra.
+    // `--` đầu dòng là comment SQL hợp lệ, nên nhánh fallback sẽ nhận nó làm mô
+    // tả. Chỉ chốt "khối chưa đóng thì bỏ cả file" mới chặn được.
+    writeScript(root, 'x.html', '<!--' + NL + '-- a@b.com,0901234567,5000000' + NL);
+    const r = scriptsCommand({ cwd: root });
+    assert.doesNotMatch(r.output, /a@b\.com/, 'khối chưa đóng thì đừng in gì từ file');
+    assert.doesNotMatch(r.output, /0901234567/);
+    assert.match(r.output, /chưa có dòng comment mô tả/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-V6 an empty HTML comment does not report --> as the description', () => {
+  const root = makeRepo();
+  try {
+    for (const body of ['<!-- -->' + NL + '<p>x</p>' + NL, '<!---->' + NL]) {
+      const root2 = makeRepo();
+      try {
+        writeScript(root2, 'x.html', body);
+        const r = scriptsCommand({ cwd: root2 });
+        assert.doesNotMatch(r.output, /-->/, JSON.stringify(body));
+        assert.match(r.output, /chưa có dòng comment mô tả/, JSON.stringify(body));
+      } finally {
+        rmSync(root2, { recursive: true, force: true });
+      }
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC11 a ## line inside a tilde fence does not fabricate an entry', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    // Fence `~~~` thật, chứa một dòng `## `. Bản trước của ca này không có fence
+    // nào nên nó không đo được gì.
+    writePitfalls(root, pitfallsOf(root).replace(
+      'bắt 410 rồi full sync lại',
+      ['bắt 410 rồi full sync lại', '', '~~~', '## Ví dụ, không phải mục', '~~~'].join(NL),
+    ) + [
+      '', '## Mục sau', '', 'Phải còn nguyên.', '',
+    ].join(NL));
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const text = pitfallsOf(root);
+    assert.match(text, /Phải còn nguyên\./, 'mục sau phải còn');
+    assert.equal(
+      entryTitles(text).filter((t) => t.includes('Lịch ngừng cập nhật')).length,
+      1,
+      'không được nhân bản mục',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC12 repeated closing neither grows nor shrinks blank lines', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    const sauLan1 = pitfallsOf(root);
+
+    // Đóng lại là chuyện thường. Bỏ chốt cắt dòng trắng đuôi thì mỗi lần đóng
+    // lại thêm một dòng trắng, và file git-tracked phình ra qua từng vòng.
+    for (let i = 0; i < 5; i++) investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    assert.equal(pitfallsOf(root), sauLan1, 'đóng lại nhiều lần phải cho ra đúng cùng một file');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S9 a stray --> followed by data never reaches the output', () => {
+  const root = makeRepo();
+  try {
+    // `line === '-->'` chỉ bắt đúng dòng trơn. `--> a@b.com,...` rơi xuống regex
+    // bên dưới, và nhánh `--` ở đó bắt phần còn lại — in ra dữ liệu khách hàng.
+    writeScript(root, 'x.html', '--> a@b.com,0901234567,5000000' + NL);
+    const r = scriptsCommand({ cwd: root });
+    assert.doesNotMatch(r.output, /a@b\.com/, r.output);
+    assert.doesNotMatch(r.output, /0901234567/);
+    assert.match(r.output, /chưa có dòng comment mô tả/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S10 a mid-line <!-- does not turn the whole line into a description', () => {
+  const root = makeRepo();
+  try {
+    // Khối chỉ tính khi `<!--` mở ĐẦU DÒNG. Nhận cả `<!--` giữa dòng thì dòng
+    // đó có code trước nó, và trả cả dòng là in thân file ra.
+    writeScript(root, 'x.html', '<tr><td>a@b.com</td><td>0901234567</td></tr> <!-- ghi chu -->' + NL);
+    const r = scriptsCommand({ cwd: root });
+    assert.doesNotMatch(r.output, /a@b\.com/, r.output);
+    assert.doesNotMatch(r.output, /0901234567/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S11 a description followed by data on the same line drops the data', () => {
+  const root = makeRepo();
+  try {
+    // `-->` giữa dòng: phần sau nó là thân file, không phải mô tả.
+    writeScript(root, 'x.html', '<!-- Dựng timeline --> a@b.com,0901234567' + NL);
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /Dựng timeline/, r.output);
+    assert.doesNotMatch(r.output, /a@b\.com/, 'phần sau `-->` là thân file');
+    assert.doesNotMatch(r.output, /0901234567/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S12 a tab after ## is not an entry boundary', () => {
+  const root = makeRepo();
+  try {
+    // `/^##\s+/` khớp cả tab, còn parser hồ sơ dùng `/^## /` với khoảng trắng
+    // literal. Lệch nhau thì dòng tab lọt vào thân pitfall rồi thành ranh giới,
+    // và mỗi lần đóng lại nhân bản phần đuôi.
+    const doc = FILLED.replace(
+      '**Phòng tránh:** bắt 410 rồi full sync lại',
+      ['**Phòng tránh:** bắt 410 rồi full sync lại', '', '##	Không phải mục', '', 'Câu cuối.'].join(NL),
+    );
+    readyToClose(root, 'INV-1', doc);
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    const sauLan1 = pitfallsOf(root);
+    for (let i = 0; i < 5; i++) investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    assert.equal(pitfallsOf(root), sauLan1, 'đóng lại nhiều lần không được nhân bản gì');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC13 one stray CRLF in an LF file does not convert every line', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // Chọn EOL theo "có CRLF nào không" thì một dòng CRLF lạc làm cả file bị
+    // join lại bằng CRLF — 291 dòng đổi hết trong một diff giả.
+    const truoc = pitfallsOf(root).split(CRLF).join(NL);
+    writePitfalls(root, truoc.replace('deltaToken', 'delta' + CRLF + 'Token'));
+    const crlfTruoc = pitfallsOf(root).split(CRLF).length - 1;
+    assert.equal(crlfTruoc, 1, 'điều kiện ban đầu: đúng một dòng CRLF');
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    const crlfSau = pitfallsOf(root).split(CRLF).length - 1;
+    assert.ok(crlfSau <= 1, `${crlfSau} dòng CRLF — file LF bị chuyển hết sang CRLF`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S13 exotic line breaks do not collapse the file into one leaking line', () => {
+  const root = makeRepo();
+  try {
+    // `.` trong regex khong khop U+2028/U+2029, va `split(/\r?\n/)` khong tach
+    // o do — nen ca file gop thanh MOT dong: mo `<!--`, co `-->`, bi tinh la
+    // khoi da dong, roi tra ve ca dong kem than file.
+    const LS = String.fromCharCode(0x2028);
+    const PS = String.fromCharCode(0x2029);
+    for (const sep of [LS, PS, String.fromCharCode(13)]) {
+      const root2 = makeRepo();
+      try {
+        writeScript(root2, 'x.html', '<!-- Dựng timeline -->' + sep + 'a@b.com,0901234567,5000000');
+        const r = scriptsCommand({ cwd: root2 });
+        assert.doesNotMatch(r.output, /a@b\.com/, JSON.stringify(sep));
+        assert.doesNotMatch(r.output, /0901234567/, JSON.stringify(sep));
+      } finally {
+        rmSync(root2, { recursive: true, force: true });
+      }
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S14 a minority-EOL neighbour keeps its own line endings', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // Join cả file bằng MỘT eol chung đổi luôn dấu kết thúc của dòng không ai
+    // chạm tới — ràng buộc "mọi mục khác nguyên từng byte" vỡ.
+    const lanCan = '## Mục CRLF' + CRLF + CRLF + 'Thân dùng CRLF.' + CRLF;
+    writePitfalls(root, pitfallsOf(root).split(CRLF).join(NL) + NL + lanCan);
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // KHÔNG `.trimEnd()`: nó cắt đúng dấu kết thúc mà ca này sinh ra để bảo vệ.
+    assert.ok(pitfallsOf(root).includes(lanCan), 'mục lân cận phải nguyên từng byte');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S15 a minority-EOL line BEFORE the replaced entry keeps its ending', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    // Mục của INV-1 nằm CUỐI, nên phần "trước" là chỗ mang dòng lạ kiểu. Phần
+    // trước và phần sau được dựng lại riêng, nên mỗi bên cần một ca.
+    const truoc = '## Mục CRLF' + CRLF + CRLF + 'Thân dùng CRLF.' + CRLF;
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    writePitfalls(root, '# Bẫy đã từng sập' + NL + NL + truoc + NL + pitfallsOf(root)
+      .split(NL).filter((l) => !l.startsWith('# Bẫy')).join(NL).trimStart());
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+    assert.ok(pitfallsOf(root).includes(truoc), 'dòng đứng trước phải nguyên từng byte');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-S16 the separator blank line keeps the preceding entry own ending', () => {
+  const root = makeRepo();
+  try {
+    readyToClose(root);
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    // Dòng trắng phân cách bị pop rồi dựng lại bằng eol chung: mục đứng TRƯỚC
+    // mất dấu kết thúc của chính nó. Mục INV-1 phải nằm CUỐI để chỗ này lộ ra.
+    const lanCan = '## Mục CRLF' + CRLF + CRLF + 'Thân dùng CRLF.' + CRLF + CRLF;
+    const cuaInv1 = pitfallsOf(root).split(CRLF).join(NL);
+    const than = cuaInv1.slice(cuaInv1.indexOf('## INV-1'));
+    writePitfalls(root, '# Bẫy đã từng sập' + NL + NL + lanCan + than);
+
+    investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+
+    assert.ok(pitfallsOf(root).includes(lanCan), 'mục đứng trước phải nguyên từng byte');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-35-EC14 a comment that merely mentions the HTML opener keeps its description', () => {
+  const root = makeRepo();
+  try {
+    // Chốt phải NEO ở đầu dòng. Nhận `<!--` ở bất kỳ đâu thì một comment `//`
+    // hay `--` chỉ NHẮC TỚI chuỗi đó cũng mất mô tả.
+    writeScript(root, 'a.mjs', '// Lọc bỏ các khối <!-- --> khỏi file html' + NL);
+    writeScript(root, 'b.sql', '-- Tìm chuỗi <!-- trong export' + NL);
+    const r = scriptsCommand({ cwd: root });
+    assert.match(r.output, /Lọc bỏ các khối/, r.output);
+    assert.match(r.output, /Tìm chuỗi/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
