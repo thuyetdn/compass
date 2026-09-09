@@ -5,6 +5,7 @@ import { collectDiff, buildBrief } from '../lib/review-brief.mjs';
 import { parseFindings, formatFinding, BLOCKING } from '../lib/findings.mjs';
 import { writeGate, readGate } from '../lib/gate-store.mjs';
 import { loadConfig } from '../lib/config.mjs';
+import { parseSpec } from '../lib/spec-parser.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 
@@ -49,8 +50,29 @@ export function reviewCommand({ cwd, taskId }) {
   // whole project rather than one task. `reviewBase` in config names the real
   // starting point when the default is too wide.
   const cfg = loadConfig(root);
-  const baseRef = cfg.ok ? cfg.config.reviewBase ?? null : null;
-  const diffOptions = { baseRef };
+
+  // Spec đè config. `reviewBase` trong config là một giá trị chung cho cả dự án,
+  // nên trên nhánh mang nhiều task nó chỉ đúng cho một task: những task còn lại
+  // được soi trên diff không chứa code của chúng, agent nộp findings, và gate
+  // xanh trên bằng chứng nói về việc của người khác. Gặp thật ở CP-6, CP-10,
+  // CP-11, CP-13 — code của chúng nằm cách gốc soi tới 21 commit.
+  const spec = parseSpec(readFileSync(file, 'utf8'));
+  const khaiTrongSpec = spec.reviewBase !== null && spec.reviewBase !== undefined;
+  const baseRef = khaiTrongSpec
+    ? spec.reviewBase
+    : (cfg.ok ? cfg.config.reviewBase ?? null : null);
+  // Nói ra chỗ khai. Ref không phân giải được mà chỉ báo tên ref thì người đọc
+  // đi sửa config trong khi lời khai nằm ở spec, hoặc ngược lại.
+  //
+  // Ba giá trị, không phải hai: không ai khai gì thì Compass tự lần về điểm rẽ,
+  // và nói "khai ở config.json" lúc đó là lời khai sai — nó chỉ người đọc tới
+  // một file không có dòng nào như vậy.
+  //
+  // Điều kiện phải TRÙNG với `resolveBase`, chỗ dùng `if (baseRef)`. Dùng
+  // `!== null` ở đây thì `reviewBase: 0` bị resolveBase bỏ qua mà brief vẫn khai
+  // "khai ở config.json" — lời khai sai về một giá trị chưa từng được dùng.
+  const nguonGoc = khaiTrongSpec ? 'spec' : (baseRef ? 'config.json' : null);
+  const diffOptions = { baseRef, baseFrom: nguonGoc };
 
   // Phase two: an agent has answered, so read the verdict — but only if the
   // answer is about the code as it stands now. A finding set outlives the diff
@@ -153,6 +175,8 @@ export function reviewCommand({ cwd, taskId }) {
       diff: current.diff,
       files: current.files,
       briefId: briefIdFor(readFileSync(file, 'utf8'), current.diff),
+      base: current.base,
+      baseFrom: nguonGoc,
     });
     const briefIsCurrent = readFileSync(briefFile, 'utf8') === wanted;
     const answersThisBrief = briefId(source) === briefIdFor(readFileSync(file, 'utf8'), current.diff);
@@ -164,6 +188,8 @@ export function reviewCommand({ cwd, taskId }) {
         diff: current.diff,
         files: current.files,
         briefId: briefIdFor(readFileSync(file, 'utf8'), current.diff),
+        base: current.base,
+        baseFrom: nguonGoc,
       }));
       writeGate(root, taskId, {
         gate: 'review',
@@ -258,6 +284,8 @@ export function reviewCommand({ cwd, taskId }) {
     diff: collected.diff,
     files: collected.files,
     briefId: briefIdFor(readFileSync(file, 'utf8'), collected.diff),
+    base: collected.base,
+    baseFrom: nguonGoc,
   });
 
   // Compare the brief itself, not just a diff hash: a rewritten spec changes

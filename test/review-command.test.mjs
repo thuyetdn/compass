@@ -509,7 +509,10 @@ test('CP-6-S13 a reviewBase naming no commit is refused', () => {
 
   const result = reviewCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 2);
-  assert.match(result.output, /reviewBase/);
+  // CP-34 đổi lời văn để nói cả chỗ khai: gốc soi khai được ở spec lẫn config,
+  // và chỉ báo tên ref thì người đọc đi sửa nhầm file.
+  assert.match(result.output, /Gốc soi "khong-ton-tai-dau"/);
+  assert.match(result.output, /config\.json/, 'phải nói lời khai nằm ở đâu');
 });
 
 test('CP-6-E4 a repo with no commits is reported instead of crashing', () => {
@@ -741,4 +744,324 @@ test('CP-6-S21 a malformed findings file also turns the record red', () => {
   writeFileSync(path.join(root, '.compass', 'T-1', 'evidence', 'findings.json'), '{ hỏng');
   assert.equal(reviewCommand({ cwd: root, taskId: 'T-1' }).exitCode, 2);
   assert.equal(readGate(root, 'T-1', 'review').exitCode, 1, 'findings hỏng cũng là verdict đỏ');
+});
+
+// ---- CP-34: task khai gốc soi của chính nó ----
+
+// Dựng repo hai commit rồi trả về sha commit đầu, để test trỏ gốc soi vào đúng
+// chỗ việc bắt đầu — hoặc cố tình trỏ sai.
+function makeTwoCommits() {
+  const root = makeRepo({ withChanges: false });
+  writeFileSync(path.join(root, 'src', 'som.js'), 'export const som = 1;\n');
+  git(root, ['add', '-A']);
+  git(root, ['commit', '-m', 'viec cua task truoc']);
+  const truoc = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+
+  writeFileSync(path.join(root, 'src', 'moi.js'), 'export const moi = 2;\n');
+  git(root, ['add', '-A']);
+  git(root, ['commit', '-m', 'viec cua task nay']);
+  const sau = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  return { root, truoc, sau };
+}
+
+function setSpecBase(root, value) {
+  const file = path.join(root, '.compass', 'T-1', 'spec.md');
+  const spec = readFileSync(file, 'utf8').replace('Phạm vi: src/', `Phạm vi: src/\nGốc soi: ${value}`);
+  writeFileSync(file, spec);
+}
+
+test('CP-34-H2 the brief covers the range the spec declares, not the config one', () => {
+  const { root, truoc } = makeTwoCommits();
+  try {
+    // Config trỏ vào HEAD — đúng lỗi thật: gốc soi nằm SAU việc của task.
+    setConfig(root, { test: 'true', reviewBase: 'HEAD' });
+    setSpecBase(root, truoc);
+
+    reviewCommand({ cwd: root, taskId: 'T-1' });
+    const brief = readFileSync(path.join(root, '.compass', 'T-1', 'review-brief.md'), 'utf8');
+    assert.match(brief, /moi\.js/, 'phải soi việc của task, tức là diff từ gốc khai trong spec');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-E3 an invalid config base does not block a valid spec base', () => {
+  const { root, truoc } = makeTwoCommits();
+  try {
+    setConfig(root, { test: 'true', reviewBase: 'khong-ton-tai-dau' });
+    setSpecBase(root, truoc);
+
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.notEqual(r.exitCode, 2, r.output);
+    assert.doesNotMatch(r.output, /khong-ton-tai-dau/, 'giá trị config không dùng thì đừng chặn');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-E1 an invalid spec base names the ref and says it came from the spec', () => {
+  const { root } = makeTwoCommits();
+  try {
+    setSpecBase(root, 'khong-phai-commit');
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2);
+    assert.match(r.output, /khong-phai-commit/);
+    assert.match(r.output, /spec/, 'phải chỉ đúng file cần sửa');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-EC3 a base pointing at HEAD is reported as an empty range', () => {
+  const { root } = makeTwoCommits();
+  try {
+    // Gốc soi trỏ vào HEAD: diff rỗng. Đó là "chưa soi được", không phải "sạch".
+    setSpecBase(root, 'HEAD');
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.notEqual(r.exitCode, 0, 'diff rỗng không được coi là soi sạch');
+    // Neo vào đúng câu của nhánh `base === head`. Câu "0 file" thì cả hai nhánh
+    // đều in, nên nhận nó là không canh được nhánh nào.
+    assert.match(r.output, /trùng HEAD/, r.output);
+    assert.doesNotMatch(r.output, /Hoặc chưa viết code/, 'gốc soi trùng HEAD thì không phải chuyện chưa viết code');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-S4 a base that excludes the task\'s own work never yields a green review', () => {
+  const { root, sau } = makeTwoCommits();
+  try {
+    // `sau` là commit của chính task này, nên soi từ đó là soi phần sau việc của
+    // nó — đúng hình dạng lỗi CP-6 mắc phải.
+    setSpecBase(root, sau);
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.notEqual(r.exitCode, 0, 'phạm vi không chứa việc của task thì không được xanh');
+
+    // Và phải từ chối vì phạm vi rỗng, không phải vì pha một luôn trả khác 0 —
+    // bọc assert trong `if (existsSync)` thì nó tự bỏ qua đúng lúc cần nhất.
+    assert.match(r.output, /0 file|không có gì để soi/, r.output);
+    assert.equal(
+      existsSync(path.join(root, '.compass', 'T-1', 'review-brief.md')),
+      false,
+      'phạm vi rỗng thì đừng sinh brief cho ai soi',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-S2 a flag-shaped base is refused before git sees it', () => {
+  const { root } = makeTwoCommits();
+  try {
+    setSpecBase(root, '--upload-pack=echo');
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2);
+    // Neo vào đúng thông điệp của chốt `-`, không phải câu chung mà `safeRef`
+    // vẫn sinh ra. Nhận cả hai thì xoá chốt đi test vẫn xanh.
+    assert.match(r.output, /mở đầu bằng "-"/, r.output);
+    assert.match(r.output, /git đọc nó là cờ/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-S1 shell metacharacters in the base never reach a shell', () => {
+  const { root } = makeTwoCommits();
+  try {
+    // File có thật từ `makeRepo`, nên nếu payload chạy được thì nó mất.
+    const coThat = path.join(root, 'src', 'filter.js');
+    assert.ok(existsSync(coThat), 'điều kiện ban đầu: file phải đang tồn tại');
+
+    setSpecBase(root, 'HEAD; rm -rf src');
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2, 'ref không hợp lệ thì từ chối');
+    assert.ok(existsSync(path.join(root, 'src')), 'thư mục src phải còn nguyên');
+    assert.ok(existsSync(coThat), 'file trong src phải còn nguyên — payload không được chạy');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-EC1 a branch name works as a base, like any other ref', () => {
+  const { root, truoc } = makeTwoCommits();
+  try {
+    git(root, ['branch', 'diem-bat-dau', truoc]);
+    setSpecBase(root, 'diem-bat-dau');
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.notEqual(r.exitCode, 2, r.output);
+    const brief = readFileSync(path.join(root, '.compass', 'T-1', 'review-brief.md'), 'utf8');
+    assert.match(brief, /moi\.js/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-H5 the brief states which base it used and where that came from', () => {
+  const { root, truoc } = makeTwoCommits();
+  try {
+    setSpecBase(root, truoc);
+    reviewCommand({ cwd: root, taskId: 'T-1' });
+    const brief = readFileSync(path.join(root, '.compass', 'T-1', 'review-brief.md'), 'utf8');
+    // Spec được trích nguyên vào brief, nên tìm sha ở đâu đó là chưa đủ: nó có
+    // thể chỉ nằm trong khối spec. Phải có một câu do brief tự nói ra.
+    assert.match(brief, /## Phạm vi/, 'brief phải có mục nói phạm vi soi');
+    assert.match(
+      brief,
+      new RegExp('Diff dưới đây tính từ `' + truoc.slice(0, 7) + '`, khai ở spec'),
+      'brief phải tự nói nó soi từ đâu và lời khai ở đâu',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-S3 a verdict recorded against a different base is rejected as stale', () => {
+  const { root, truoc } = makeTwoCommits();
+  try {
+    // Thêm commit thứ ba để có HAI gốc soi cho ra hai phạm vi khác nhau. Trong
+    // repo hai commit thì `HEAD~1` chính là `truoc`, phạm vi không đổi, và ca
+    // này đỏ nhờ specHash — cơ chế cũ, không phải thứ nó khai là đang canh.
+    writeFileSync(path.join(root, 'src', 'them.js'), 'export const them = 3;' + String.fromCharCode(10));
+    git(root, ['add', '-A']);
+    git(root, ['commit', '-m', 'commit thu ba']);
+    const giua = execFileSync('git', ['rev-parse', 'HEAD~1'], { cwd: root, encoding: 'utf8' }).trim();
+    assert.notEqual(giua, truoc, 'điều kiện ban đầu: hai gốc soi phải khác nhau');
+
+    setSpecBase(root, truoc);
+    reviewCommand({ cwd: root, taskId: 'T-1' });
+    writeFindings(root, []);
+    const xanh = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(xanh.exitCode, 0, xanh.output);
+    const diffCu = readGate(root, 'T-1', 'review').diffHash;
+
+    // Đổi gốc soi là đổi phạm vi, nên verdict cũ nói về một diff khác.
+    const file = path.join(root, '.compass', 'T-1', 'spec.md');
+    writeFileSync(file, readFileSync(file, 'utf8').replace(`Gốc soi: ${truoc}`, `Gốc soi: ${giua}`));
+
+    const lai = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.notEqual(lai.exitCode, 0, 'phạm vi đổi thì verdict cũ phải bị từ chối');
+    assert.notEqual(
+      readGate(root, 'T-1', 'review').diffHash,
+      diffCu,
+      'phạm vi phải thật sự đổi, không thì ca này chỉ đo lại specHash',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-EC5 the 2MB refusal advises the spec line too', () => {
+  const { root, truoc } = makeTwoCommits();
+  try {
+    setSpecBase(root, truoc);
+    // Vượt ngưỡng 2MB bằng một file lớn.
+    writeFileSync(path.join(root, 'src', 'to.js'), 'x'.repeat(2_200_000));
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2);
+    assert.match(r.output, /Gốc soi/, 'phải mách cả chỗ khai theo task, không chỉ config');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-H4 with neither spec nor config declaring, behaviour is unchanged', () => {
+  const root = makeRepo();
+  try {
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    // Vẫn là hành vi cũ: sinh brief rồi từ chối pass ở lần chạy đầu.
+    assert.notEqual(r.exitCode, 0);
+    const briefFile = path.join(root, '.compass', 'T-1', 'review-brief.md');
+    assert.ok(existsSync(briefFile));
+
+    // Và brief không được khai bừa. Không ai khai gì thì nói là điểm rẽ, chứ
+    // không chỉ người đọc tới một file không có dòng nào như vậy.
+    const brief = readFileSync(briefFile, 'utf8');
+    assert.match(brief, /không ai khai gốc soi/, brief.slice(0, 400));
+    assert.doesNotMatch(brief, /khai ở config\.json/, 'config không có dòng nào thì đừng nói là có');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-E2 a valid ref that is not an ancestor of HEAD is reported', () => {
+  const { root, truoc } = makeTwoCommits();
+  try {
+    // Nhánh rẽ từ commit đầu rồi đi hướng khác: ref hợp lệ, nhưng việc của task
+    // không nằm giữa nó và HEAD. Diff sinh ra là diff giữa hai nhánh, không phải
+    // việc của task — và trước CP-34 không có gì báo điều đó.
+    git(root, ['checkout', '-q', '-b', 'nhanh-khac', truoc]);
+    writeFileSync(path.join(root, 'src', 'nhanh-khac.js'), 'export const x = 9;\n');
+    git(root, ['add', '-A']);
+    git(root, ['commit', '-m', 'viec o nhanh khac']);
+    const laRe = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+    git(root, ['checkout', '-q', '-']);
+
+    setSpecBase(root, laRe);
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+
+    // `notEqual(exitCode, 0)` một mình không đủ: pha một của happy path cũng
+    // trả khác 0. Phải thấy đúng lý do, và phải KHÔNG có brief — brief sinh ra
+    // trên phạm vi này là brief mang dấu ngược, agent soi rồi nộp findings
+    // trung thực và gate xanh.
+    assert.equal(r.exitCode, 2, r.output);
+    assert.match(r.output, /tổ tiên/, r.output);
+    assert.equal(
+      existsSync(path.join(root, '.compass', 'T-1', 'review-brief.md')),
+      false,
+      'phạm vi sai thì đừng sinh brief cho ai soi',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-E4 a non-string config base is refused, not thrown on', () => {
+  const root = makeRepo();
+  try {
+    setConfig(root, { reviewBase: 123 });
+    let r;
+    // Cú ném nhảy qua mọi lệnh ghi sổ, để lại bản ghi review xanh cũ trong khi
+    // gate không chạy nổi — đúng thứ hai lớp ghi sổ sinh ra để chặn.
+    assert.doesNotThrow(() => { r = reviewCommand({ cwd: root, taskId: 'T-1' }); });
+    assert.equal(r.exitCode, 2);
+    assert.match(r.output, /number/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-E5 a falsy config base is reported as nobody declaring one', () => {
+  const root = makeRepo();
+  try {
+    // `resolveBase` bỏ qua giá trị falsy, nên brief khai "khai ở config.json" là
+    // nói về một giá trị chưa từng được dùng. Ba giá trị, cùng một cái bẫy.
+    for (const gia of [0, '', false]) {
+      setConfig(root, { reviewBase: gia });
+      rmSync(path.join(root, '.compass', 'T-1', 'review-brief.md'), { force: true });
+      reviewCommand({ cwd: root, taskId: 'T-1' });
+      const brief = readFileSync(path.join(root, '.compass', 'T-1', 'review-brief.md'), 'utf8');
+      assert.match(brief, /không ai khai gốc soi/, `reviewBase: ${JSON.stringify(gia)}`);
+      assert.doesNotMatch(brief, /khai ở config\.json/, `reviewBase: ${JSON.stringify(gia)}`);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-34-EC11 an ancestor base whose diff is empty says so without blaming HEAD', () => {
+  const { root, truoc } = makeTwoCommits();
+  try {
+    // Gốc soi là tổ tiên thật, nhưng việc đã bị revert nên diff rỗng. Nhánh này
+    // khác nhánh `base === head` và trước đây không ca nào canh: đổi điều kiện
+    // thành luôn đúng thì cả suite vẫn xanh.
+    git(root, ['revert', '--no-edit', 'HEAD']);
+    setSpecBase(root, truoc);
+
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.notEqual(r.exitCode, 0, 'diff rỗng không phải soi sạch');
+    assert.match(r.output, /Hoặc chưa viết code/, r.output);
+    assert.doesNotMatch(r.output, /trùng HEAD/, 'gốc soi này không trùng HEAD');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

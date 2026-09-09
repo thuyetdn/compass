@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseSpec } from '../lib/spec-parser.mjs';
 
+
 const SAMPLE = `# T-001: Thêm bộ lọc theo quốc gia
 Loại: feature-s
 Phạm vi: nexus-app-backend/src/modules/mastercontact
@@ -181,4 +182,95 @@ test('CP-19-H2 a spec without the field leaves the command to config', () => {
 test('CP-19-V1 an empty command line counts as not declared', () => {
   const spec = parseSpec(SPEC_WITH_COMMAND.replace('npm run test:deep', '   '));
   assert.equal(spec.testCommand, null, 'khai rỗng không được thành lệnh rỗng');
+});
+
+// ---- CP-34: mỗi task khai gốc soi của chính nó ----
+
+function withLine(line) {
+  return MINIMAL.replace('Phạm vi: src/', `Phạm vi: src/\n${line}`);
+}
+
+test('CP-34-H1 parseSpec reads a declared review base', () => {
+  const s = parseSpec(withLine('Gốc soi: a509f50'));
+  assert.equal(s.reviewBase, 'a509f50');
+});
+
+test('CP-34-V1 an empty declaration is ignored, like an empty Lệnh test', () => {
+  const s = parseSpec(withLine('Gốc soi:   '));
+  assert.equal(s.reviewBase, null, 'khai rỗng thì coi như không khai, để config lo');
+});
+
+test('CP-34-V2 the first declaration wins when the line appears twice', () => {
+  const s = parseSpec(withLine('Gốc soi: aaaaaaa\nGốc soi: bbbbbbb'));
+  assert.equal(s.reviewBase, 'aaaaaaa');
+});
+
+test('CP-34-V3 surrounding whitespace is trimmed', () => {
+  const s = parseSpec(withLine('Gốc soi:    a509f50   '));
+  assert.equal(s.reviewBase, 'a509f50');
+});
+
+test('CP-34-EC2 a CRLF spec yields a ref with no trailing CR', () => {
+  const s = parseSpec(withLine('Gốc soi: a509f50').replace(/\n/g, '\r\n'));
+  assert.equal(s.reviewBase, 'a509f50', 'CR lọt vào ref thì git không phân giải được');
+});
+
+
+test('CP-34-H3 a spec declaring nothing parses exactly as before', () => {
+  const s = parseSpec(MINIMAL);
+  assert.equal(s.reviewBase, null);
+  // Trường mới không được đẩy hay che các trường cũ.
+  assert.equal(s.type, 'fix');
+  assert.equal(s.scope, 'src/');
+  assert.equal(s.testCases.length, 1);
+});
+
+test('CP-34-EC4 examples under headings are ignored even when they come first', () => {
+  // Spec hướng dẫn cách dùng phải trích chính dòng khai, nên ví dụ và lời khai
+  // thật cùng nằm trong một file. Lời khai thật ở vùng đầu; ví dụ ở dưới heading.
+  const s = parseSpec([
+    // Ví dụ ĐỨNG TRƯỚC trong file, nên first-wins một mình sẽ chọn nó. Chỉ luật
+    // vị trí mới cho ra kết quả đúng — đặt lời khai thật lên trước thì ca này
+    // trùng V2 và không canh được gì.
+    '# T-1: x', 'Loại: fix', 'Phạm vi: src/', '',
+    '## Cách dùng', '```', 'Gốc soi: trong-vi-du', '```', '',
+    '## Ghi chú', 'Gốc soi: cung-trong-tai-lieu', '',
+    '## Test cases',
+    '| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |',
+    '|----|-----|-------|---------|---------|',
+    '| H1 | Happy | a | b | P0 |',
+  ].join('\n'));
+  assert.equal(s.reviewBase, null, 'không lời khai nào ở vùng đầu thì để config lo');
+});
+
+test('CP-34-EC6 a declaration below the first heading is not a declaration', () => {
+  // Vị trí đo được; "dòng này có phải ví dụ không" thì không. Bốn lần thử đọc
+  // fence cho đúng đều sập — lần tệ nhất là phạm vi soi lấy từ một dòng trong
+  // tài liệu. Luật vị trí không có cửa đó, và cũng không cần fence nào cả.
+  const s = parseSpec([
+    '# T-1: x', 'Loại: fix', 'Phạm vi: src/', '',
+    '## Mục tiêu', '```', 'quen dong fence', '',
+    '## Cách dùng', '```', 'Gốc soi: trong-vi-du', '```', '',
+    '## Test cases',
+    '| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |',
+    '|----|-----|-------|---------|---------|',
+    '| H1 | Happy | a | b | P0 |',
+  ].join('\n'));
+  assert.equal(s.reviewBase, null, 'không lời khai nào ở vùng đầu thì để config lo');
+});
+
+test('CP-34-EC7 fence lines stay in the section text they belong to', () => {
+  // Không đụng tới nội dung section. Một bản trước đã bỏ qua dòng ``` và làm
+  // lệch cách đọc ba spec đang chạy: section chỉ có khối code đọc ra rỗng.
+  const s = parseSpec([
+    '# T-1: x', 'Loại: fix', 'Phạm vi: src/', '',
+    '## Ràng buộc', '```json', '{ "a": 1 }', '```', '',
+    '## Test cases',
+    '| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |',
+    '|----|-----|-------|---------|---------|',
+    '| H1 | Happy | a | b | P0 |',
+  ].join('\n'));
+  const rb = s.sections.get('Ràng buộc');
+  assert.match(rb, /```json/, 'dòng fence là nội dung của section, không được xoá');
+  assert.match(rb, /"a": 1/);
 });

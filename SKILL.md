@@ -284,11 +284,21 @@ Findings theo format cứng:
 
 Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ, Compass sinh brief mới và bắt soi lại. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code.
 
-**Phạm vi soi.** Mặc định Compass so với điểm rẽ khỏi nhánh chính, hoặc commit đầu tiên nếu không có. Nhánh sống lâu thì phạm vi đó là cả dự án chứ không phải một task — khai `reviewBase` trong config để trỏ đúng chỗ task bắt đầu:
+**Phạm vi soi.** Mặc định Compass so với điểm rẽ khỏi nhánh chính, hoặc commit đầu tiên nếu không có. Nhánh sống lâu thì phạm vi đó là cả dự án chứ không phải một task.
 
-```json
-{ "reviewBase": "abc1234" }
+Khai vào spec của task, một dòng cạnh `Phạm vi:` — **phải ở phần đầu spec, trên heading `##` đầu tiên** — trỏ vào commit ngay **trước** khi task bắt đầu:
+
 ```
+Gốc soi: abc1234
+```
+
+Config vẫn nhận `reviewBase` làm mặc định chung, nhưng nó là **một** giá trị cho cả dự án nên chỉ đúng cho một task. Nhánh mang nhiều task mà chỉ dựa vào config thì những task còn lại được soi trên diff không chứa code của chúng — agent nộp findings trung thực, gate xanh, và bằng chứng nói về việc của người khác. Spec đè config, nên khai theo task là đường thoát.
+
+Giá trị nằm trong spec nên `specHash` phủ nó: đổi gốc soi là đổi spec, phải duyệt lại. Đúng như vậy — phạm vi soi quyết định người soi thấy gì.
+
+Chỉ vùng đầu mới tính, nên ví dụ trong tài liệu bên dưới không bao giờ đổi phạm vi soi. Đọc fence để phân biệt ví dụ với lời khai đã thử bốn lần và sập cả bốn — lần tệ nhất là phạm vi lấy từ một dòng trong tài liệu.
+
+Gốc soi cho ra diff rỗng thì gate **đỏ**, và nói rõ đó là gốc soi sai chỗ chứ không phải "chưa có gì để sửa". Diff rỗng không phải soi sạch.
 
 Diff quá 2MB thì gate từ chối. Không ai đọc hết chừng đó, và gate xanh trên bản chưa đọc còn tệ hơn không có gate — chia task nhỏ ra.
 
