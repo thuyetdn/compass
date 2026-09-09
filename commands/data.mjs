@@ -61,9 +61,15 @@ export function dataCommand({ cwd, taskId, sqlPath }) {
     };
   }
 
+  // Built before the error path returns, not after it. A warning the gate cannot
+  // adjudicate is never part of the verdict, but fixing an error is the very moment
+  // the author may settle the ambiguity by accident — so it has to be readable now.
+  const warnLines = warnings.map((w) => `  ⚠ ${w.message}`);
+  const warnBlock = warnLines.length ? [...warnLines, ''] : [];
+
   if (errors.length > 0) {
     const lines = errors.map((e) => e.message);
-    const body = [fail('data', lines), ''];
+    const body = [fail('data', lines), '', ...warnBlock];
 
     // An unterminated construct means the scan never got past it, so no count
     // of "queries in the file" would be honest — say what to fix instead.
@@ -96,10 +102,6 @@ export function dataCommand({ cwd, taskId, sqlPath }) {
   const actual = listed.names;
   const dirExists = listed.absent !== true;
 
-
-  // Printed on every path and never part of the verdict: a warning the gate
-  // cannot adjudicate is still worth a person seeing.
-  const warnLines = warnings.map((w) => `  ⚠ ${w.message}`);
 
   const rows = [];
   const missing = [];
@@ -159,8 +161,7 @@ export function dataCommand({ cwd, taskId, sqlPath }) {
     const tail = [`  ${summary}`, ''];
     if (!dirExists) tail.push(hint(`Chưa có thư mục ${path.relative(root, dir)} — chạy query rồi lưu kết quả vào đó.`));
     else tail.push(hint('Chạy những query còn thiếu, lưu kết quả đúng tên đã khai.'));
-    const warnTail = warnLines.length ? [...warnLines, ''] : [];
-    return { exitCode: 1, output: [fail('data', rows), '', ...warnTail, ...tail].join('\n') };
+    return { exitCode: 1, output: [fail('data', rows), '', ...warnBlock, ...tail].join('\n') };
   }
 
   const warnTail = warnLines.length ? ['', ...warnLines] : [];

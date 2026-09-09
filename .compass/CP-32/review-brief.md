@@ -13,7 +13,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 
 ```json
 {
-  "brief": "a83237e6aa8b",
+  "brief": "7b9baf18c74b",
   "findings": [
     {
       "severity": "Critical | Major | Minor | Info",
@@ -26,7 +26,7 @@ nó buộc kết quả của bạn gắn với đúng bản code này, để kh�
 }
 ```
 
-Không tìm thấy gì thì nộp `{ "brief": "a83237e6aa8b", "findings": [] }`. Đừng bịa ra finding cho có.
+Không tìm thấy gì thì nộp `{ "brief": "7b9baf18c74b", "findings": [] }`. Đừng bịa ra finding cho có.
 
 | Mức | Dùng khi |
 |---|---|
@@ -147,6 +147,7 @@ character. EC1–EC4 cover exactly those.
 | S18 | Security | A note inside the query body, or a blank line inside it, below the line where the query starts | No warning: once the query has started, a gap is formatting, so a correct declaration is never questioned | P0 |
 | EC22 | Edge | A declaration left above a disabled query, with a second declaration on the real query | Exit 1 as `ambiguous`, naming both declaration lines — the dangerous case is caught by a measurable rule, not by a guess | P0 |
 | EC23 | Edge | A detached declaration with no second one to make it ambiguous | Exit 0 with a `⚠` line naming both the declaration line and the query line — the gate says what it cannot adjudicate rather than guessing | P0 |
+| EC24 | Edge | A detached declaration in a file that ALSO has an error (an undeclared query) | The `⚠` still prints alongside the error. Fixing the error is the moment the author may unknowingly settle the ambiguity, so a warning withheld until the error clears is a warning that arrives too late to read | P0 |
 | S19 | Security | A disabled query and the real one with NO blank line between them | Still warns: the signal is "content came between", not "a blank line appeared" — requiring one missed every file written without it | P0 |
 | S20 | Security | A declaration, a blank line, then its own query and nothing else | No warning: blank lines alone are formatting, and a false warning trains people to ignore the real ones | P1 |
 | S21 | Security | Disabled SQL and the real query sharing one physical line (`/* select … */ select Email …`) | Still warns: the check runs where the query starts, not at the first character of a line, so a query mid-line is not missed | P0 |
@@ -162,10 +163,14 @@ character. EC1–EC4 cover exactly those.
 - .knowledge/decided/pitfalls.md
 - SKILL.md
 - cli.mjs
+- commands/check.mjs
 - commands/data.mjs
+- commands/done.mjs
 - commands/scripts.mjs
+- lib/gates.mjs
 - lib/query-outputs.mjs
 - lib/test-parser.mjs
+- test/check-done.test.mjs
 - test/data-command.test.mjs
 - test/query-outputs.test.mjs
 - writing-vi.md
@@ -448,12 +453,74 @@ index c11ffe8..e8bc4cb 100644
        case 'status':
          result = statusCommand({ cwd, taskId });
          break;
+diff --git a/commands/check.mjs b/commands/check.mjs
+index f4ee13c..d719742 100644
+--- a/commands/check.mjs
++++ b/commands/check.mjs
+@@ -1,5 +1,8 @@
+ import { existsSync, readFileSync } from 'node:fs';
+ import { findRoot, specPath } from '../lib/paths.mjs';
++import { writeGate } from '../lib/gate-store.mjs';
++import { hashFile } from '../lib/hash.mjs';
++import { hashSource } from '../lib/source-hash.mjs';
+ import { parseSpec } from '../lib/spec-parser.mjs';
+ import { rulesFor } from '../lib/task-types.mjs';
+ import { specCommand } from './spec.mjs';
+@@ -10,7 +13,7 @@ import { knowledgeCommand } from './knowledge.mjs';
+ import { uiCommand } from './ui.mjs';
+ import { visualCommand } from './visual.mjs';
+ import { reviewCommand } from './review.mjs';
+-import { GATE_ORDER } from '../lib/gates.mjs';
++import { GATE_ORDER, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
+ import { resolveRepos, reposForScope } from '../lib/repos.mjs';
+ import { loadConfig } from '../lib/config.mjs';
+ 
+@@ -82,7 +85,7 @@ export async function checkCommand({ cwd, taskId, only }) {
+ 
+   // Gate cần trình duyệt chỉ chạy ở repo khai devUrl. Backend không khai thì bỏ
+   // qua repo đó — không thêm quy ước đặt tên nào phải nhớ.
+-  const CAN_TRINH_DUYET = ['ui', 'visual'];
++  const CAN_TRINH_DUYET = BROWSER_GATES;
+ 
+   const lines = [];
+   const skipped = [];
+@@ -109,7 +112,29 @@ export async function checkCommand({ cwd, taskId, only }) {
+     // tốn nhiều giờ ở CP-8. Vài giây không đáng đổi lấy chuyện đó.
+     for (const repo of chay) {
+       if (CAN_TRINH_DUYET.includes(gate) && repo.config && !repo.config.devUrl) {
+-        skipped.push(`${gate}${repo.name ? "@" + repo.name : ""} (không khai devUrl)`);
++        skipped.push(`${gate}${repo.name ? "@" + repo.name : ""} (${LY_DO_KHONG_DEVURL})`);
++        // Ghi lại, không chỉ in ra. `done` đòi đủ gate bắt buộc của loại task, và
++        // `ui`/`visual` nằm trong đó từ feature-m. Không để lại bản ghi thì `done`
++        // báo "chưa chạy" một gate mà chính `check` vừa từ chối chạy, rồi khuyên
++        // chạy lại `check` — vòng lặp không có lối ra, gặp thật ở CP-32.
++        //
++        // Chỉ ghi cho gate BẮT BUỘC. Ghi cho mọi loại task thì `fix` cũng có bản
++        // ghi skip, mà `done` không đòi nó — sổ mọc thêm dòng không ai đọc.
++        if (!rules.gates.includes(gate)) continue;
++        writeGate(root, taskId, {
++          gate,
++          // Không phải 0: đọc sổ phải phân biệt được "chưa chạy" với "đã đo và
++          // đúng". Một bản ghi `exitCode: 0` không có phép đo nào đằng sau là
++          // bằng chứng giả.
++          exitCode: null,
++          skipped: true,
++          skipReason: LY_DO_KHONG_DEVURL,
++          checkedAt: new Date().toISOString(),
++          specHash: hashFile(specPath(root, taskId)),
++          // `ui`/`visual` là gate đọc code, nên `done` soi `sourceHash` cả trên
++          // bản ghi skip. Thiếu trường thì nó bị coi là bản ghi phiên bản cũ.
++          sourceHash: hashSource(root),
++        }, repo.name);
+         continue;
+       }
+ 
 diff --git a/commands/data.mjs b/commands/data.mjs
 new file mode 100644
-index 0000000..93931d5
+index 0000000..07d06bd
 --- /dev/null
 +++ b/commands/data.mjs
-@@ -0,0 +1,168 @@
+@@ -0,0 +1,169 @@
 +import { existsSync, readFileSync, readdirSync } from 'node:fs';
 +import path from 'node:path';
 +import { findRoot, taskDir, validateTaskId } from '../lib/paths.mjs';
@@ -517,9 +584,15 @@ index 0000000..93931d5
 +    };
 +  }
 +
++  // Built before the error path returns, not after it. A warning the gate cannot
++  // adjudicate is never part of the verdict, but fixing an error is the very moment
++  // the author may settle the ambiguity by accident — so it has to be readable now.
++  const warnLines = warnings.map((w) => `  ⚠ ${w.message}`);
++  const warnBlock = warnLines.length ? [...warnLines, ''] : [];
++
 +  if (errors.length > 0) {
 +    const lines = errors.map((e) => e.message);
-+    const body = [fail('data', lines), ''];
++    const body = [fail('data', lines), '', ...warnBlock];
 +
 +    // An unterminated construct means the scan never got past it, so no count
 +    // of "queries in the file" would be honest — say what to fix instead.
@@ -552,10 +625,6 @@ index 0000000..93931d5
 +  const actual = listed.names;
 +  const dirExists = listed.absent !== true;
 +
-+
-+  // Printed on every path and never part of the verdict: a warning the gate
-+  // cannot adjudicate is still worth a person seeing.
-+  const warnLines = warnings.map((w) => `  ⚠ ${w.message}`);
 +
 +  const rows = [];
 +  const missing = [];
@@ -615,13 +684,121 @@ index 0000000..93931d5
 +    const tail = [`  ${summary}`, ''];
 +    if (!dirExists) tail.push(hint(`Chưa có thư mục ${path.relative(root, dir)} — chạy query rồi lưu kết quả vào đó.`));
 +    else tail.push(hint('Chạy những query còn thiếu, lưu kết quả đúng tên đã khai.'));
-+    const warnTail = warnLines.length ? [...warnLines, ''] : [];
-+    return { exitCode: 1, output: [fail('data', rows), '', ...warnTail, ...tail].join('\n') };
++    return { exitCode: 1, output: [fail('data', rows), '', ...warnBlock, ...tail].join('\n') };
 +  }
 +
 +  const warnTail = warnLines.length ? ['', ...warnLines] : [];
 +  return { exitCode: 0, output: [pass('data', summary), '', ...rows, ...warnTail].join('\n') };
 +}
+diff --git a/commands/done.mjs b/commands/done.mjs
+index 28289e8..59882d7 100644
+--- a/commands/done.mjs
++++ b/commands/done.mjs
+@@ -6,7 +6,26 @@ import { readGates, verifyAllGates, writeGate, parseSlot } from '../lib/gate-sto
+ import { hashFile } from '../lib/hash.mjs';
+ import { pass, fail, hint } from '../lib/report.mjs';
+ import { hashSource } from '../lib/source-hash.mjs';
+-import { IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES } from '../lib/gates.mjs';
++import { IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
++
++// Một bản ghi "gate không chạy được" mà `done` chấp nhận thay cho bản ghi xanh.
++// Hẹp hết mức có thể: chỉ gate cần trình duyệt, và chỉ đúng một lý do — cái duy
++// nhất `check` sinh ra. Rộng hơn thì đây thành cửa sau, vì bất kỳ gate nào cũng
++// tự khai là không chạy được rồi đi thẳng qua cổng cuối.
++//
++// `done` KHÔNG đọc `config.json` để tự suy ra lý do. Config là thứ được tin
++// (SKILL.md), nên suy từ nó nghĩa là xoá `devUrl` sau một lần `ui` chạy đỏ thì
++// gate đỏ đó biến mất. Bản ghi đã ký thì không có cửa đó — chữ ký phủ cả
++// `skipReason`, nên sửa lời khai là chữ ký lệch.
++//
++// Danh tính không kiểm ở đây: `verifyAllGates` đã chặn bản ghi sửa tay, chuyển
++// khe, hay chép từ task khác trước khi vòng nào chạm tới nó.
++function laBoQuaHopLe(record, slot) {
++  if (!record || typeof record !== 'object') return false;
++  if (record.skipped !== true) return false;
++  if (!BROWSER_GATES.includes(parseSlot(slot).gate)) return false;
++  return record.skipReason === LY_DO_KHONG_DEVURL;
++}
+ 
+ 
+ 
+@@ -79,12 +98,21 @@ export function doneCommand({ cwd, taskId }) {
+   const required = rules.gates.filter((g) => IMPLEMENTED_GATES.includes(g));
+   const unimplemented = rules.gates.filter((g) => !IMPLEMENTED_GATES.includes(g));
+ 
++  // Gate bắt buộc mà `check` đã từ chối chạy vì repo không có trang nào để mở.
++  // Gom lại để báo cáo cuối nói ra — đóng task với hai gate chưa từng chạy là
++  // một sự thật, giấu đi thì cổng cuối nói dối.
++  const boQua = [];
++
+   for (const name of required) {
+     const record = gates[name];
+     if (!record) {
+       problems.push(`Gate "${name}" chưa chạy.`);
+       continue;
+     }
++    if (laBoQuaHopLe(record, name)) {
++      boQua.push(name);
++      continue;
++    }
+     if (typeof record.exitCode !== 'number') {
+       problems.push(`Gate "${name}" có bản ghi không ghi exit code — bản ghi hỏng. ${cachChayLai(name, taskId, true)}`);
+     } else if (record.exitCode !== 0) {
+@@ -121,6 +149,13 @@ export function doneCommand({ cwd, taskId }) {
+       themKemLoiKhuyen(`Khoá "${name}" trong sổ gate không phải bản ghi — sổ hỏng. Xoá khoá đó rồi chạy lại: compass ${ten} ${taskId}`);
+       continue;
+     }
++    // Một khe repo bỏ qua hợp lệ. Vòng bắt buộc phía trên chỉ tra khe trần, nên
++    // `ui@frontend` rơi xuống đây; không có chốt này thì `exitCode: null` bị đọc
++    // là bản ghi hỏng và task đa repo không đóng được.
++    if (laBoQuaHopLe(record, name)) {
++      boQua.push(name);
++      continue;
++    }
+     if (typeof record.exitCode !== 'number') {
+       themKemLoiKhuyen(`Gate "${name}" có bản ghi không ghi exit code — bản ghi hỏng. Chạy lại: compass ${parseSlot(name).gate} ${taskId}`);
+     } else if (record.exitCode !== 0) {
+@@ -195,6 +230,12 @@ export function doneCommand({ cwd, taskId }) {
+     // danh sách thì `check` chạy xong vẫn đỏ y nguyên, và người dùng quay vòng.
+     const deuTuCoLoiKhuyen = problems.length > 0 && problems.every((p) => tuCoLoiKhuyen.has(p));
+     const lines = [fail('done', problems)];
++    // Nói cả trên nhánh đỏ. Task tắc vì gate khác vẫn đang thiếu hai lớp đo, và
++    // người đọc cần biết ngay — đợi tới lúc mọi thứ xanh mới nói thì họ đã quyết
++    // định xong từ lâu.
++    if (boQua.length) {
++      lines.push('', `Gate ${boQua.join(', ')} chưa từng chạy: ${LY_DO_KHONG_DEVURL}.`);
++    }
+     if (!deuTuCoLoiKhuyen) lines.push('', hint('Chạy: compass check ' + taskId));
+     if (unimplemented.length) {
+       lines.push('');
+@@ -212,15 +253,25 @@ export function doneCommand({ cwd, taskId }) {
+   writeGate(root, taskId, {
+     gate: 'done',
+     exitCode: 0,
+-    gateCount: soi.length,
++    // `gateCount` đếm gate đã đo, không đếm gate bỏ qua. Ai đọc sổ sau này phải
++    // thấy đúng số phép đo đứng sau task, và `skipped` nói phần còn thiếu.
++    gateCount: soi.length - boQua.length,
+     gates: soi,
++    skipped: boQua,
+     closedAt: new Date().toISOString(),
+     specHash: currentSpecHash,
+     sourceHash: currentSourceHash,
+     configHash: currentConfigHash,
+   });
+ 
+-  const lines = [pass('done', `${soi.length} gate đã pass`)];
++  // Đếm gate thật sự đã đo. Gộp cả gate bỏ qua vào con số này là nói "6 gate đã
++  // pass" cho một task chỉ đo được 4 — đúng kiểu báo xong khi chưa xong mà cổng
++  // này sinh ra để chặn.
++  const daDo = soi.filter((name) => !boQua.includes(name));
++  const lines = [pass('done', `${daDo.length} gate đã pass`)];
++  if (boQua.length) {
++    lines.push(`Gate ${boQua.join(', ')} chưa từng chạy: ${LY_DO_KHONG_DEVURL}. Repo không có trang nào để đo, nên hai lớp này không có bằng chứng nào cả.`);
++  }
+   if (unimplemented.length) {
+     lines.push(`Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này và không được kiểm tra.`);
+   }
 diff --git a/commands/scripts.mjs b/commands/scripts.mjs
 index d892e1e..999b93b 100644
 --- a/commands/scripts.mjs
@@ -646,6 +823,27 @@ index d892e1e..999b93b 100644
      // A bare block-comment opener carries no text; the description is on the
      // next line. Returning "*" here would look like a purpose nobody wrote.
      if (line === '/*' || line === '/**' || line === '*' || line === '*/') continue;
+diff --git a/lib/gates.mjs b/lib/gates.mjs
+index 496ed12..778356a 100644
+--- a/lib/gates.mjs
++++ b/lib/gates.mjs
+@@ -17,6 +17,16 @@ export const GATE_ORDER = ['spec', 'knowledge', 'convention', 'test', 'ui', 'vis
+ // twice: a gate added in one file that another file never learned about.
+ export const SOURCE_DEPENDENT_GATES = ['knowledge', 'convention', 'test', 'ui', 'visual'];
+ 
++// Gate cần một trang để mở. Repo không khai `devUrl` thì không có trang nào, và
++// bắt chúng chạy là bắt đo một thứ không tồn tại.
++export const BROWSER_GATES = ['ui', 'visual'];
++
++// Lý do duy nhất `check` được phép bỏ qua một gate bắt buộc, và là chuỗi duy
++// nhất `done` chấp nhận. Một hằng số chung chứ không phải hai chuỗi giống nhau
++// ở hai file: `check` sửa lời văn mà `done` không biết thì mọi bản ghi skip
++// biến thành "chưa chạy", và task đang đóng được bỗng đóng không được.
++export const LY_DO_KHONG_DEVURL = 'không khai devUrl';
++
+ export function isImplemented(gate) {
+   return IMPLEMENTED_GATES.includes(gate);
+ }
 diff --git a/lib/query-outputs.mjs b/lib/query-outputs.mjs
 new file mode 100644
 index 0000000..037168d
@@ -1124,12 +1322,429 @@ index ae8a831..1cf10fd 100644
      if (repoMark && (repoNames === null || repoNames.includes(repoMark[1]))) {
        block += 1;
        stack.length = 0;
+diff --git a/test/check-done.test.mjs b/test/check-done.test.mjs
+index f836e3d..defc52a 100644
+--- a/test/check-done.test.mjs
++++ b/test/check-done.test.mjs
+@@ -788,3 +788,412 @@ test('CP-16-E3 a null entry in the ledger is reported, not crashed on', async ()
+   assert.equal(r.exitCode, 1);
+   assert.match(r.output, /sổ hỏng|không phải bản ghi/);
+ });
++
++// ---- CP-33: `done` demands browser gates that `check` refused to run ----
++
++// A feature-m task requires ui/visual. Built once here because every CP-33 case
++// needs the same shape: the gates are only required at this task type.
++function makeFeatureM(extraConfig = {}) {
++  const layers = [
++    ['H', 'Happy', 4], ['V', 'Validation', 4], ['E', 'Error', 4],
++    ['X', 'Edge', 4], ['S', 'Security', 3], ['P', 'Performance', 2],
++  ];
++  const rows = ['| ID | Lớp | Mô tả | Kỳ vọng | Ưu tiên |', '|----|-----|-------|---------|---------|'];
++  const oks = [];
++  let n = 0;
++  for (const [prefix, layer, count] of layers) {
++    for (let i = 1; i <= count; i++) {
++      rows.push(`| ${prefix}${i} | ${layer} | Case ${++n} | Pass | P0 |`);
++      oks.push(`ok ${n} - test_${prefix}${i}_a`);
++    }
++  }
++  const spec = `# T-FM: Feature trung bình
++Loại: feature-m
++Phạm vi: src/
++
++## Mục tiêu
++Làm gì đó lớn.
++
++## Ràng buộc
++Không có.
++
++## Rủi ro hồi quy
++Không có.
++
++## Test cases
++${rows.join('\n')}
++`;
++  const cmd = 'node -e "' + oks.map((l) => `console.log('${l}')`).join('; ') + '"';
++  const root = mkdtempSync(path.join(tmpdir(), 'compass-cp33-'));
++  mkdirSync(path.join(root, '.compass', 'T-FM', 'evidence'), { recursive: true });
++  writeFileSync(
++    path.join(root, '.compass', 'config.json'),
++    JSON.stringify({ test: cmd, ...extraConfig }),
++  );
++  writeFileSync(path.join(root, '.compass', 'T-FM', 'spec.md'), spec);
++  return root;
++}
++
++// `review` is required at feature-m and needs an outside agent, so it can never
++// be green here. Every CP-33 case reads the ui/visual verdict out of the problem
++// list instead of the exit code, which review would dominate.
++function saysNotRun(output, gate) {
++  return new RegExp(`Gate "${gate}[^"]*" chưa chạy`).test(output);
++}
++
++test('CP-33-H1 check records a skip for ui and visual when no devUrl is declared', async () => {
++  const root = makeFeatureM();
++  try {
++    // `review` đỏ ở đây vì thư mục tạm không phải repo git, và nó chạy SAU
++    // ui/visual. Ca này hỏi `check` có ghi lại lý do bỏ qua không, nên nó đọc sổ
++    // chứ không đọc mã thoát — mã thoát thuộc về một gate khác.
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    for (const gate of ['ui', 'visual']) {
++      const rec = readGate(root, 'T-FM', gate);
++      assert.ok(rec, `${gate} phải có bản ghi, không phải khoảng trống`);
++      assert.equal(rec.skipped, true, `${gate} phải đánh dấu bỏ qua`);
++      assert.match(rec.skipReason, /devUrl/, 'bản ghi phải nói vì sao bỏ qua');
++      // Not exitCode 0: a reader must tell "did not run" from "measured and correct".
++      assert.notEqual(rec.exitCode, 0, `${gate} bỏ qua không được trông như đã đo`);
++    }
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-H2 done no longer reports a skipped browser gate as never run', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
++    assert.equal(saysNotRun(r.output, 'visual'), false, r.output);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-H3 done names the skipped gates and why they never ran', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.match(r.output, /ui/);
++    assert.match(r.output, /visual/);
++    assert.match(r.output, /devUrl/, 'báo cáo đóng task phải mang theo chỗ trống này');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-V1 a hand-written skip on a non-browser gate is refused', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    // Forge a properly signed skip for `review` — signature valid, gate wrong.
++    const file = gatePath(root, 'T-FM');
++    const data = JSON.parse(readFileSync(file, 'utf8'));
++    const salt = getSalt(root);
++    const forged = { gate: 'review', skipped: true, skipReason: 'không khai devUrl', taskId: 'T-FM' };
++    data.review = { ...forged, sig: signRecord(forged, salt) };
++    writeFileSync(file, JSON.stringify(data, null, 2));
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(r.exitCode, 1);
++    // Bị từ chối là điều cần canh, không phải câu chữ. `done` gọi nó là bản ghi
++    // hỏng — chính xác hơn "chưa chạy", vì bản ghi có tồn tại, chỉ là vô giá trị.
++    assert.match(r.output, /Gate "review"/, r.output);
++    assert.doesNotMatch(r.output, /Gate "review" .*PASSED/, r.output);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-V2 a skip stating some other reason is refused', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    const file = gatePath(root, 'T-FM');
++    const data = JSON.parse(readFileSync(file, 'utf8'));
++    const salt = getSalt(root);
++    const forged = { gate: 'ui', skipped: true, skipReason: 'tôi thấy không cần', taskId: 'T-FM' };
++    data.ui = { ...forged, sig: signRecord(forged, salt) };
++    writeFileSync(file, JSON.stringify(data, null, 2));
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(r.exitCode, 1);
++    // Lý do lạ thì bản ghi không đủ tư cách bỏ qua, và `done` rơi về nhánh cũ:
++    // `exitCode` không phải số nên nó là bản ghi hỏng.
++    assert.match(r.output, /Gate "ui" có bản ghi không ghi exit code/, r.output);
++    assert.doesNotMatch(r.output, /tôi thấy không cần/, 'đừng nhắc lại lời khai giả như thể nó hợp lệ');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-E1 a red ui run still blocks after devUrl is removed', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    // A real measurement that failed. Dropping devUrl must not launder it.
++    const file = gatePath(root, 'T-FM');
++    const data = JSON.parse(readFileSync(file, 'utf8'));
++    const salt = getSalt(root);
++    const red = { gate: 'ui', exitCode: 1, taskId: 'T-FM' };
++    data.ui = { ...red, sig: signRecord(red, salt) };
++    writeFileSync(file, JSON.stringify(data, null, 2));
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(r.exitCode, 1);
++    assert.match(r.output, /ui/);
++    assert.doesNotMatch(r.output, /Gate "ui" chưa chạy/, 'đỏ là đã chạy, không phải chưa chạy');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-S1 a skip copied from another task is rejected', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    const file = gatePath(root, 'T-FM');
++    const data = JSON.parse(readFileSync(file, 'utf8'));
++    const salt = getSalt(root);
++    // Signed correctly, but for a different task.
++    const other = { gate: 'ui', skipped: true, skipReason: 'không khai devUrl', taskId: 'T-OTHER' };
++    data.ui = { ...other, sig: signRecord(other, salt) };
++    writeFileSync(file, JSON.stringify(data, null, 2));
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(r.exitCode, 1);
++    assert.match(r.output, /task khác|thuộc task/, r.output);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-S2 a skip edited by hand loses its signature', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    // Take the real skip and rewrite the reason, leaving the old signature.
++    const file = gatePath(root, 'T-FM');
++    const data = JSON.parse(readFileSync(file, 'utf8'));
++    data.ui.skipReason = 'không khai devUrl (thật ra tôi tự ghi)';
++    writeFileSync(file, JSON.stringify(data, null, 2));
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(r.exitCode, 1);
++    assert.match(r.output, /sửa tay|chữ ký/, r.output);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-S3 adding devUrl later does not turn the skip into a pass', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    // The gate never re-ran; only config changed. done reads the ledger.
++    const cfg = path.join(root, '.compass', 'config.json');
++    const config = JSON.parse(readFileSync(cfg, 'utf8'));
++    config.devUrl = 'http://localhost:5173/';
++    writeFileSync(cfg, JSON.stringify(config));
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
++    assert.match(r.output, /devUrl/, 'vẫn phải nói rõ gate chưa từng chạy');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-EC3 a fix task writes no skip record and reports nothing', async () => {
++  const root = makeTask(GREEN);
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-1' });
++    assert.equal(readGate(root, 'T-1', 'ui'), null, 'fix không đòi ui thì đừng ghi gì');
++    assert.equal(readGate(root, 'T-1', 'visual'), null);
++
++    const r = doneCommand({ cwd: root, taskId: 'T-1' });
++    assert.equal(r.exitCode, 0, r.output);
++    assert.doesNotMatch(r.output, /devUrl/, 'không có gì bỏ qua thì đừng báo');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++// Dựng gốc feature-m nhiều repo. `makeFeatureM` ở trên chỉ làm một repo, và
++// khe bản ghi mang tên repo là chỗ CP-13 từng để hai repo đè lên nhau.
++function makeFeatureMRepos(repos, dirs) {
++  const root = makeFeatureM();
++  const cfg = path.join(root, '.compass', 'config.json');
++  const config = JSON.parse(readFileSync(cfg, 'utf8'));
++  // Lệnh test in đủ 21 ID nằm ở phần chung, và repo con thừa hưởng nó theo từng
++  // trường. Repo nào tự khai `test` thì gate `test` chỉ thấy phần ID của repo đó
++  // và đỏ trước khi `check` kịp tới `ui` — ca này hỏi về `ui`, không phải `test`.
++  const withTest = {};
++  for (const [name, own] of Object.entries(repos)) withTest[name] = { ...own };
++  writeFileSync(cfg, JSON.stringify({ ...config, repos: withTest }, null, 2));
++
++  const specFile = path.join(root, '.compass', 'T-FM', 'spec.md');
++  const spec = readFileSync(specFile, 'utf8').replace('Phạm vi: src/', `Phạm vi: ${dirs.join(', ')}`);
++  writeFileSync(specFile, spec);
++  for (const d of dirs) mkdirSync(path.join(root, d), { recursive: true });
++  return root;
++}
++
++test('CP-33-H4 a repo that declares devUrl gets a real record, not a skip', async () => {
++  // devUrl có thì gate chạy thật. Bản ghi phải là phép đo, không phải lời khai
++  // bỏ qua — nếu không thì khai devUrl xong vẫn không ai đo gì.
++  const root = makeFeatureM({ dev: 'true', devUrl: 'http://localhost:9/' });
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++    const rec = readGate(root, 'T-FM', 'ui');
++    if (rec) {
++      assert.notEqual(rec.skipped, true, 'khai devUrl rồi thì đừng ghi bỏ qua');
++    }
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-H5 an existing pass record is read exactly as before', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    // Hình dạng bản ghi ui thật của CP-6, chép nguyên: đường skip mới thêm
++    // không được đổi cách đọc một bản ghi đã đo.
++    const file = gatePath(root, 'T-FM');
++    const data = JSON.parse(readFileSync(file, 'utf8'));
++    const salt = getSalt(root);
++    const daDo = {
++      gate: 'ui',
++      exitCode: 0,
++      checkedAt: new Date().toISOString(),
++      specHash: data.ui.specHash,
++      sourceHash: data.ui.sourceHash,
++      contractHash: null,
++      measured: 0,
++      driftCount: 0,
++      taskId: 'T-FM',
++    };
++    data.ui = { ...daDo, sig: signRecord(daDo, salt) };
++    writeFileSync(file, JSON.stringify(data, null, 2));
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
++    assert.doesNotMatch(r.output, /Gate ui.*chưa từng chạy/, 'đã đo thì đừng báo là bỏ qua');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-V3 a skip missing its identity fields is treated as a stale record', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++
++    // Không có `taskId`: bản ghi từ bản Compass cũ. Nó không chứng minh được gì
++    // về task này, nên bỏ qua hợp lệ hay không cũng không xét tới.
++    const file = gatePath(root, 'T-FM');
++    const data = JSON.parse(readFileSync(file, 'utf8'));
++    const salt = getSalt(root);
++    const cu = { gate: 'ui', exitCode: null, skipped: true, skipReason: 'không khai devUrl' };
++    data.ui = { ...cu, sig: signRecord(cu, salt) };
++    writeFileSync(file, JSON.stringify(data, null, 2));
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(r.exitCode, 1);
++    assert.match(r.output, /bản Compass cũ|chưa có taskId/, r.output);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-E2 a later write replaces the skip, leaving one state not two', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM' });
++    assert.equal(readGate(root, 'T-FM', 'ui').skipped, true);
++
++    // Cùng một khe, ghi đè bằng một phép đo thật. Sổ là map theo khe nên không
++    // thể giữ hai bản ghi; `done` phải đọc ra đúng một trạng thái.
++    const file = gatePath(root, 'T-FM');
++    const data = JSON.parse(readFileSync(file, 'utf8'));
++    const salt = getSalt(root);
++    const daDo = {
++      gate: 'ui', exitCode: 0, taskId: 'T-FM',
++      specHash: data.ui.specHash, sourceHash: data.ui.sourceHash,
++    };
++    data.ui = { ...daDo, sig: signRecord(daDo, salt) };
++    writeFileSync(file, JSON.stringify(data, null, 2));
++
++    const rec = readGate(root, 'T-FM', 'ui');
++    assert.equal(rec.skipped, undefined, 'bản ghi sau phải thay hẳn bản trước');
++
++    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
++    assert.doesNotMatch(r.output, /Gate ui.*chưa từng chạy/, 'một trạng thái, không phải hai');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-EC1 a skip in one repo does not satisfy the other repo', async () => {
++  const root = makeFeatureMRepos(
++    { fe: { dev: 'true', devUrl: 'http://localhost:9/' }, be: {} },
++    ['fe/src', 'be/src'],
++  );
++  try {
++    // Chạy riêng `ui`. Chạy cả chuỗi thì gate `test` đỏ trước ở chế độ đa repo
++    // (mỗi repo chỉ in phần ID của nó — chuyện của CP-13), và `check` không bao
++    // giờ tới `ui`, tức là ca này sẽ đo nhầm thứ khác.
++    await checkCommand({ cwd: root, taskId: 'T-FM', only: 'ui' });
++
++    // `be` không khai devUrl nên có bản ghi bỏ qua; `fe` khai nên không có.
++    const beSkip = readGate(root, 'T-FM', 'ui', 'be');
++    assert.ok(beSkip, 'repo không khai devUrl phải để lại bản ghi');
++    assert.equal(beSkip.skipped, true);
++
++    const feRec = readGate(root, 'T-FM', 'ui', 'fe');
++    if (feRec) assert.notEqual(feRec.skipped, true, 'repo khai devUrl không được ghi bỏ qua');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-EC2 only the repo without devUrl is named as skipped', async () => {
++  const root = makeFeatureMRepos(
++    { fe: { dev: 'true', devUrl: 'http://localhost:9/' }, be: {} },
++    ['fe/src', 'be/src'],
++  );
++  try {
++    const r = await checkCommand({ cwd: root, taskId: 'T-FM', only: 'ui' });
++    assert.match(r.output, /ui@be/, r.output);
++    assert.doesNotMatch(r.output, /ui@fe \(không khai devUrl\)/, 'repo khai devUrl không phải chỗ bỏ qua');
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-33-EC4 --only=ui writes the same skip record as a full run', async () => {
++  const root = makeFeatureM();
++  try {
++    await checkCommand({ cwd: root, taskId: 'T-FM', only: 'ui' });
++    const rec = readGate(root, 'T-FM', 'ui');
++    assert.ok(rec, 'gọi riêng một gate cũng phải để lại bản ghi');
++    assert.equal(rec.skipped, true);
++    assert.match(rec.skipReason, /devUrl/);
++    assert.notEqual(rec.exitCode, 0);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
 diff --git a/test/data-command.test.mjs b/test/data-command.test.mjs
 new file mode 100644
-index 0000000..399dcf8
+index 0000000..1062fe4
 --- /dev/null
 +++ b/test/data-command.test.mjs
-@@ -0,0 +1,417 @@
+@@ -0,0 +1,448 @@
 +import { test } from 'node:test';
 +import assert from 'node:assert/strict';
 +import { mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from 'node:fs';
@@ -1426,6 +2041,37 @@ index 0000000..399dcf8
 +    assert.equal(exitCode, 0, 'a warning must not change the verdict');
 +    assert.match(output, /Gate data PASSED/);
 +    assert.match(output, /⚠/);
++    assert.match(output, /Dòng 1/);
++    assert.match(output, /dòng 4/);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test('CP-32-EC24 keeps the detached warning visible when the file also has an error', () => {
++  const root = makeRepo();
++  try {
++    // A detached declaration AND an undeclared query. Fixing the error is the
++    // moment the author may unknowingly settle the ambiguity, so withholding
++    // the warning until the error clears is withholding it until too late.
++    const sql = writeSql(
++      root,
++      'q.sql',
++      [
++        '-- @out: INV-4-q3-work-0908.csv',
++        '-- select 3 from mastercontact;',
++        '',
++        'select Email from mastercontact;',
++        '',
++        'select 9;',
++      ].join('\n'),
++    );
++
++    const { exitCode, output } = dataCommand({ cwd: root, taskId: 'INV-4', sqlPath: sql });
++
++    assert.equal(exitCode, 1, 'the error still decides the verdict');
++    assert.match(output, /dòng 6/, 'the undeclared query is still reported');
++    assert.match(output, /⚠/, 'the warning must survive the error path');
 +    assert.match(output, /Dòng 1/);
 +    assert.match(output, /dòng 4/);
 +  } finally {

@@ -301,6 +301,37 @@ test('CP-32-EC23 prints a detached warning without failing the gate', () => {
   }
 });
 
+test('CP-32-EC24 keeps the detached warning visible when the file also has an error', () => {
+  const root = makeRepo();
+  try {
+    // A detached declaration AND an undeclared query. Fixing the error is the
+    // moment the author may unknowingly settle the ambiguity, so withholding
+    // the warning until the error clears is withholding it until too late.
+    const sql = writeSql(
+      root,
+      'q.sql',
+      [
+        '-- @out: INV-4-q3-work-0908.csv',
+        '-- select 3 from mastercontact;',
+        '',
+        'select Email from mastercontact;',
+        '',
+        'select 9;',
+      ].join('\n'),
+    );
+
+    const { exitCode, output } = dataCommand({ cwd: root, taskId: 'INV-4', sqlPath: sql });
+
+    assert.equal(exitCode, 1, 'the error still decides the verdict');
+    assert.match(output, /dòng 6/, 'the undeclared query is still reported');
+    assert.match(output, /⚠/, 'the warning must survive the error path');
+    assert.match(output, /Dòng 1/);
+    assert.match(output, /dòng 4/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('CP-32-H7 excludes manual queries from the expected file count', () => {
   const root = makeRepo();
   try {
