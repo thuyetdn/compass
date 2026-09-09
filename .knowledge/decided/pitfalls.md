@@ -293,3 +293,15 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Nguyên nhân:** tín hiệu sinh cảnh báo vẫn là "có dòng trống rồi có nội dung". Khi hạ mức từ chặn xuống báo, tôi kiểm phần *hành vi gate* (không chặn nữa) mà không kiểm phần *phát hiện* còn đúng phạm vi không. Cảnh báo im lặng còn tệ hơn lỗi sai, vì tài liệu đã hứa nó sẽ nói.
 **Vùng ảnh hưởng:** lib/query-outputs.mjs, và mọi lần hạ mức một phép kiểm
 **Phòng tránh:** hạ mức không phải sửa một dòng `severity`. Cảnh báo là lời hứa "chỗ này tôi sẽ nói cho anh biết" — phải kiểm nó phủ đúng những ca mình vừa thôi chặn. Và tài liệu ghi lỗ còn lại thì phải ghi đúng: viết "kèm cảnh báo" trong khi có ca im lặng là dạng sai tệ nhất, vì người đọc tin vào đó.
+
+## CP-36: Gate review chỉ soi tới HEAD, nên task nằm giữa lịch sử không đóng được
+
+**Gặp:** 2026-09-09 · CP-4, CP-6, CP-10, CP-11, CP-13
+**Triệu chứng:** năm task có `spec`, `knowledge`, `convention`, `test` đều xanh, chỉ thiếu `review`, và không cách nào chạy được gate đó cho đúng phạm vi của chúng.
+**Nguyên nhân:** hai chuyện chồng lên nhau. Gate `review` luôn soi `<gốc soi>..HEAD`, nên task có việc kết thúc trước HEAD bị soi kèm mọi commit sau nó — CP-6 ra 78 file thay vì 13 nó chạm. Và commit `8dce192` gộp việc của CP-10, CP-11, CP-13 vào một, nên không khoảng commit nào tách được ba task đó.
+**Vùng ảnh hưởng:** `lib/review-brief.mjs`, `commands/review.mjs` — và mọi dự án có nhiều task trên một nhánh dài
+**Phòng tránh:** cập nhật `Gốc soi:` **lúc bắt đầu** mỗi task, và commit từng task riêng. Một commit mang việc của ba task là ba task không soi lại được, vĩnh viễn.
+
+Quyết định 2026-09-09: **không đóng năm task này**. Lý do đo được, không phải cảm tính — 192 test mang id của chúng đang chạy xanh trong suite 875, ở bản code hôm nay. Thứ thiếu là một agent lạ đọc diff, không phải bằng chứng code chạy đúng. Sửa được thì cần thêm `Soi đến:` và lọc diff theo `Phạm vi:` (spec đã viết ở `.compass/CP-36/spec.md`, chưa duyệt) — tức là thêm code mới vào chính cơ chế sinh bằng chứng, mà lại là loại code **thu hẹp thứ reviewer nhìn thấy**. Cái giá đó lớn hơn cái được.
+
+Gặp lại hình dạng này thì đọc `.compass/CP-36/spec.md` trước, đừng điều tra lại từ đầu.
