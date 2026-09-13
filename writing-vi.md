@@ -5,19 +5,38 @@ Spec, tên test, commit message, comment trong code vẫn viết tiếng Anh.
 
 **Đọc cặp câu, đừng học tên luật.** Bắt chước ví dụ hiệu quả hơn nhớ quy tắc.
 
-Thứ tự ưu tiên khi phải chọn: **dễ hiểu > đủ ý > trang trọng > hay**.
+Thứ tự ưu tiên khi phải chọn: **đúng sự thật > dễ hiểu > đủ ý > trang trọng > hay**.
+
+**Luật đứng trên mọi luật khác: viết lại không được thêm sự thật.** Cắt chữ đệm, đảo thứ tự, gộp
+ý — được. Thêm con số, nguyên nhân, hậu quả, chủ thể, hay nói chắc hơn câu gốc — chỉ khi có bằng
+chứng. Câu gốc mơ hồ vì người viết chưa biết thì câu sửa phải nói "chưa biết", không phải điền một
+chi tiết nghe hợp lý vào chỗ trống. Ngược lại, biết mà giấu đi để câu nghe hay hơn cũng là đổi sự
+thật.
+
+Mọi cặp ❌ → ✅ trong file này giữ cùng dữ kiện và cùng mức chắc chắn; hai bên khác ở cách nói,
+không khác ở điều được nói. Ngoại lệ duy nhất là cặp dạy chỉ ra bằng chứng còn thiếu — ở đó bên ✅
+nói "chưa biết" thay cho chi tiết bịa.
 
 ---
 
 ## Phần 1 — Sáu nguyên tắc
 
-**1. Trả lời trước, giải thích sau.** Câu hỏi có/không thì trả lời có/không ngay câu đầu.
+**1. Trả lời trước, giải thích sau.** Câu hỏi có/không thì câu đầu là có, không, hoặc "chưa xác
+nhận được" kèm phép kiểm còn thiếu — hay nói thẳng cái còn thiếu: "Chưa chạy trên Vitest." Không có
+câu dẫn nào đứng trước câu đó.
 
-> ❌ Để hiểu vấn đề này, trước tiên cần xem xét một số khía cạnh liên quan...
+> ❌ Về việc bản sửa đã hết lỗi chưa, test mới chạy trên Jest nên cần xem xét thêm một số yếu tố
+> trước khi kết luận...
+>
+> ✅ Chưa xác nhận được. Test mới chạy trên Jest, chưa chạy trên Vitest.
+
+> ❌ Để hiểu vấn đề này, trước tiên cần xem xét một số khía cạnh liên quan tới cách gate `review`
+> đọc findings.json — và câu trả lời ngắn là nó không kiểm được ai viết file đó.
 >
 > ✅ Không. Gate `review` không kiểm được ai viết findings.json.
 
-> ❌ Tôi đã tiến hành phân tích và nhận thấy rằng có một vấn đề khá nghiêm trọng liên quan đến parser.
+> ❌ Tôi đã tiến hành phân tích và nhận thấy rằng có một vấn đề khá nghiêm trọng liên quan đến parser:
+> nó xếp sai một test đã pass.
 >
 > ✅ Parser xếp sai một test đã pass.
 
@@ -27,19 +46,23 @@ Thứ tự ưu tiên khi phải chọn: **dễ hiểu > đủ ý > trang trọng
 >
 > ✅ Reporter không in tên test thì Compass báo thiếu, dù bạn đã viết đủ.
 
-> ❌ Hàm này dùng debounce 300ms trên sự kiện input.
+> ❌ Hàm này dùng debounce 300ms trên sự kiện input trước khi gọi API.
 >
-> ✅ Gõ xong 300ms mới gọi API, nên gõ nhanh không bắn 10 request.
+> ✅ Gõ xong 300ms mới gọi API, nên gõ nhanh không bắn một request mỗi phím.
 
 **3. Số thay cho tính từ.** "Nhanh hơn nhiều" không kiểm chứng được.
 
-> ❌ Gate này chạy khá nhanh và khá đáng tin.
+> ❌ Gate này chạy khá nhanh (26ms trên 85 file) và khá đáng tin, dù bốn vòng thử chưa bắt được hồi
+> quy CP-8.
 >
 > ✅ 26ms trên 85 file. Chưa bắt được hồi quy CP-8 — đã thử bốn vòng.
 
-> ❌ Đã cải thiện hiệu năng đáng kể.
+> ❌ Đã cải thiện hiệu năng đáng kể, từ 2.4s xuống 0.8s trên 10k dòng.
 >
 > ✅ 2.4s xuống 0.8s trên 10k dòng.
+
+Hai bản ✅ viết được vì đã đo. Chưa đo thì câu đúng là "chưa đo thời gian" — không phải "khá
+nhanh", và cũng không phải một con số bịa cho câu đủ cụ thể.
 
 **4. Nói chỗ đáng ngờ trước khi bị hỏi.** Giả định ngầm, nhánh chưa xử lý, chỗ dễ vỡ.
 
@@ -62,14 +85,16 @@ Phần này quan trọng ngang phần từ ngữ. Câu chữ sạch mà đóng k
 
 ### Mặc định là văn xuôi
 
-Ba ý thì viết thành đoạn. Bảng và bullet là ngoại lệ, không phải mặc định.
+Lập luận liền mạch thì viết thành đoạn, dù ba ý hay bảy ý. Bảng và bullet là ngoại lệ, không phải
+mặc định. Chọn theo **quan hệ giữa các ý**, không theo số ý: liền mạch → đoạn; rời nhau và người
+đọc cần quét hay xử lý riêng từng mục → bullet; so nhiều thứ theo cùng tiêu chí → bảng.
 
 > ❌ Ba chỗ cần sửa:
 > | # | Chỗ | Vấn đề |
 > |---|---|---|
-> | 1 | club-app-frontend | cổng sai |
-> | 2 | sorm/frontend | thiếu devUrl |
-> | 3 | nexus + sale-tool | trùng cổng 5173 |
+> | 1 | club-app-frontend | cổng sai (1306, không phải 5173) |
+> | 2 | sorm/frontend | thiếu devUrl (có giao diện) |
+> | 3 | nexus + sale-tool | trùng cổng 5173 (đều không khai) |
 >
 > ✅ Ba chỗ sai. `club-app-frontend` phải là cổng 1306 chứ không phải 5173. `sorm/frontend` có giao
 > diện nhưng thiếu `devUrl`. Còn `nexus` với `sale-tool` cùng nhận 5173 vì cả hai đều không khai.
@@ -106,19 +131,22 @@ Phần 2 chống viết khô về hình thức. Phần này chống khô về gi
 
 ### Nói chủ kiến, đừng chỉ liệt kê phương án
 
-> ❌ Có ba hướng: A, B, C. Mỗi hướng có ưu nhược điểm riêng.
+> ❌ Có ba hướng: A, B, C. Mỗi hướng có ưu nhược điểm riêng — A chẳng hạn đoán runner từ chuỗi
+> lệnh, mà đoán sai thì lệnh test đang chạy tốt sẽ hỏng.
 >
 > ✅ Tôi chọn B. A đoán runner từ chuỗi lệnh, mà đoán sai thì hỏng lệnh test đang chạy tốt.
 
-> ❌ Sau khi xem xét kỹ lưỡng các phương án, tôi cho rằng phương án B có nhiều ưu điểm hơn.
+> ❌ Sau khi xem xét kỹ lưỡng các phương án, tôi cho rằng phương án B có nhiều ưu điểm hơn: nhanh
+> hơn khoảng 3 lần và không đòi thêm thư viện.
 >
-> ✅ Chọn B. Nó chạy 3 lần nhanh hơn và không cần thêm thư viện.
+> ✅ Chọn B. Nhanh hơn khoảng 3 lần, không cần thêm thư viện.
 
 Người hỏi muốn biết bạn nghĩ gì. Bày ba lựa chọn ngang nhau rồi để họ tự chọn là đẩy việc về cho họ.
 
 ### Nhận sai thẳng, một câu, rồi đi tiếp
 
-> ❌ Có vẻ như đã xảy ra một sự nhầm lẫn trong quá trình thực hiện trước đó.
+> ❌ Có vẻ như ở commit trước của tôi đã xảy ra một sự nhầm lẫn trong quá trình thực hiện, liên quan
+> tới hướng dẫn chạy `compass status` mà chưa được thử.
 >
 > ✅ Chỗ này tôi gây ra. Commit trước tôi viết "chạy `compass status`" mà không thử.
 
@@ -126,7 +154,8 @@ Không rào đón, không tự trách dài dòng. Nói cái gì sai, rồi sửa
 
 ### Chưa chắc thì nói chưa chắc
 
-> ❌ Về cơ bản thì điều này có thể sẽ hoạt động trong hầu hết các trường hợp.
+> ❌ Về cơ bản thì điều này có thể sẽ hoạt động trong hầu hết các trường hợp, dù mới thử với Jest
+> và Vitest.
 >
 > ✅ Tôi chưa thử với Angular. Jest và Vitest thì chạy đúng.
 
@@ -134,7 +163,8 @@ Không rào đón, không tự trách dài dòng. Nói cái gì sai, rồi sửa
 
 ### Người dùng hiểu sai thì sửa thẳng, đừng lên lớp
 
-> ❌ Bạn đang có một sự nhầm lẫn khá phổ biến ở đây.
+> ❌ Bạn đang có một sự nhầm lẫn khá phổ biến ở đây về vai trò của Redis so với database: Redis
+> không thay database mà đứng trước nó để đỡ tải.
 >
 > ✅ Chỗ này hơi khác: Redis không thay database. Nó đứng trước database để đỡ tải.
 
@@ -157,7 +187,7 @@ Toàn câu dài thì nghẹt. Toàn câu ngắn thì cộc như điện tín. Tr
 
 ---
 
-## Phần 4 — Mười bốn lỗi hay gặp
+## Phần 4 — Mười bảy lỗi hay gặp
 
 ### 1. Chủ ngữ mơ hồ
 
@@ -165,15 +195,18 @@ Toàn câu dài thì nghẹt. Toàn câu ngắn thì cộc như điện tín. Tr
 >
 > ✅ Bảng gate thiếu `ui` và `visual`.
 
-> ❌ Hệ thống ghi nhận có sự cố xảy ra.
+> ❌ Hệ thống ghi nhận có sự cố xảy ra ở gate test, dòng 42.
 >
 > ✅ Gate `test` đỏ ở dòng 42.
 
-"Ai đó", "hệ thống", "người ta", "có sự" — bỏ hết. Nói thẳng cái gì thiếu, cái gì sai.
+"Ai đó", "hệ thống", "người ta", "có sự" — thử thay bằng chủ thể cụ thể. Biết chủ thể thì gọi tên.
+Không biết thì viết "chưa rõ cái gì gây ra", đừng để "hệ thống" đứng thay — và cũng đừng đoán một
+chủ thể cho câu nghe chắc.
 
 ### 2. Dịch code thành lời
 
-> ❌ Hàm `syncEvents` gọi Graph API lấy danh sách rồi lưu vào database qua repository.
+> ❌ Hàm `syncEvents` chạy theo cron 15 phút, gọi Graph API với deltaToken đọc từ repository, lấy
+> danh sách thay đổi rồi lưu lại vào database.
 >
 > ✅ Lịch kéo về mỗi 15 phút, hỏi Graph "có gì đổi không" bằng deltaToken lưu trong DB.
 
@@ -222,12 +255,19 @@ tiếng Việt.
 
 ### 6. Đệm chữ cho câu dài ra
 
-> ❌ Về cơ bản thì có thể nói rằng gate này về mặt nào đó đã hoạt động tương đối ổn định.
+> ❌ Về cơ bản thì có thể nói rằng ở lần chạy này gate về mặt nào đó đã hoạt động tương đối ổn định,
+> 576 test xanh.
 >
-> ✅ Gate chạy đúng, 576 test xanh.
+> ✅ Lần chạy này gate xanh, 576 test.
+
+> ❌ Nhìn chung các repo đều chạy được — tôi thử 4 trong 5.
+>
+> ✅ 4/5 repo đã thử chạy được; 1 chưa thử.
 
 "Về cơ bản", "có thể nói rằng", "về mặt nào đó", "tương đối", "khá là", "nhìn chung", "điều quan
-trọng cần lưu ý là", "cần lưu ý rằng" — bỏ hết.
+trọng cần lưu ý là", "cần lưu ý rằng" — bỏ thử. Bỏ mà nghĩa không đổi thì đó là chữ đệm, xoá. Nghĩa
+đổi — "tương đối" đang nói mức độ thật, "nhìn chung" đang nói chưa kiểm hết — thì giữ giới hạn đó
+bằng số hoặc phạm vi cụ thể. Xoá cho câu gọn rồi thành nói chắc hơn thật là lỗi nặng hơn chữ đệm.
 
 ### 7. Dịch thuật ngữ đã quen
 
@@ -244,11 +284,11 @@ cache) là 5 phút."
 
 ### 8. Sáo rỗng
 
-> ❌ Việc này đóng vai trò quan trọng trong việc đảm bảo chất lượng.
+> ❌ Việc này đóng vai trò quan trọng trong việc đảm bảo chất lượng trước khi lên production.
 >
 > ✅ Không có bước này thì bug lọt xuống production.
 
-> ❌ Giải pháp mang lại nhiều lợi ích thiết thực.
+> ❌ Giải pháp mang lại nhiều lợi ích thiết thực: giảm hai thao tác tay và một lần chờ CI.
 >
 > ✅ Bớt được hai bước tay và một lần đợi CI.
 
@@ -267,7 +307,8 @@ Một câu một ý. Câu dài quá 25 chữ thì tìm chỗ chấm.
 
 ### 10. Nói vòng thay vì nói thẳng cái sai
 
-> ❌ Có vẻ như kết quả trả về chưa hoàn toàn như mong đợi trong một số trường hợp nhất định.
+> ❌ Có vẻ như kết quả trả về chưa hoàn toàn như mong đợi khi mảng rỗng — hàm trả `null` — và do phía
+> gọi không kiểm null nên có hiện tượng crash.
 >
 > ✅ Hàm trả về `null` khi mảng rỗng. Nơi gọi không kiểm, nên crash.
 
@@ -275,7 +316,7 @@ Ngại làm người khác buồn mà nói vòng thì họ không sửa được
 
 ### 11. Trang trọng không cần thiết, và lặp từ do dịch máy
 
-> ❌ Kính mong quý vị lưu ý rằng thao tác này không thể hoàn tác.
+> ❌ Kính mong quý vị lưu ý rằng thao tác xoá này không thể hoàn tác.
 >
 > ✅ Xoá rồi không lấy lại được.
 
@@ -291,14 +332,18 @@ Ngại làm người khác buồn mà nói vòng thì họ không sửa được
 
 > ❌ Người dùng có thể gặp phải tình huống mà trong đó dữ liệu bị mất.
 >
-> ✅ Bạn có thể mất dữ liệu.
+> ✅ Người dùng có thể mất dữ liệu.
 
-> ❌ Bạn đang hỏi Redis cache dùng để làm gì. Redis cache là...
+"Bạn" chỉ đúng khi người đọc chính là người chịu ảnh hưởng. Báo lỗi cho dev thì người mất dữ liệu
+là người dùng, không phải dev — đổi thành "bạn" là đổi chủ thể.
+
+> ❌ Bạn đang hỏi Redis cache dùng để làm gì. Redis cache là nơi giữ dữ liệu hay dùng trong RAM để
+> app không phải query DB liên tục.
 >
 > ✅ Redis giữ dữ liệu hay dùng trong RAM, nhờ vậy app không phải query DB liên tục.
 
-Xưng "bạn", nhưng đừng đặt "bạn" ở đầu mọi câu — tiếng Việt bỏ chủ ngữ được: "Chỉ cần restart
-service."
+Nói với chính người đọc thì xưng "bạn", nhưng đừng đặt "bạn" ở đầu mọi câu — tiếng Việt bỏ chủ ngữ
+được: "Chỉ cần restart service."
 
 ### 13. Lặp từ mở đầu ở các câu liền nhau
 
@@ -330,6 +375,50 @@ xuyên suốt.
 Lỗi này nặng nhất trong hồ sơ điều tra: người đọc không biết ba tên là một thứ hay ba thứ, và phải
 đọc lại từ đầu để đoán. Khác với mục 7 — ở đó là dịch hay không dịch một thuật ngữ; ở đây là đổi tên
 giữa đường.
+
+### 15. Câu dẫn báo trước mình sắp nói gì
+
+> ❌ Nói gọn: Codex đọc nội dung rule kỹ hơn, tôi đọc ràng buộc quy trình kỹ hơn.
+>
+> ✅ Codex đọc nội dung rule kỹ hơn, tôi đọc ràng buộc quy trình kỹ hơn.
+
+"Nói gọn:", "Nói thẳng:", "Nói công bằng:", "Chỗ đáng chú ý:", "Vậy là", "Điều quan trọng là" — câu
+dẫn không mang thông tin, chỉ báo là sắp có thông tin. Tiếng Anh hay mở đoạn kiểu đó; tiếng Việt thì
+nói luôn. Khác với câu dẫn **có** thông tin ở Phần 8: "Checked Heikki Rotko mà Konsta nhắc" nói được
+hai điều — đã kiểm, và ai báo.
+
+### 16. Hỏi tu từ và lời bình về chính mình
+
+> ❌ Thấy quy luật chưa? Cả bốn đều là luật đã có sẵn trong file.
+>
+> ✅ Cả bốn đều là luật đã có sẵn trong file.
+
+> ❌ Nói cho công bằng phần tôi: tôi đánh dấu ba chỗ đáng ngờ, hai chỗ sai.
+>
+> ✅ Tôi đánh dấu ba chỗ đáng ngờ, hai chỗ sai.
+
+Hỏi tu từ là bắt người đọc trả lời một câu mình sắp trả lời thay. "Đó là điều tôi rút ra", "nói cho
+công bằng phần tôi", "tôi phải nói thẳng" — bình luận về việc mình đang viết, không phải về vấn đề.
+Cắt cả hai, nội dung không mất gì.
+
+### 17. Nhắc lại ý đầu ở cuối đoạn
+
+> ❌ Gate chỉ kiểm cấu trúc, không kiểm nội dung. Nó đếm ca, đối chiếu lớp, tìm placeholder. Nội
+> dung ca có đo đúng mục tiêu không thì nó không biết. Nên nhớ: gate xanh không có nghĩa nội dung
+> đúng.
+>
+> ✅ Gate chỉ kiểm cấu trúc, không kiểm nội dung. Nó đếm ca, đối chiếu lớp, tìm placeholder. Nội
+> dung ca có đo đúng mục tiêu không thì nó không biết.
+
+Câu cuối bản ❌ nói lại câu đầu bằng chữ khác. Đó không phải nhấn mạnh — nó báo người đọc là bạn
+không tin họ hiểu lần đầu. Phần 2 đã cấm "Tóm lại" ở cuối bài; đây là cùng lỗi ở cấp đoạn.
+
+Gạch ngang chèn ý phụ cũng thuộc nhóm này: một lần mỗi đoạn là đủ, ba lần là đoạn đọc như bị ngắt
+liên tục.
+
+Ba mục 15–17 khác mục 5. Mục 5 là cấu trúc tiếng Anh trong **một câu** ("điều này cho phép", "nơi
+mà"). Ba mục này là nhịp tiếng Anh **giữa các câu**: từng câu đúng hết mà đoạn vẫn đọc như văn dịch,
+thường là vì đây.
 
 ---
 
@@ -371,7 +460,7 @@ Bước 1 tới bước cuối, đúng thứ tự xảy ra.
 
 ### Nhân quả nói rõ: "vì A nên B"
 
-> ❌ Liên quan đến A, B có thể có những ảnh hưởng nhất định.
+> ❌ Do những ảnh hưởng liên quan đến việc A đang giữ cổng, B hiện không thể khởi động được.
 >
 > ✅ A giữ cổng nên B không khởi động được.
 
@@ -387,9 +476,10 @@ Một câu nhồi bốn năm thuật ngữ người đọc chưa biết thì chi
 
 ## Phần 6 — Trước khi gửi
 
-Sáu câu hỏi:
+Bảy câu hỏi:
 
 - Câu đầu đã trả lời thẳng câu hỏi chưa?
+- Câu sửa có nói chắc hơn, hay nhiều hơn, điều mình thật sự biết không?
 - Có bảng hay bullet nào đáng lẽ nên là đoạn văn không?
 - Mỗi khẳng định có số hoặc ví dụ chưa?
 - Có chỗ nào đáng ngờ mà mình im lặng không?
@@ -412,7 +502,9 @@ niệm khó; ở đây thì không — bằng chứng cần chính xác, không 
 ### Mỗi finding: kết luận → bằng chứng → ảnh hưởng
 
 > ❌ Ban đầu tôi nghĩ lỗi nằm ở tầng đồng bộ. Sau khi thêm log và chạy lại ba lần, tôi phát hiện ra
-> rằng thực ra vấn đề bắt nguồn từ chỗ khác — deltaToken.
+> rằng thực ra vấn đề bắt nguồn từ chỗ khác — deltaToken hết hạn sau 7 ngày, Graph trả 410 mà
+> `sync.ts:88` bắt mọi exception rồi nuốt, thấy trong `app.log` lúc 04:12 ngày 3/9. Vì vậy lịch
+> ngừng cập nhật mà không ai biết cho tới khi người dùng báo.
 >
 > ✅ deltaToken hết hạn sau 7 ngày, Graph trả 410 và code nuốt lỗi.
 > Bằng chứng: `sync.ts:88` bắt mọi exception, log ở `app.log:2025-09-03T04:12`.
@@ -422,10 +514,12 @@ Người đọc cần kết quả, không cần biết bạn đã nghĩ sai ch�
 
 ### Nói rõ mức chắc chắn: đã xác nhận / suy ra / chưa biết
 
-> ❌ Có vẻ như deltaToken là nguyên nhân, và điều này có thể ảnh hưởng đến các luồng khác.
+> ❌ Có vẻ như deltaToken hết hạn là nguyên nhân gây 410 (tôi đã tái hiện bằng cách chỉnh giờ hệ
+> thống), và điều này có thể ảnh hưởng đến các luồng khác như `contacts` vì dùng chung hàm; riêng
+> ở staging token hết hạn sớm hơn 7 ngày thì chưa rõ vì sao.
 >
 > ✅ Đã xác nhận: deltaToken hết hạn gây 410 — tái hiện được bằng cách chỉnh giờ hệ thống.
-> Suy ra: luồng `contacts` dùng chung hàm này nên khả năng cao cũng dính.
+> Suy ra: luồng `contacts` dùng chung hàm này nên có thể cũng dính — cần kiểm.
 > Chưa biết: vì sao token hết hạn sớm hơn 7 ngày ở môi trường staging.
 
 Ba mức, gọi tên thẳng. Trộn ba thứ vào một giọng "có vẻ như" thì người đọc không biết chỗ nào tin
@@ -433,20 +527,23 @@ Ba mức, gọi tên thẳng. Trộn ba thứ vào một giọng "có vẻ như"
 
 ### Không ẩn dụ, không từ kịch tính
 
-> ❌ Email đã bị đóng băng trong một nơi ngoài tầm với.
+> ❌ Email cũ đã bị đóng băng trong Outlook event, một nơi ngoài tầm với.
 >
 > ✅ Outlook event vẫn giữ email cũ.
 
-> ❌ Điểm mấu chốt nằm ở chỗ hàm này đã âm thầm nuốt lỗi suốt bao lâu nay.
+> ❌ Điểm mấu chốt nằm ở chỗ `catch` dòng 88 đã âm thầm nuốt lỗi suốt từ tháng 6 tới nay mà không
+> log gì.
 >
 > ✅ `catch` ở dòng 88 không log gì. Lỗi mất từ tháng 6.
 
 Bỏ: đóng băng · mắc kẹt · trớ trêu · ẩn mình · ngoài tầm với · điểm mấu chốt · lỗ hổng chí mạng ·
-âm thầm · hóa ra. Viết được bằng thuật ngữ kỹ thuật thì viết thẳng.
+âm thầm · hóa ra. Viết được bằng thuật ngữ kỹ thuật thì viết thẳng. Luật này áp cho câu bạn viết;
+trích dẫn — comment trong code, dòng log, lời người khác — giữ nguyên chữ, vì đó là bằng chứng.
 
 ### Số dòng, số file, dấu thời gian — không phải "ở đâu đó"
 
-> ❌ Lỗi xuất hiện ở tầng service, khá thường xuyên.
+> ❌ Lỗi xuất hiện ở tầng service (`auth.service.ts:142`), khá thường xuyên — sáng 3/9 từ 04:00
+> tới 10:00 đếm được 14 lần.
 >
 > ✅ `auth.service.ts:142`, 14 lần trong 6 giờ (log 04:00–10:00 ngày 3/9).
 
@@ -469,8 +566,8 @@ trên vẫn có thể tệ vì dài gấp ba lần cần thiết.
 
 ### Đừng giải thích cái người đọc đã biết
 
-> ❌ Trang chỉ hỏi một câu duy nhất: người này có đang là order PIC của package nào còn sống không.
-> Nó không quan tâm gì tới bản thân contact.
+> ❌ Trang Skynet chỉ hỏi một câu duy nhất: người này có đang là order PIC của package nào còn active
+> không. Nó không quan tâm gì tới bản thân contact hay status của contact.
 >
 > ✅ Skynet check người này có đang là order PIC của package nào còn active không, không quan tâm
 > contact status.
@@ -478,7 +575,7 @@ trên vẫn có thể tệ vì dài gấp ba lần cần thiết.
 ### Cảm xúc của bạn về cái bug không phải thông tin
 
 > ❌ Bực nhất là dòng cache đó vẫn đang giữ giá trị đúng — Yes — nằm ngay bên cạnh. Bước ghi đè không
-> thèm đọc.
+> thèm đọc, cứ ghi No.
 >
 > ✅ Dòng cache vẫn giữ giá trị đúng là Yes. Bước ghi đè không đọc mà cứ ghi No.
 
@@ -501,7 +598,8 @@ Dịch `cache` thành "bản sao trong database riêng" làm câu dài hơn mà 
 
 ### Bỏ câu chuyển tiếp rỗng
 
-> ❌ Heikki Rotko đúng y như vậy. Anh là PIC của package 7806 đang active.
+> ❌ Heikki Rotko đúng y như vậy. Đây chính là ca Konsta báo, và tôi đã kiểm rồi. Anh là PIC của
+> package 7806 đang active.
 >
 > ✅ Checked Heikki Rotko mà Konsta nhắc đến đang bị như vậy. Contact này là PIC của package 7806
 > đang active.

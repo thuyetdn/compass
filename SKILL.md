@@ -53,6 +53,7 @@ sai một test đã pass", không phải "tôi đã tiến hành phân tích và
 > ✅ Reporter không in tên test thì Compass báo thiếu, dù bạn đã viết đủ.
 
 **3. Số thay cho tính từ.** "Chạy khá nhanh" không kiểm chứng được; "26ms trên 85 file" thì có.
+Nhưng chỉ số đã đo — chưa đo thì viết "chưa đo", không bịa số cho câu đủ cụ thể.
 
 **4. Chỉ ra chỗ đáng ngờ trước khi bị hỏi.** Giả định ngầm, nhánh chưa xử lý, chỗ dễ vỡ.
 
@@ -63,7 +64,7 @@ chút, giấu đi thì người khác sập bẫy.
 
 ### Viết tiếng Việt
 
-Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 47 cặp câu **❌ → ✅** chia
+Đọc [`writing-vi.md`](writing-vi.md) khi viết tiếng Việt cho người đọc: 53 cặp câu **❌ → ✅** chia
 theo từ ngữ, định dạng và giọng. Bắt chước cặp câu, đừng học tên luật.
 
 **Viết ticket, email, báo cáo gửi đồng nghiệp → đọc thêm Phần 8.** Bảy phần đầu dạy viết câu cho
@@ -71,12 +72,23 @@ hay; Phần 8 dạy chọn câu nào để viết. Một bản mà mọi câu đ
 thiết. Phần 8 **không** áp cho `investigation.md` và `spec.md` — hai file đó càng đầy đủ càng tốt, vì
 chúng là bằng chứng.
 
-**Mặc định là văn xuôi.** Bảng chỉ dùng khi so nhiều thứ theo cùng một tiêu chí; ba ý rời nhau thì
-viết thành đoạn. Đóng khung hết vào bảng thì câu chữ có sạch mấy cũng đọc như tài liệu.
+**Mặc định là văn xuôi.** Chọn theo quan hệ giữa các ý, không theo số ý: lập luận liền mạch → đoạn;
+các mục rời nhau mà người đọc cần quét hay xử lý riêng → bullet; so nhiều thứ theo cùng tiêu chí →
+bảng. Đóng khung hết vào bảng thì câu chữ có sạch mấy cũng đọc như tài liệu.
+
+**Trả lời hội thoại: tối đa 5 câu** cho một câu hỏi đơn giản, trừ khi người dùng hỏi chi tiết. Được
+vượt khi phải báo một điều chưa chắc hay một gate đỏ kèm lý do — cắt cái đó để giữ số câu là cắt sai
+chỗ. Không áp cho `spec.md` và `investigation.md`.
 
 Ba lỗi nặng nhất, để đây cho khỏi phải mở file: chủ ngữ mơ hồ ("ai đó quên chép" → "bảng gate
 thiếu"), bị động kiểu Tây ("được xử lý bởi service" → "service xử lý"), và sáo rỗng ("đóng vai trò
 quan trọng" → nói thẳng hậu quả).
+
+Lỗi khó thấy nhất: nhịp tiếng Anh giữa các câu — câu dẫn "Nói gọn:", hỏi tu từ "Thấy chưa?", nhắc lại
+ý đầu ở cuối đoạn. Từng câu đúng hết mà đoạn vẫn đọc như văn dịch. Phần 4 mục 15–17.
+
+Lỗi nặng hơn mọi lỗi trên: viết lại mà **thêm sự thật** — con số, nguyên nhân, chủ thể, hay nói chắc
+hơn điều mình biết. Câu gọn mà sai thì tệ hơn câu dài mà đúng.
 
 **Phép thử cuối cùng: đọc thành tiếng.** Câu đúng ngữ pháp mà đọc xong phải đọc lại là câu hỏng.
 
