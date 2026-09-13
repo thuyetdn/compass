@@ -4,7 +4,7 @@ import { findRoot, specPath, taskDir, evidenceDir, validateTaskId } from '../lib
 import { loadConfig } from '../lib/config.mjs';
 import { parseContract } from '../lib/design-contract.mjs';
 import { compareValue } from '../lib/tolerance.mjs';
-import { findPlaywright, buildMeasureScript } from '../lib/browser.mjs';
+import { findPlaywright, buildMeasureScript, pairResults } from '../lib/browser.mjs';
 import { startDevServer, waitForUrl, isLocalUrl } from '../lib/dev-server.mjs';
 import { writeGate } from '../lib/gate-store.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
@@ -149,14 +149,24 @@ export async function uiCommand({ cwd, taskId }) {
       await page.goto(cfg.config.devUrl, { waitUntil: 'load', timeout: PAGE_TIMEOUT_MS });
 
       const results = await page.evaluate(script);
-      const bySelector = new Map(results.map((r) => [r.selector, r]));
 
-      for (const element of contract.elements) {
-        const found = bySelector.get(element.selector);
+      for (const { element, result: found } of pairResults(contract.elements, results)) {
         for (const [property, design] of Object.entries(element.properties)) {
           measured += 1;
 
-          if (!found || !found.found) {
+          if (!found) {
+            drifts.push({
+              viewport: viewport.name,
+              element: element.name,
+              property,
+              design,
+              actual: undefined,
+              reason: `không đo được "${element.name}" — trình duyệt không trả kết quả cho phần tử này`,
+            });
+            continue;
+          }
+
+          if (!found.found) {
             drifts.push({
               viewport: viewport.name,
               element: element.name,
