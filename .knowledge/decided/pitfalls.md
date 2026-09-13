@@ -305,3 +305,34 @@ Mỗi mục đến từ một điều tra đã đóng.
 Quyết định 2026-09-09: **không đóng năm task này**. Lý do đo được, không phải cảm tính — 192 test mang id của chúng đang chạy xanh trong suite 875, ở bản code hôm nay. Thứ thiếu là một agent lạ đọc diff, không phải bằng chứng code chạy đúng. Sửa được thì cần thêm `Soi đến:` và lọc diff theo `Phạm vi:` (spec đã viết ở `.compass/CP-36/spec.md`, chưa duyệt) — tức là thêm code mới vào chính cơ chế sinh bằng chứng, mà lại là loại code **thu hẹp thứ reviewer nhìn thấy**. Cái giá đó lớn hơn cái được.
 
 Gặp lại hình dạng này thì đọc `.compass/CP-36/spec.md` trước, đừng điều tra lại từ đầu.
+
+### Tiếp nối 2026-09-13: CP-36 xong, năm task vẫn không đóng — vì lý do khác
+
+Mục trên nói cái giá của `Soi đến:` lớn hơn cái được. Đã làm (CP-36, commit 5fda628) và phán đoán
+đó sai một nửa: brief CP-6 từ 78 file xuống 3, soi được thật. Nhưng năm task vẫn đỏ, và lần này
+không phải vì phạm vi soi.
+
+**Bài học chính: hai vòng soi nói hai chuyện khác nhau.** Vòng một trỏ vào lỗi ở commit sinh ra
+việc; phần lớn đã được commit sau vá rồi. Dời `Soi đến:` sang commit **đóng** việc (không phải
+commit **mở** việc) thì số Major chặn giảm từ 15 xuống 9. Nên: `Soi đến:` trỏ vào commit cuối cùng
+còn sửa file trong `Phạm vi:`, tìm bằng `git log --reverse -S"<id>-" -- test/`.
+
+**Chín Major còn lại là lỗi sống ở HEAD**, không phải nợ lịch sử. Bốn cái tái hiện được bằng cách
+chạy code HEAD trong repo tạm:
+
+- `lib/investigation-parser.mjs:29` — `DAU_DONG` backtracking mũ. Dòng stack trace thụt 20 khoảng
+  trắng (chính thứ template bảo dán vào) làm `investigate --close` chạy quá 20s không về. Nặng nhất.
+- `lib/review-brief.mjs` — file đã `git add` không có trong diff lẫn danh sách file. Ai chạy
+  `git add -A` trước khi soi thì reviewer không thấy code đó, gate xanh trên bản chưa ai đọc.
+- `commands/review.mjs` — xoá `gate.json` chỉ chặn đúng một lần: nhánh ghi lỗi tự dựng lại cái dấu
+  mà guard của nó đọc, nên lần chạy kế tiếp xanh với findings cũ.
+- `lib/knowledge-scan.mjs` — import Button từ một thư viện ngoài vẫn tính là dùng component Button
+  nội bộ; destructuring lồng `({ a: { b = 1 } })` ghi default sai cho `a` mà vẫn `confident: true`.
+
+CP-13 thì khác cả bốn cái trên: `convention`/`ui`/`visual` vẫn nhận `({ cwd, taskId })`, không nhận
+repo — đúng điều SKILL.md dòng 582 tự khai chưa xong. Spec hứa gate chạy đúng từng repo, code chỉ
+làm được cho `test`. Đóng nó là nói dối, sửa nó là một task riêng.
+
+**Phòng tránh:** gate `review` bắt được lỗi thật mà 941 test không bắt được — bốn lỗi trên đều nằm
+ngoài vùng test phủ. Task cũ chưa soi thì đừng đóng gọn cho xong; soi rồi sửa, hoặc để đỏ và ghi rõ
+lý do. Trạng thái từng task đọc ở `.compass/<id>/evidence/findings.json`.
