@@ -181,7 +181,7 @@ export function reviewCommand({ cwd, taskId }) {
     const briefIsCurrent = readFileSync(briefFile, 'utf8') === wanted;
     const answersThisBrief = briefId(source) === briefIdFor(readFileSync(file, 'utf8'), current.diff);
 
-    if (!briefIsCurrent || !answersThisBrief) {
+    if (!briefIsCurrent) {
       writeFileSync(briefFile, buildBrief({
         taskId,
         spec: readFileSync(file, 'utf8'),
@@ -210,6 +210,38 @@ export function reviewCommand({ cwd, taskId }) {
           ]),
           '',
           hint(`Xóa .compass/${taskId}/evidence/${FINDINGS_FILE} rồi đưa brief mới cho một agent khác soi lại.`),
+        ].join('\n'),
+      };
+    }
+
+    if (!answersThisBrief) {
+      // The brief is current, so nothing changed underneath the reviewer. The
+      // findings simply answer a different brief — copied from another task, or
+      // left over from an earlier round. Saying "code đã đổi" here sends the
+      // reader hunting for a change that never happened (CP-38).
+      const quoted = briefId(source);
+      const wantedId = briefIdFor(readFileSync(file, 'utf8'), current.diff);
+      writeGate(root, taskId, {
+        gate: 'review',
+        exitCode: 1,
+        checkedAt: new Date().toISOString(),
+        specHash: hashFile(file),
+        briefHash: hashFile(briefFile),
+        diffHash: sha256(current.diff),
+        findingCount: null,
+        blockingCount: null,
+      });
+      return {
+        exitCode: 1,
+        output: [
+          fail('review', [
+            quoted === null
+              ? 'Findings không ghi trường brief — không biết nó soi bản code nào.'
+              : `Findings không trả lời brief này — trường brief ghi ${quoted}, brief hiện tại là ${wantedId}.`,
+            'Code và spec không đổi. Findings này chép từ task khác, hoặc còn lại từ lần soi trước.',
+          ]),
+          '',
+          hint(`Xóa .compass/${taskId}/evidence/${FINDINGS_FILE} rồi đưa brief hiện có cho một agent khác soi.`),
         ].join('\n'),
       };
     }

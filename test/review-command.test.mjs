@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { reviewCommand } from '../commands/review.mjs';
 import { readGate } from '../lib/gate-store.mjs';
+import { hashFile } from '../lib/hash.mjs';
 
 const SPEC = `# T-1: Thêm bộ lọc quốc gia
 Loại: fix
@@ -1064,4 +1065,124 @@ test('CP-34-EC11 an ancestor base whose diff is empty says so without blaming HE
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ---- CP-38: findings that answer another brief are not a code change ---------
+
+function makeSecondTask(root) {
+  mkdirSync(path.join(root, '.compass', 'T-2', 'evidence'), { recursive: true });
+  writeFileSync(
+    path.join(root, '.compass', 'T-2', 'spec.md'),
+    SPEC.replace('T-1: Thêm bộ lọc quốc gia', 'T-2: Sắp xếp theo tên'),
+  );
+}
+
+function briefIdOf(root, taskId) {
+  const brief = readFileSync(path.join(root, '.compass', taskId, 'review-brief.md'), 'utf8');
+  return brief.match(/"brief":\s*"([^"]+)"/)?.[1] ?? null;
+}
+
+test('CP-38-H1 findings quoting another brief id are named as such, not as a code change', () => {
+  const root = makeRepo();
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+  const mine = briefIdFrom(root);
+  writeFindings(root, [], 'deadbeefcafe');
+
+  const result = reviewCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.match(result.output, /không trả lời brief này/);
+  assert.match(result.output, /deadbeefcafe/);
+  assert.match(result.output, new RegExp(mine));
+  assert.doesNotMatch(result.output, /Code hoặc spec đã đổi/);
+});
+
+test('CP-38-H2 a code change after findings still reports a stale brief', () => {
+  const root = makeRepo();
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+  writeFindings(root, []);
+  assert.equal(reviewCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+  const briefFile = path.join(root, '.compass', 'T-1', 'review-brief.md');
+  const before = readFileSync(briefFile, 'utf8');
+
+  writeFileSync(path.join(root, 'src', 'backdoor.js'), 'eval(process.env.EVIL);\n');
+  const result = reviewCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.match(result.output, /Code hoặc spec đã đổi/);
+  assert.notEqual(readFileSync(briefFile, 'utf8'), before);
+});
+
+test('CP-38-V1 findings copied from another task are reported with both ids', () => {
+  const root = makeRepo();
+  makeSecondTask(root);
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+  reviewCommand({ cwd: root, taskId: 'T-2' });
+  const idT1 = briefIdOf(root, 'T-1');
+  const idT2 = briefIdOf(root, 'T-2');
+  assert.notEqual(idT1, idT2, 'hai spec khác nhau phải ra hai brief id khác nhau');
+
+  // T-2's honest, green findings — then copied wholesale into T-1.
+  const t2Findings = path.join(root, '.compass', 'T-2', 'evidence', 'findings.json');
+  writeFileSync(t2Findings, JSON.stringify({ brief: idT2, findings: [] }));
+  assert.equal(reviewCommand({ cwd: root, taskId: 'T-2' }).exitCode, 0);
+  writeFileSync(path.join(root, '.compass', 'T-1', 'evidence', 'findings.json'), readFileSync(t2Findings));
+
+  const result = reviewCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.match(result.output, /không trả lời brief này/);
+  assert.match(result.output, new RegExp(idT2));
+  assert.match(result.output, new RegExp(idT1));
+});
+
+test('CP-38-E1 findings without a brief field say so instead of inventing an id', () => {
+  const root = makeRepo();
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+  writeFileSync(
+    path.join(root, '.compass', 'T-1', 'evidence', 'findings.json'),
+    JSON.stringify({ findings: [] }),
+  );
+
+  const result = reviewCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.match(result.output, /không ghi trường brief/);
+  assert.doesNotMatch(result.output, /Code hoặc spec đã đổi/);
+  assert.doesNotMatch(result.output, /\bnull\b|\bundefined\b/);
+});
+
+test('CP-38-EC1 a stale brief outranks foreign findings', () => {
+  const root = makeRepo();
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+  writeFindings(root, [], 'deadbeefcafe');
+  writeFileSync(path.join(root, 'src', 'backdoor.js'), 'eval(process.env.EVIL);\n');
+
+  const result = reviewCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.match(result.output, /Code hoặc spec đã đổi/);
+  assert.match(readFileSync(path.join(root, '.compass', 'T-1', 'review-brief.md'), 'utf8'), /backdoor/);
+});
+
+test('CP-38-EC2 foreign findings leave the current brief and its recorded hash untouched', () => {
+  const root = makeRepo();
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+  const briefFile = path.join(root, '.compass', 'T-1', 'review-brief.md');
+  const before = readFileSync(briefFile, 'utf8');
+  writeFindings(root, [], 'deadbeefcafe');
+
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(readFileSync(briefFile, 'utf8'), before);
+  const gate = readGate(root, 'T-1', 'review');
+  assert.equal(gate.exitCode, 1);
+  assert.equal(gate.briefHash, hashFile(briefFile));
+});
+
+test('CP-38-EC3 deleting the foreign findings returns the gate to "chưa ai soi"', () => {
+  const root = makeRepo();
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+  writeFindings(root, [], 'deadbeefcafe');
+  reviewCommand({ cwd: root, taskId: 'T-1' });
+
+  rmSync(path.join(root, '.compass', 'T-1', 'evidence', 'findings.json'));
+  const result = reviewCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.match(result.output, /chưa ai nộp findings/i);
+  assert.doesNotMatch(result.output, /Code hoặc spec đã đổi/);
 });
