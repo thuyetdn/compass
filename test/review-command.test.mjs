@@ -1186,3 +1186,285 @@ test('CP-38-EC3 deleting the foreign findings returns the gate to "chưa ai soi"
   assert.match(result.output, /chưa ai nộp findings/i);
   assert.doesNotMatch(result.output, /Code hoặc spec đã đổi/);
 });
+
+// ---- CP-36: task khai cả commit kết thúc, diff thu hẹp theo Phạm vi ----
+
+function headSha(root) {
+  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+}
+
+function commitFile(root, rel, content, msg) {
+  mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+  writeFileSync(path.join(root, rel), content);
+  git(root, ['add', '-A']);
+  git(root, ['commit', '-m', msg]);
+  return headSha(root);
+}
+
+// c0 là commit gốc của makeRepo; c1..c3 mỗi cái thêm một file ở một thư mục riêng,
+// để test nói được "file này thuộc khoảng nào" bằng tên.
+function makeHistory() {
+  const root = makeRepo({ withChanges: false });
+  const c0 = headSha(root);
+  const c1 = commitFile(root, 'src/a/one.js', 'export const one = 1;\n', 'a');
+  const c2 = commitFile(root, 'src/b/two.js', 'export const two = 2;\n', 'b');
+  const c3 = commitFile(root, 'src/c/three.js', 'export const three = 3;\n', 'c');
+  return { root, c0, c1, c2, c3 };
+}
+
+function setSpecHeader(root, taskId, { scope = 'src/', base, end } = {}) {
+  const lines = [`# ${taskId}: Thêm bộ lọc quốc gia`, 'Loại: fix', `Phạm vi: ${scope}`];
+  if (base !== undefined) lines.push(`Gốc soi: ${base}`);
+  if (end !== undefined) lines.push(`Soi đến: ${end}`);
+  const body = SPEC.split('\n').slice(3).join('\n');
+  mkdirSync(path.join(root, '.compass', taskId, 'evidence'), { recursive: true });
+  writeFileSync(path.join(root, '.compass', taskId, 'spec.md'), lines.join('\n') + '\n' + body);
+}
+
+function briefOf(root, taskId = 'T-1') {
+  return readFileSync(path.join(root, '.compass', taskId, 'review-brief.md'), 'utf8');
+}
+
+test('CP-36-H2 a task declaring both ends is reviewed on exactly that range', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { base: c0, end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    const brief = briefOf(root);
+    assert.match(brief, /src\/a\/one\.js/);
+    assert.match(brief, /src\/b\/two\.js/);
+    assert.doesNotMatch(brief, /three\.js/, 'commit sau Soi đến không được lọt vào');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-H3 a spec declaring neither field keeps the pre-CP-36 brief wording', () => {
+  const root = makeRepo();
+  try {
+    reviewCommand({ cwd: root, taskId: 'T-1' });
+    const brief = briefOf(root);
+    assert.match(brief, /Compass tự lần ra, vì không ai khai gốc soi\./);
+    assert.doesNotMatch(brief, /Soi đến/);
+    assert.doesNotMatch(brief, /thu hẹp/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-H4 two tasks sharing one range with disjoint scopes get disjoint briefs', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: 'src/a', base: c0, end: c2 });
+    setSpecHeader(root, 'T-2', { scope: 'src/b', base: c0, end: c2 });
+    reviewCommand({ cwd: root, taskId: 'T-1' });
+    reviewCommand({ cwd: root, taskId: 'T-2' });
+    const b1 = briefOf(root, 'T-1');
+    const b2 = briefOf(root, 'T-2');
+    assert.match(b1, /one\.js/); assert.doesNotMatch(b1, /two\.js/);
+    assert.match(b2, /two\.js/); assert.doesNotMatch(b2, /one\.js/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-H5 the brief states the range and the narrowing it was given', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: 'src/a', base: c0, end: c2 });
+    reviewCommand({ cwd: root, taskId: 'T-1' });
+    const brief = briefOf(root);
+    assert.match(brief, new RegExp(c0.slice(0, 7)));
+    assert.match(brief, new RegExp(c2.slice(0, 7)));
+    assert.match(brief, /Soi đến/);
+    assert.match(brief, /Chỉ gồm file trong Phạm vi: `src\/a`/);
+    assert.match(brief, /không gồm thay đổi chưa commit/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-H6 a scope entry naming a directory includes every file under it', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: 'src', base: c0, end: c2 });
+    reviewCommand({ cwd: root, taskId: 'T-1' });
+    const brief = briefOf(root);
+    assert.match(brief, /one\.js/);
+    assert.match(brief, /two\.js/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-V3 a scope entry with a trailing note in parentheses still matches', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: 'src/a (mới)', base: c0, end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    assert.match(briefOf(root), /one\.js/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-V4 a scope entry written with backslashes matches like forward slashes', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: 'src\\a', base: c0, end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    assert.match(briefOf(root), /one\.js/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-E1 an end that names no commit is refused, naming the ref and the spec', () => {
+  const { root, c0 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { base: c0, end: 'khong-ton-tai' });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2, r.output);
+    assert.match(r.output, /khong-ton-tai/);
+    assert.match(r.output, /spec/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-E2 an end that is not after the base is refused, naming both', () => {
+  const { root, c1, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { base: c2, end: c1 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2, r.output);
+    assert.match(r.output, new RegExp(c1.slice(0, 7)));
+    assert.match(r.output, new RegExp(c2.slice(0, 7)));
+    assert.match(r.output, /không nằm sau/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-E3 narrowing that leaves zero files is refused, not passed as clean', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: 'src/zzz', base: c0, end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2, r.output);
+    assert.match(r.output, /không còn file nào/);
+    assert.ok(!existsSync(path.join(root, '.compass', 'T-1', 'review-brief.md')), 'không được sinh brief rỗng');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-E4 an end without a base still works, the base falling back as today', () => {
+  const { root, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    const brief = briefOf(root);
+    assert.match(brief, /one\.js/);
+    assert.match(brief, /two\.js/);
+    assert.doesNotMatch(brief, /three\.js/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-EC1 an end equal to the base is an empty range, reported as such', () => {
+  const { root, c1 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { base: c1, end: c1 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2, r.output);
+    assert.match(r.output, /khoảng soi rỗng/);
+    assert.match(r.output, /không phải là soi sạch/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-EC2 an end written as HEAD behaves as if undeclared and says so', () => {
+  const { root, c0 } = makeHistory();
+  try {
+    writeFileSync(path.join(root, 'src', 'wip.js'), 'export const wip = 1;\n'); // chưa commit
+    setSpecHeader(root, 'T-1', { scope: 'src/a', base: c0, end: 'HEAD' });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    const brief = briefOf(root);
+    assert.match(brief, /three\.js/, 'tới HEAD thì commit cuối phải có');
+    assert.match(brief, /wip\.js/, 'tới HEAD thì working tree phải có');
+    assert.match(brief, /trùng HEAD/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-EC4 a scope entry that is only a name prefix does not pull in the longer path', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: 'src/a/on, src/b', base: c0, end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    const brief = briefOf(root);
+    assert.match(brief, /two\.js/);
+    assert.doesNotMatch(brief, /one\.js/, '"src/a/on" không phải "src/a/one.js"');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-EC6 a scope entry naming a missing path is skipped, the rest still applies', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: 'src/a, src/khong-co', base: c0, end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    assert.match(briefOf(root), /one\.js/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-S1 a scope entry with ".." or an absolute path is rejected before git', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: '../etc, src/a', base: c0, end: c2 });
+    let r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2, r.output);
+    assert.match(r.output, /\.\.\/etc/);
+
+    setSpecHeader(root, 'T-1', { scope: '/etc/passwd, src/a', base: c0, end: c2 });
+    r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2, r.output);
+    assert.match(r.output, /\/etc\/passwd/);
+    assert.ok(!existsSync(path.join(root, '.compass', 'T-1', 'review-brief.md')));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-S2 a scope entry starting with "-" is not handed to git as an option', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { scope: '--output=leak.txt, src/a', base: c0, end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 2, r.output);
+    assert.match(r.output, /--output=leak\.txt/);
+    assert.ok(!existsSync(path.join(root, 'leak.txt')), 'cờ lọt vào git thì file này xuất hiện');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-S3 narrowing never drops the .compass exclusion', () => {
+  const { root, c0 } = makeHistory();
+  try {
+    const c4 = commitFile(root, '.compass/T-1/evidence/gate.json', '{"gate":"review"}\n', 'record');
+    setSpecHeader(root, 'T-1', { scope: '.', base: c0, end: c4 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    const brief = briefOf(root);
+    assert.doesNotMatch(brief, /gate\.json/);
+    assert.match(brief, /one\.js/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-S4 a verdict recorded on the wide diff is rejected once the range narrows', () => {
+  const { root, c0, c2 } = makeHistory();
+  try {
+    setSpecHeader(root, 'T-1', { base: c0 });
+    reviewCommand({ cwd: root, taskId: 'T-1' });
+    writeFindings(root, []);
+    assert.equal(reviewCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
+
+    // Cùng findings, spec giờ khai Soi đến — diff khác, brief khác, verdict cũ không còn nói về nó.
+    setSpecHeader(root, 'T-1', { base: c0, end: c2 });
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(r.exitCode, 1, r.output);
+    assert.match(r.output, /đã đổi|không trả lời brief này/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('CP-36-S5 without Soi đến a tip-of-branch task still shows a file it forgot to declare', () => {
+  const root = makeRepo();
+  try {
+    mkdirSync(path.join(root, 'docs'), { recursive: true });
+    writeFileSync(path.join(root, 'docs', 'forgot.md'), '# quên khai\n');
+    const r = reviewCommand({ cwd: root, taskId: 'T-1' }); // Phạm vi: src/, không Soi đến
+    assert.equal(r.exitCode, 1, r.output);
+    assert.match(briefOf(root), /docs\/forgot\.md/, 'không thu hẹp khi không có Soi đến');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

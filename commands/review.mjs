@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { findRoot, specPath, taskDir, evidenceDir, validateTaskId } from '../lib/paths.mjs';
-import { collectDiff, buildBrief } from '../lib/review-brief.mjs';
+import { collectDiff, buildBrief, parseScopePaths } from '../lib/review-brief.mjs';
 import { parseFindings, formatFinding, BLOCKING } from '../lib/findings.mjs';
 import { writeGate, readGate } from '../lib/gate-store.mjs';
 import { loadConfig } from '../lib/config.mjs';
@@ -72,7 +72,46 @@ export function reviewCommand({ cwd, taskId }) {
   // `!== null` ở đây thì `reviewBase: 0` bị resolveBase bỏ qua mà brief vẫn khai
   // "khai ở config.json" — lời khai sai về một giá trị chưa từng được dùng.
   const nguonGoc = khaiTrongSpec ? 'spec' : (baseRef ? 'config.json' : null);
-  const diffOptions = { baseRef, baseFrom: nguonGoc };
+
+  // Nơi việc kết thúc, và diff thu hẹp theo Phạm vi — chỉ khi có Soi đến. Một
+  // task ở đỉnh nhánh vẫn được soi trọn, kể cả file nó quên khai (CP-36).
+  const khaiCuoi = spec.reviewEnd !== null && spec.reviewEnd !== undefined;
+  const scopeParsed = parseScopePaths(spec.scope);
+  if (khaiCuoi && scopeParsed.rejected.length) {
+    return {
+      exitCode: 2,
+      output: [
+        fail('review', [
+          'Phạm vi trong spec có mục không dùng được làm pathspec:',
+          ...scopeParsed.rejected.map((r) => `  "${r.entry}" — ${r.reason}`),
+        ]),
+        '',
+        hint('Phạm vi chỉ nhận đường dẫn tương đối trong repo, phân cách bằng dấu phẩy.'),
+      ].join('\n'),
+    };
+  }
+  const diffOptions = {
+    baseRef,
+    baseFrom: nguonGoc,
+    endRef: khaiCuoi ? spec.reviewEnd : null,
+    endFrom: 'spec',
+    scopePaths: khaiCuoi ? scopeParsed.paths : [],
+  };
+
+  // Ba chỗ dựng brief, một hình dạng. Lệch một trường là brief "hiện tại" ở pha
+  // hai không khớp brief pha một đã ghi, và gate mở lại vô cớ.
+  const briefFor = (collected) => buildBrief({
+    taskId,
+    spec: readFileSync(file, 'utf8'),
+    diff: collected.diff,
+    files: collected.files,
+    briefId: briefIdFor(readFileSync(file, 'utf8'), collected.diff),
+    base: collected.base,
+    baseFrom: nguonGoc,
+    end: collected.end ?? null,
+    endAtHead: collected.endAtHead ?? false,
+    narrowedTo: collected.narrowedTo ?? [],
+  });
 
   // Phase two: an agent has answered, so read the verdict — but only if the
   // answer is about the code as it stands now. A finding set outlives the diff
@@ -169,28 +208,12 @@ export function reviewCommand({ cwd, taskId }) {
       };
     }
 
-    const wanted = buildBrief({
-      taskId,
-      spec: readFileSync(file, 'utf8'),
-      diff: current.diff,
-      files: current.files,
-      briefId: briefIdFor(readFileSync(file, 'utf8'), current.diff),
-      base: current.base,
-      baseFrom: nguonGoc,
-    });
+    const wanted = briefFor(current);
     const briefIsCurrent = readFileSync(briefFile, 'utf8') === wanted;
     const answersThisBrief = briefId(source) === briefIdFor(readFileSync(file, 'utf8'), current.diff);
 
     if (!briefIsCurrent) {
-      writeFileSync(briefFile, buildBrief({
-        taskId,
-        spec: readFileSync(file, 'utf8'),
-        diff: current.diff,
-        files: current.files,
-        briefId: briefIdFor(readFileSync(file, 'utf8'), current.diff),
-        base: current.base,
-        baseFrom: nguonGoc,
-      }));
+      writeFileSync(briefFile, briefFor(current));
       writeGate(root, taskId, {
         gate: 'review',
         exitCode: 1,
@@ -310,15 +333,7 @@ export function reviewCommand({ cwd, taskId }) {
   const diffHash = sha256(collected.diff);
   const hadBrief = existsSync(briefFile);
 
-  const fresh = buildBrief({
-    taskId,
-    spec: readFileSync(file, 'utf8'),
-    diff: collected.diff,
-    files: collected.files,
-    briefId: briefIdFor(readFileSync(file, 'utf8'), collected.diff),
-    base: collected.base,
-    baseFrom: nguonGoc,
-  });
+  const fresh = briefFor(collected);
 
   // Compare the brief itself, not just a diff hash: a rewritten spec changes
   // what a reviewer is asked to judge against, and a brief left over from the

@@ -146,6 +146,7 @@ Test case phải có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`), mô tả, và k�
 |---|---|---|
 | `Lệnh test: <lệnh>` | Task cần suite khác với cả dự án | Chạy lệnh đó thay lệnh trong config |
 | `Kiểm tra bằng: mắt` | Việc sửa tài liệu, đổi config — không có test tự động | Nói thẳng nó không đo gì, vẫn đòi bảng case |
+| `Soi đến: <sha>` | Task nằm giữa lịch sử nhánh, có commit của việc khác đến sau nó | Gate `review` dừng diff ở commit đó và chỉ giữ file trong `Phạm vi:` |
 
 `Kiểm tra bằng: mắt` không phải cửa sau. Gate vẫn đòi liệt kê từng case và cách kiểm tra, và báo lỗi
 nếu suite có test mang task id — lời khai mâu thuẫn với thực tế thì phải sửa, không đoán.
@@ -311,6 +312,21 @@ Giá trị nằm trong spec nên `specHash` phủ nó: đổi gốc soi là đ�
 Chỉ vùng đầu mới tính, nên ví dụ trong tài liệu bên dưới không bao giờ đổi phạm vi soi. Đọc fence để phân biệt ví dụ với lời khai đã thử bốn lần và sập cả bốn — lần tệ nhất là phạm vi lấy từ một dòng trong tài liệu.
 
 Gốc soi cho ra diff rỗng thì gate **đỏ**, và nói rõ đó là gốc soi sai chỗ chứ không phải "chưa có gì để sửa". Diff rỗng không phải soi sạch.
+
+**Task nằm giữa lịch sử thì khai thêm `Soi đến:`.** Gốc soi chỉ chốt đầu; gate vẫn diff tới HEAD, nên
+một task có 22 commit của việc khác đến sau nó ra brief 78 file thay vì 13. `Soi đến: <sha>` chốt đuôi
+— cũng ở phần đầu spec, cạnh `Gốc soi:` — và khi có nó, diff chỉ giữ file nằm trong `Phạm vi:`. Nhờ vậy
+ba task chung một commit mà phạm vi không giao nhau vẫn tách được brief riêng.
+
+Hai điều đi kèm, để không tưởng mình soi đủ. Diff `Gốc soi..Soi đến` không gồm thay đổi chưa commit —
+brief nói rõ điều đó, task đang viết dở thì đừng khai `Soi đến`. Và thu hẹp theo `Phạm vi` chỉ bật
+khi có `Soi đến`: task ở đỉnh nhánh vẫn được soi trọn, kể cả file nó đụng mà quên khai — đó là cách một
+thay đổi chưa ai soi bị bắt hôm nay.
+
+Gate đỏ khi `Soi đến` không phải commit, không nằm sau gốc soi, trùng gốc soi, hay thu hẹp xong không
+còn file nào. Brief rỗng không phải soi sạch. `Phạm vi` viết cho người — `lib/x.mjs (mới)`,
+`commands/`, dấu `\` trên Windows đều đọc được — nhưng mục mở đầu bằng `-`, chứa `..`, hay là đường dẫn
+tuyệt đối thì bị từ chối trước khi tới git.
 
 Diff quá 2MB thì gate từ chối. Không ai đọc hết chừng đó, và gate xanh trên bản chưa đọc còn tệ hơn không có gate — chia task nhỏ ra.
 

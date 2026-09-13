@@ -318,3 +318,32 @@ test('CP-39-P2 a 2000-line spec with the new keyword parses in under 50 ms', () 
   assert.ok(ms < 50, `parse took ${ms.toFixed(1)} ms`);
 });
 
+// ---- CP-36: task khai cả commit kết thúc ----
+
+test('CP-36-H1 parseSpec reads a declared review end', () => {
+  const s = parseSpec(withLine('Soi đến: 8dce192'));
+  assert.equal(s.reviewEnd, '8dce192');
+});
+
+test('CP-36-V1 an empty Soi đến is ignored and the end stays HEAD', () => {
+  const s = parseSpec(withLine('Soi đến:   '));
+  assert.equal(s.reviewEnd, null);
+});
+
+test('CP-36-V2 the first Soi đến wins when the line appears twice', () => {
+  const s = parseSpec(withLine('Soi đến: aaaaaaa\nSoi đến: bbbbbbb'));
+  assert.equal(s.reviewEnd, 'aaaaaaa');
+});
+
+test('CP-36-EC3 a CRLF spec yields an end ref with no trailing CR', () => {
+  const s = parseSpec(withLine('Soi đến: 8dce192').replace(/\n/g, '\r\n'));
+  assert.equal(s.reviewEnd, '8dce192');
+  assert.equal(s.reviewBase, null, 'trường mới không được đè trường cũ');
+});
+
+test('CP-36-EC5 a Soi đến inside a fenced block below a heading is not a declaration', () => {
+  const s = parseSpec(MINIMAL + '\n## Ghi chú\n\n```\nSoi đến: deadbee\n```\n');
+  assert.equal(s.reviewEnd, null, 'vùng đầu spec mới tính — CP-34 đã chốt luật đó');
+  assert.equal(s.type, 'fix');
+  assert.equal(s.scope, 'src/');
+});

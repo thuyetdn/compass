@@ -1,7 +1,7 @@
 # CP-36: A task whose work sits mid-history cannot be reviewed
 Loại: feature-s
 Phạm vi: lib/spec-parser.mjs, lib/review-brief.mjs, commands/review.mjs, test/spec-parser.test.mjs, test/review-command.test.mjs, SKILL.md
-Gốc soi: ef06760
+Gốc soi: 283b712
 
 ## Mục tiêu
 CP-34 let a task name where its work starts. That is not enough for a task whose work also
