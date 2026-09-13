@@ -1,6 +1,8 @@
 # CP-4: UI gate that measures computed style against a design contract
 Loại: feature-m
 Phạm vi: lib/design-contract.mjs, lib/tolerance.mjs, lib/browser.mjs, lib/dev-server.mjs, commands/ui.mjs
+Gốc soi: 50fbee6
+Soi đến: d8679b7
 Lệnh test: npm test && npm run test:deep
 
 ## Mục tiêu

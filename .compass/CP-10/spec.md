@@ -1,6 +1,8 @@
 # CP-10: Knowledge gate that keeps derived docs from going stale
 Loại: feature-m
 Phạm vi: lib/knowledge-scan.mjs, lib/manifest.mjs, commands/knowledge.mjs
+Gốc soi: f60ce9b
+Soi đến: d98a9d9
 
 ## Mục tiêu
 Tài liệu lỗi thời tệ hơn không có tài liệu: người đọc tin vào thông tin sai. Thiết kế §8.5 gọi

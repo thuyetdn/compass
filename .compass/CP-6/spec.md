@@ -1,6 +1,8 @@
 # CP-6: Review gate driven by an independent agent
 Loại: feature-m
 Phạm vi: lib/review-brief.mjs, lib/findings.mjs, commands/review.mjs
+Gốc soi: 23f8ede
+Soi đến: d8679b7
 
 ## Mục tiêu
 Người viết code không soi được code mình vừa viết — đã bỏ công vào thì thấy nó hợp lý. Gate

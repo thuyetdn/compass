@@ -1,6 +1,8 @@
 # CP-11: Investigate workflow and a script library that outlives it
 Loại: feature-m
 Phạm vi: templates/investigation.md, lib/investigation-parser.mjs, commands/investigate.mjs, commands/scripts.mjs
+Gốc soi: f60ce9b
+Soi đến: d8679b7
 
 ## Mục tiêu
 Task BUILD giả định đã biết phải làm gì. Điều tra thì không — và không có quy trình nào cho

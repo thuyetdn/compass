@@ -1,6 +1,8 @@
 # CP-13: Run the gates in each repo a task touches
 Loại: feature-m
 Phạm vi: commands/check.mjs, commands/test.mjs, commands/convention.mjs, commands/ui.mjs, commands/visual.mjs, commands/done.mjs, lib/gate-store.mjs
+Gốc soi: c00aebc
+Soi đến: d8679b7
 
 ## Mục tiêu
 CP-12 đọc được khai báo `repos` trong config và biết task đụng repo nào, nhưng `check` không
