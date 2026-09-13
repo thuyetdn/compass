@@ -338,3 +338,52 @@ test('CP-11-V17 both hypothesis lines accept a list prefix, not just one', () =>
     assert.equal(gt.result, 'đúng như dự đoán', `result với ${JSON.stringify(dau)}`);
   }
 });
+
+// CP-39 — `**Cách kiểm:**` gains the full-word form `**Cách kiểm tra:**`.
+// INV-1 and INV-2 on disk use the old form and must keep parsing.
+
+const HYP = (method, result = '**Kết quả:** đúng — 1 dòng') => `# INV-9: Một triệu chứng
+
+## Triệu chứng
+
+Có.
+
+## Giả thuyết
+
+### H1: một giả thuyết
+${method}
+${result}
+`;
+
+test('CP-39-H3 `**Cách kiểm tra:**` fills the hypothesis method', () => {
+  const parsed = parseInvestigation(HYP('**Cách kiểm tra:** run X'));
+  assert.equal(parsed.hypotheses[0].method, 'run X');
+});
+
+test('CP-39-H4 the old `**Cách kiểm:**` still fills the method', () => {
+  const parsed = parseInvestigation(HYP('**Cách kiểm:** run X'));
+  assert.equal(parsed.hypotheses[0].method, 'run X');
+});
+
+test('CP-39-H5 a result of `chưa kiểm tra` is still a placeholder', () => {
+  const parsed = parseInvestigation(HYP('**Cách kiểm tra:** run X', '**Kết quả:** chưa kiểm tra'));
+  const { errors } = validateForClose(parsed);
+  assert.ok(errors.some((e) => e === 'Giả thuyết H1 chưa có kết quả kiểm tra'), errors.join('\n'));
+});
+
+test('CP-39-V3 a hypothesis with neither method form names the missing check in full words', () => {
+  const parsed = parseInvestigation(HYP(''));
+  const { errors } = validateForClose(parsed);
+  assert.ok(errors.includes('Giả thuyết H1 không nêu cách kiểm tra'), errors.join('\n'));
+  assert.ok(!errors.some((e) => /cách kiểm$/.test(e)), 'không còn dạng rút gọn');
+});
+
+test('CP-39-EC5 the two tracked investigations on disk report no missing method', () => {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.compass');
+  for (const id of ['INV-1', 'INV-2']) {
+    const parsed = parseInvestigation(readFileSync(path.join(root, id, 'investigation.md'), 'utf8'));
+    assert.ok(parsed.hypotheses.length > 0, `${id} phải có giả thuyết`);
+    const errors = validateForClose(parsed).errors.filter((e) => /không nêu cách kiểm/.test(e));
+    assert.deepEqual(errors, [], `${id}: ${errors.join('; ')}`);
+  }
+});

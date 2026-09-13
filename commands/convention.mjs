@@ -48,7 +48,7 @@ export function conventionCommand({ cwd, taskId }) {
     return {
       exitCode: 0,
       output: [
-        pass('convention', 'chưa có luật nào để kiểm'),
+        pass('convention', 'chưa có luật nào để kiểm tra'),
         '',
         hint(`Muốn có gate thật thì viết luật vào ${CONVENTIONS} — xem SKILL.md mục Convention.`),
       ].join('\n'),

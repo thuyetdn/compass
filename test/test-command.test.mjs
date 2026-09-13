@@ -273,7 +273,7 @@ test('CP-20-H1 a spec verified by eye passes and says the machine measured nothi
   const root = makeTask(printBoth, SPEC_MAT);
   const result = testCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0, result.output);
-  assert.match(result.output, /kiểm bằng mắt/);
+  assert.match(result.output, /kiểm tra bằng mắt/);
   assert.match(result.output, /không đo/, 'phải nói thẳng nó không đo được gì');
 });
 
@@ -346,4 +346,53 @@ test('CP-15-EC43 an ID owned by other tasks does not trigger the reporter hint',
   assert.match(result.output, /task khác/, 'phải nói rõ test đó của ai');
   assert.doesNotMatch(result.output, /Không tìm thấy dấu vết/,
     'có dấu vết — chỉ là dấu vết của task khác');
+});
+
+// CP-39 — gate messages say "case" and "kiểm tra"; the spec keyword has a
+// full-word form `Kiểm tra bằng:` that the gate treats exactly like the old one.
+
+const SPEC_MAT_MOI = SPEC.replace('Phạm vi: src/', 'Phạm vi: docs/\nKiểm tra bằng: mắt');
+
+test('CP-39-H10 the visual-only pass line counts cases with the word "case"', () => {
+  const ba = SPEC_MAT_MOI.replace('| H2 | Happy | Case hai | Đúng | P0 |',
+    '| H2 | Happy | Case hai | Đúng | P0 |\n| H3 | Happy | Case ba | Đúng | P0 |');
+  const root = makeTask(printBoth, ba);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.match(result.output, /3 case kiểm tra bằng mắt/);
+});
+
+test('CP-39-V1 an unknown value in the new form is refused and quoted as written', () => {
+  const la = SPEC.replace('Phạm vi: src/', 'Phạm vi: docs/\nKiểm tra bằng: bói toán');
+  const root = makeTask(printBoth, la);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /"Kiểm tra bằng: bói toán" không hợp lệ/);
+  assert.match(result.output, /mắt/, 'phải nêu giá trị hợp lệ');
+});
+
+test('CP-39-V4 an empty case table under the new form still demands every case and its check', () => {
+  const rong = SPEC_MAT_MOI.replace(/\| H1 \|.*\n/, '').replace(/\| H2 \|.*\n/, '');
+  const root = makeTask(printBoth, rong);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /liệt kê từng case và cách kiểm tra/);
+});
+
+test('CP-39-E1 owning real tests under `Kiểm tra bằng:` is a contradiction quoting that line', () => {
+  const coTest = 'node -e "console.log(\'ok 1 - T-1-H1 test thật\')"';
+  const root = makeTask(coTest, SPEC_MAT_MOI);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /Spec khai kiểm tra bằng mắt/);
+  assert.match(result.output, /Bỏ dòng "Kiểm tra bằng:"/);
+});
+
+test('CP-39-E2 the old form in the same situation gets the same exit code and message shape', () => {
+  const coTest = 'node -e "console.log(\'ok 1 - T-1-H1 test thật\')"';
+  const root = makeTask(coTest, SPEC_MAT);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /Spec khai kiểm tra bằng mắt/);
+  assert.match(result.output, /Bỏ dòng "Kiểm tra bằng:"/);
 });

@@ -57,27 +57,27 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
   // Spec khai lệnh riêng thì dùng lệnh đó. `configHash` vẫn băm config.json,
   // nhưng `specHash` băm cả dòng khai này — đổi lệnh là đổi spec, và `done`
   // bắt được.
-  // Việc kiểm bằng mắt thì gate nói thẳng nó không đo được gì. Im lặng xanh ở
+  // Việc kiểm tra bằng mắt thì gate nói thẳng nó không đo được gì. Im lặng xanh ở
   // đây là cửa sau: mọi task sẽ khai như vậy.
   const KIEM_HOP_LE = ['mắt', 'người', 'eye', 'manual'];
   if (spec.verifyBy !== null) {
     if (!KIEM_HOP_LE.includes(spec.verifyBy)) {
       return {
         exitCode: 2,
-        output: `"Kiểm bằng: ${spec.verifyBy}" không hợp lệ. Giá trị nhận: ${KIEM_HOP_LE.join(", ")}.`,
+        output: `"Kiểm tra bằng: ${spec.verifyBy}" không hợp lệ. Giá trị nhận: ${KIEM_HOP_LE.join(", ")}.`,
       };
     }
     if (specIds.length === 0) {
       return {
         exitCode: 2,
-        output: "Khai kiểm bằng mắt vẫn phải liệt kê từng ca và cách kiểm — bảng test case đang trống.",
+        output: "Khai kiểm tra bằng mắt vẫn phải liệt kê từng case và cách kiểm tra — bảng test case đang trống.",
       };
     }
 
     // Có test mang ID của task này là mâu thuẫn với lời khai. Đừng đoán bên nào đúng.
     const thu = runCommand(spec.testCommand ?? cfg.config.test, root);
     // Chỉ test **khai chủ là task này** mới là mâu thuẫn. Một dòng `H1` trần
-    // thuộc về ai không rõ — nó chính là lý do task này khai kiểm bằng mắt.
+    // thuộc về ai không rõ — nó chính là lý do task này khai kiểm tra bằng mắt.
     const cuaMinh = specIds.filter((id) => {
       // Escape task id: `.` và `+` là ký tự regex, và `validateTaskId` không chặn
       // chúng. Task id `v1.0+x` sẽ khớp nhầm nếu ghép thẳng vào mẫu.
@@ -89,8 +89,8 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
       return {
         exitCode: 2,
         output: [
-          `Spec khai kiểm bằng ${spec.verifyBy}, nhưng suite có test mang ID của task này: ${cuaMinh.join(", ")}.`,
-          "Bỏ dòng \"Kiểm bằng:\" nếu task có test thật, hoặc đổi tên test nếu chúng thuộc task khác.",
+          `Spec khai kiểm tra bằng ${spec.verifyBy}, nhưng suite có test mang ID của task này: ${cuaMinh.join(", ")}.`,
+          "Bỏ dòng \"Kiểm tra bằng:\" nếu task có test thật, hoặc đổi tên test nếu chúng thuộc task khác.",
         ].join("\n"),
       };
     }
@@ -112,16 +112,16 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
     return {
       exitCode: 0,
       output: [
-        pass("test", `${specIds.length} ca kiểm bằng ${spec.verifyBy} — máy không đo gì ở đây`),
+        pass("test", `${specIds.length} case kiểm tra bằng ${spec.verifyBy} — máy không đo gì ở đây`),
         "",
-        hint("Gate này chỉ ghi nhận lời khai. Người duyệt phải tự đi qua từng ca trong spec."),
+        hint("Gate này chỉ ghi nhận lời khai. Người duyệt phải tự đi qua từng case trong spec."),
       ].join("\n"),
     };
   }
 
   // Nhiều repo: chạy lệnh từng repo theo thứ tự, nối output lại. Đối chiếu ID
-  // diễn ra một lần trên phần nối — repo nào chạy ca nào là chuyện của người
-  // viết test, Compass chỉ cần biết cuối cùng mọi ca đã chạy chưa.
+  // diễn ra một lần trên phần nối — repo nào chạy case nào là chuyện của người
+  // viết test, Compass chỉ cần biết cuối cùng mọi case đã chạy chưa.
   const danhSach = danhSachRepo.length > 0 && danhSachRepo[0].name !== null
     ? danhSachRepo
     : [{ name: repo, dir: cwd, config: null }];
@@ -221,11 +221,11 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
       lines.push(`Xuất hiện trên dòng không rõ định dạng (có thể dùng reporter khác): ${extracted.seenOnUnknownLines.join(', ')}`);
     }
     if (extracted.seenOnSharedLines.length > 0) {
-      lines.push(`Cùng xuất hiện chung một dòng pass, không tách được ai chạy ai (mỗi ca cần một test riêng): ${extracted.seenOnSharedLines.join(', ')}`);
+      lines.push(`Cùng xuất hiện chung một dòng pass, không tách được ai chạy ai (mỗi case cần một test riêng): ${extracted.seenOnSharedLines.join(', ')}`);
     }
     if (extracted.seenOnOtherTasks.length > 0) {
       lines.push(`Có test mang ID này nhưng đều khai là của task khác: ${extracted.seenOnOtherTasks.join(", ")}`);
-      lines.push(`      Task này chưa viết test cho những ca đó.`);
+      lines.push(`      Task này chưa viết test cho những case đó.`);
     }
     if (extracted.collided.length > 0) {
       lines.push(`Khớp nhiều test khác nhau, không rõ cái nào là của task này: ${extracted.collided.join(', ')}`);
@@ -249,7 +249,7 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
 
   // Suite xanh mà hầu như không ID nào lộ diện: reporter nhiều khả năng không
   // in tên từng test. Không đòi con số 0 tuyệt đối — Vitest chỉ nêu tên những
-  // test chậm, nên một spec 13 ca vẫn có thể khớp đúng 1. Khớp được kha khá thì
+  // test chậm, nên một spec 13 case vẫn có thể khớp đúng 1. Khớp được kha khá thì
   // loại trừ: reporter đó rõ ràng in được tên. Chỉ nêu khả năng, vì người dùng
   // vẫn có thể quên viết thật.
   const REPORTER_SUSPECT_RATIO = 0.2;

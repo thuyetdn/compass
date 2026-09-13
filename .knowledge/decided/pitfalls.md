@@ -58,13 +58,13 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Vùng ảnh hưởng:** mọi phép mutation testing, và mọi lần sửa file nguồn bằng heredoc
 **Phòng tránh:** viết script ra file `.mjs` rồi chạy, đừng nhét vào heredoc. Ghép ký tự đặc biệt bằng `String.fromCharCode(92)`. Và luôn **in ra dòng trước/sau khi thay** — thấy nó đổi đúng chỗ mới tin kết quả. Cùng phiên này, lỗi đó làm hỏng ba phép đo và suýt để lọt hai lỗ thật.
 
-## CP-15: Test so hai vế cùng đi qua một hàm là phép kiểm rỗng
+## CP-15: Test so hai vế cùng đi qua một hàm là phép kiểm tra rỗng
 
 **Gặp:** 2026-09-06 · CP-15 · vòng soi 9 và 10, cùng một test hai lần
 **Triệu chứng:** test CRLF xanh kể cả khi `split(/\r?\n/)` bị đổi thành `split('\n')` — đúng con bug nó sinh ra để canh
 **Nguyên nhân:** test so `extractRanIds(crlf)` với `extractRanIds(lf)`. Hàm sai thì cả hai vế sai giống nhau, và phép so vẫn bằng. Lần sửa đầu thêm khẳng định tuyệt đối nhưng fixture không chạm regex nào neo `$`, nên vẫn rỗng.
 **Vùng ảnh hưởng:** test/test-parser.test.mjs, và mọi test dạng "hai đầu vào phải cho cùng kết quả"
-**Phòng tránh:** khẳng định **giá trị tuyệt đối** trước, so hai vế sau. Và fixture phải chạm đúng chỗ code có thể vỡ — ở đây là ba regex neo cuối dòng, không phải một dòng TAP bất kỳ. Cách kiểm duy nhất đáng tin: phá code, xem test có đỏ không.
+**Phòng tránh:** khẳng định **giá trị tuyệt đối** trước, so hai vế sau. Và fixture phải chạm đúng chỗ code có thể vỡ — ở đây là ba regex neo cuối dòng, không phải một dòng TAP bất kỳ. Cách kiểm tra duy nhất đáng tin: phá code, xem test có đỏ không.
 
 ## CP-10: Ngưỡng thời gian tuyệt đối không canh được hiệu năng
 
@@ -74,13 +74,13 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Vùng ảnh hưởng:** mọi test hiệu năng
 **Phòng tránh:** đo **hình dạng**, không đo tốc độ. Chạy hai cỡ dữ liệu rồi so tỉ số: gấp bốn số file mà thời gian gấp bốn là tuyến tính, gấp mười sáu là bậc hai. Tỉ số không phụ thuộc máy nhanh hay chậm, nên vừa canh được vừa không chập chờn.
 
-## CP-11: Fixture phải đi tới được chỗ cần kiểm
+## CP-11: Fixture phải đi tới được chỗ cần kiểm tra
 
 **Gặp:** 2026-09-06 · CP-11 · blind review
 **Triệu chứng:** test khai "chỉ đọc header, không đọc cả file" xanh kể cả khi xoá sạch giới hạn header
 **Nguyên nhân:** fixture đặt chuỗi đánh dấu sau một khối code 200KB. Hàm đọc header dừng ở dòng không-comment đầu tiên, nên nó thoát ngay tại khối code đó — chuỗi đánh dấu không bao giờ tới được, bất kể đọc bao nhiêu byte.
 **Vùng ảnh hưởng:** test/investigate-command.test.mjs, và mọi test dựng dữ liệu lớn
-**Phòng tránh:** hỏi "đường nào dẫn từ đầu vào tới chỗ tôi đang khẳng định". Ở đây phải để phía trước toàn dòng trống thì hàm mới đi tiếp được. Cách kiểm duy nhất đáng tin vẫn là phá code rồi xem test có đỏ không.
+**Phòng tránh:** hỏi "đường nào dẫn từ đầu vào tới chỗ tôi đang khẳng định". Ở đây phải để phía trước toàn dòng trống thì hàm mới đi tiếp được. Cách kiểm tra duy nhất đáng tin vẫn là phá code rồi xem test có đỏ không.
 
 ## CP-6: Loại trừ đường dẫn neo ở gốc thì thư mục lồng vẫn lọt
 
@@ -94,9 +94,9 @@ Mỗi mục đến từ một điều tra đã đóng.
 
 **Gặp:** 2026-09-06 · CP-6 · blind review
 **Triệu chứng:** 26 dòng spec mới có mô tả chép nguyên tên test tiếng Anh và kỳ vọng ghi "Đúng như mô tả"
-**Nguyên nhân:** thêm ca vào spec cho khớp test đã viết, thay vì viết ca rồi mới viết test. `spec-parser` không kiểm cột này nên gate không chặn.
-**Vùng ảnh hưởng:** mọi spec, và cách bổ sung ca sau khi đổi tên hàng loạt
-**Phòng tránh:** cột "Kỳ vọng" phải nói **kết quả đo được**, khác với cột "Mô tả". "Gate exit 0 nhưng vẫn in ra finding đó" là kỳ vọng; "Đúng như mô tả" không phải. Khi hai ca kiểm cùng chuyện ở hai tầng, nói rõ tầng nào — "ở tầng parser (H3 kiểm cùng ca ở tầng gate)".
+**Nguyên nhân:** thêm case vào spec cho khớp test đã viết, thay vì viết case rồi mới viết test. `spec-parser` không kiểm tra cột này nên gate không chặn.
+**Vùng ảnh hưởng:** mọi spec, và cách bổ sung case sau khi đổi tên hàng loạt
+**Phòng tránh:** cột "Kỳ vọng" phải nói **kết quả đo được**, khác với cột "Mô tả". "Gate exit 0 nhưng vẫn in ra finding đó" là kỳ vọng; "Đúng như mô tả" không phải. Khi hai case kiểm tra cùng chuyện ở hai tầng, nói rõ tầng nào — "ở tầng parser (H3 kiểm tra cùng case ở tầng gate)".
 
 ## CP-10: Đo hình dạng vẫn sai nếu đo ở thang quá nhỏ
 
@@ -104,7 +104,7 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Triệu chứng:** test khai "không phải bậc hai" xanh, trong khi code vẫn bậc hai. Đo lại ở thang lớn hơn: 1000 file 143ms, 4000 file 2238ms — tỉ số 15.7.
 **Nguyên nhân:** vòng sửa đầu bỏ được thừa số **đắt** (bóc chuỗi lại cho từng cặp) nhưng giữ vòng lồng component × file. Hệ số nhỏ đi nên ở 150→600 file tỉ số chỉ 2.9 — số hạng bậc hai chưa kịp trội, và test chọn đúng khoảng đó.
 **Vùng ảnh hưởng:** lib/knowledge-scan.mjs, và mọi test đo hình dạng
-**Phòng tránh:** đo hình dạng đúng hơn đo ngưỡng, nhưng phải chọn thang mà số hạng xấu đã trội. Cách kiểm: chạy ba mốc chứ không phải hai, xem tỉ số có ổn định không. Tỉ số 2.9 rồi 6.8 rồi 10.2 là đường cong đang cong lên — không phải tuyến tính có nhiễu.
+**Phòng tránh:** đo hình dạng đúng hơn đo ngưỡng, nhưng phải chọn thang mà số hạng xấu đã trội. Cách kiểm tra: chạy ba mốc chứ không phải hai, xem tỉ số có ổn định không. Tỉ số 2.9 rồi 6.8 rồi 10.2 là đường cong đang cong lên — không phải tuyến tính có nhiễu.
 
 ## CP-11: Chữ mẫu vẫn là chữ mẫu khi có dấu đầu dòng
 
@@ -118,7 +118,7 @@ Mỗi mục đến từ một điều tra đã đóng.
 
 **Gặp:** 2026-09-06 · CP-6 · blind review vòng bốn
 **Triệu chứng:** review đỏ (exit 1) nhưng `gate.json` vẫn ghi `exitCode: 0`, và `done` đóng task bình thường
-**Nguyên nhân:** pha hai có bốn nhánh thoát, chỉ một nhánh gọi `writeGate`. `done` đọc sổ chứ không chạy lại gate, nên nhánh nào quên ghi là nhánh đó để nguyên verdict xanh của lần trước. Gate `review` lại không có `sourceHash` nên vòng kiểm của `done` không bắt bù được.
+**Nguyên nhân:** pha hai có bốn nhánh thoát, chỉ một nhánh gọi `writeGate`. `done` đọc sổ chứ không chạy lại gate, nên nhánh nào quên ghi là nhánh đó để nguyên verdict xanh của lần trước. Gate `review` lại không có `sourceHash` nên vòng kiểm tra của `done` không bắt bù được.
 **Vùng ảnh hưởng:** commands/review.mjs, và mọi gate có nhiều nhánh thoát
 **Phòng tránh:** đếm nhánh `return` trong một gate, rồi đếm lời gọi `writeGate`. Hai số phải khớp. Và test phải khẳng định `readGate(...).exitCode`, không chỉ khẳng định exit code của lệnh — hai thứ đó lệch nhau chính là chỗ lỗ nằm.
 
@@ -134,11 +134,11 @@ Mỗi mục đến từ một điều tra đã đóng.
 
 **Gặp:** 2026-09-06 · CP-11 · hai vòng soi liên tiếp, cùng một chỗ
 **Triệu chứng:** vòng một tìm ra chữ mẫu bullet-hoá lọt qua; vá xong, vòng hai tìm ra đánh số, blockquote, checkbox vẫn lọt y hệt
-**Nguyên nhân:** vá đúng ca reviewer nêu thay vì hỏi "còn cách viết nào của cùng nội dung". Comment tôi viết lúc vá còn nói rõ "bullet-hoá là thói quen bình thường" — nhưng không đi tiếp câu đó.
+**Nguyên nhân:** vá đúng case reviewer nêu thay vì hỏi "còn cách viết nào của cùng nội dung". Comment tôi viết lúc vá còn nói rõ "bullet-hoá là thói quen bình thường" — nhưng không đi tiếp câu đó.
 **Vùng ảnh hưởng:** lib/investigation-parser.mjs, và mọi regex khớp dòng markdown
 **Phòng tránh:** khi vá một cách viết, liệt kê hết họ hàng của nó trước khi sửa. Markdown mở đầu dòng bằng: dấu đầu dòng `-*+`, đánh số `1.` `2)`, checkbox `- [ ]`, trích dẫn `>`, và tổ hợp. Viết một hằng dùng chung, đừng nhồi vào từng regex — chỗ nào quên là chỗ đó lọt.
 
-## CP-16: Khe mang tên repo rơi giữa hai vòng kiểm
+## CP-16: Khe mang tên repo rơi giữa hai vòng kiểm tra
 
 **Gặp:** 2026-09-06 · CP-16 · blind review chỉ-đọc, vòng cuối
 **Triệu chứng:** bản ghi `test@be` đỏ với hash tươi, `done` vẫn xanh và đóng task
@@ -176,7 +176,7 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Triệu chứng:** xoá tham số chống-đếm-trùng khỏi lệnh gate mà không test nào đỏ, dù có một test viết riêng cho đúng lỗi đó
 **Nguyên nhân:** test gọi `matchDeclaredFile(q, actual, taken)` trực tiếp và tự truyền `taken`. Nó chứng minh hàm chạy đúng khi được gọi đúng — không chứng minh gate gọi đúng. Chỗ hỏng nằm ở lời gọi, không nằm trong hàm.
 **Vùng ảnh hưởng:** test/data-command.test.mjs, và mọi test viết ở tầng thư viện cho một lỗi phát hiện ở tầng lệnh
-**Phòng tránh:** lỗi tìm thấy ở tầng nào thì test ở tầng đó. Test tầng thư viện thêm vào cũng tốt, nhưng nó không thay được. Cách kiểm: mutation ở tầng lệnh — sống sót nghĩa là test đang canh chỗ khác.
+**Phòng tránh:** lỗi tìm thấy ở tầng nào thì test ở tầng đó. Test tầng thư viện thêm vào cũng tốt, nhưng nó không thay được. Cách kiểm tra: mutation ở tầng lệnh — sống sót nghĩa là test đang canh chỗ khác.
 
 ## CP-32: Bịt lỗ theo từng đường thì đường thứ ba vẫn hở
 
@@ -184,13 +184,13 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Triệu chứng:** vòng 1 bắt marker giả trong khối comment; vá xong, vòng 2 bắt marker giả **cuối một dòng code** — cùng hậu quả, gate xanh cho file kết quả không tồn tại
 **Nguyên nhân:** vòng 1 hỏi "comment này có thật không". Câu hỏi đúng là "dòng này có phải một lời khai không". Comment cuối dòng code là comment thật, nên bản vá vòng 1 cho nó qua. Ba đường vào cùng một lỗ: trong block comment, trong chuỗi, và sau code.
 **Vùng ảnh hưởng:** lib/query-outputs.mjs
-**Phòng tránh:** khi vá một lỗ, hỏi "còn đường nào khác tới đây". Liệt kê hết đường vào trước khi viết bản vá, đừng vá đường vừa thấy. Ở đây điều kiện đúng là "không có gì đứng trước `--` trên dòng vật lý này" — một phép kiểm phủ cả ba đường, thay vì ba phép kiểm riêng.
+**Phòng tránh:** khi vá một lỗ, hỏi "còn đường nào khác tới đây". Liệt kê hết đường vào trước khi viết bản vá, đừng vá đường vừa thấy. Ở đây điều kiện đúng là "không có gì đứng trước `--` trên dòng vật lý này" — một phép kiểm tra phủ cả ba đường, thay vì ba phép kiểm tra riêng.
 
 ## CP-32: Không có quy tắc phá vỡ thế cân bằng nào đúng thì đừng chọn bừa
 
 **Gặp:** 2026-09-08 · CP-32 · blind review vòng 2
 **Triệu chứng:** code giữ khai báo **cuối** khi một query có hai khai báo, kèm comment giải thích "chạy lại thì người ta thêm tên mới lên trên" — chính tình huống đó lại làm code giữ tên **cũ**. Mutation đổi sang lấy cái đầu: 38 test vẫn xanh.
-**Nguyên nhân:** thêm tên mới lên trên hay xuống dưới đều là thói quen bình thường, nên không quy tắc nào đúng quá nửa số ca. Chọn một cái rồi viết comment biện minh làm nó trông có chủ đích.
+**Nguyên nhân:** thêm tên mới lên trên hay xuống dưới đều là thói quen bình thường, nên không quy tắc nào đúng quá nửa số case. Chọn một cái rồi viết comment biện minh làm nó trông có chủ đích.
 **Vùng ảnh hưởng:** lib/query-outputs.mjs, và mọi chỗ "nhiều đầu vào, chọn một"
 **Phòng tránh:** dữ liệu không trả lời được thì báo lỗi, đừng đoán. Ở đây hai khai báo cho một query là lời khai mâu thuẫn — bắt người sửa mất một giây, còn đoán sai làm bằng chứng trỏ sai file mà không ai biết. Dấu hiệu: comment phải giải thích *vì sao* chọn hướng này thay vì chỉ nói nó làm gì.
 
@@ -204,7 +204,7 @@ Mỗi mục đến từ một điều tra đã đóng.
 
 ## CP-32: sed không thay được mà vẫn báo test xanh
 
-**Gặp:** 2026-09-08 · CP-32 · lúc kiểm lỗ test vòng 6
+**Gặp:** 2026-09-08 · CP-32 · lúc kiểm tra lỗ test vòng 6
 **Triệu chứng:** `sed -i` với regex chứa `\d{4}` không đổi gì, test xanh, đọc thành "mutation sống sót" — kết luận đúng nhưng bằng chứng rỗng
 **Nguyên nhân:** shell và sed hiểu khác nhau về dấu escape, nên pattern không khớp gì cả. File không đổi, test đương nhiên xanh.
 **Vùng ảnh hưởng:** mọi phép mutation testing
@@ -216,7 +216,7 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Triệu chứng:** gate exit 0 và in "1/1 file có trong data/" trong khi một file khai báo không có mặt, không được miễn, và không hề được nhắc tới. Đúng cái duy nhất tính năng này sinh ra để chặn.
 **Nguyên nhân:** file kết thúc khi còn `/*`, `'` hay `$$` chưa đóng thì mọi thứ sau đó bị ăn thành comment hoặc chuỗi — kể cả các dòng `@out:`. Hàm quét biết trạng thái đó nhưng **vứt đi** ở lần `push` cuối. Sáu vòng trước đều đi bịt đường *marker giả lọt vào*; không ai xét chiều ngược lại là *khai báo thật bị mất*.
 **Vùng ảnh hưởng:** lib/query-outputs.mjs
-**Phòng tránh:** một lỗ có hai chiều. Bịt xong chiều "thứ không đáng tin lọt vào", hỏi ngay "thứ đáng tin có thể mất đi không". Ở đây `/* a /* b */` là comment đóng hoàn chỉnh ở mọi dialect trừ Postgres — nên bộ đếm độ sâu thêm vào để xử lý comment lồng lại tự tạo ca dừng giữa cấu trúc. Trạng thái đã có trong tay thì phải khai ra, đừng để nó chết trong hàm.
+**Phòng tránh:** một lỗ có hai chiều. Bịt xong chiều "thứ không đáng tin lọt vào", hỏi ngay "thứ đáng tin có thể mất đi không". Ở đây `/* a /* b */` là comment đóng hoàn chỉnh ở mọi dialect trừ Postgres — nên bộ đếm độ sâu thêm vào để xử lý comment lồng lại tự tạo case dừng giữa cấu trúc. Trạng thái đã có trong tay thì phải khai ra, đừng để nó chết trong hàm.
 
 ## CP-32: Backup cạnh file nguồn thì lọt vào bản phát hành
 
@@ -246,7 +246,7 @@ Mỗi mục đến từ một điều tra đã đóng.
 
 **Gặp:** 2026-09-08 · CP-32 · blind review vòng 9, đường thứ tư tới cùng một hậu quả
 **Triệu chứng:** gate exit 0, in "3/3 file có trong data/", trong khi query production ở dòng 14 không có khai báo, không có file, và được ghi công bằng tên file của một query đã bị comment
-**Nguyên nhân:** vô hiệu hoá một query bằng cách thêm `--` vào từng dòng, hay bọc trong `/* … */`, không để lại `;` ở vị trí code. Vòng 8 chỉ vá dạng còn `;`. Khối comment đó "mang khai báo đi" sang query kế tiếp, và không gì kiểm khoảng cách giữa hai thứ.
+**Nguyên nhân:** vô hiệu hoá một query bằng cách thêm `--` vào từng dòng, hay bọc trong `/* … */`, không để lại `;` ở vị trí code. Vòng 8 chỉ vá dạng còn `;`. Khối comment đó "mang khai báo đi" sang query kế tiếp, và không gì kiểm tra khoảng cách giữa hai thứ.
 **Vùng ảnh hưởng:** lib/query-outputs.mjs
 **Phòng tránh:** phân biệt *comment mô tả query sau* với *SQL đã bị vô hiệu hoá* — ở đây bằng cách xem dòng comment có mở đầu bằng từ khoá SQL không. Bản vá đầu tôi coi mọi comment có nội dung là ranh giới, làm đỏ 6 test và chặn oan mọi script có tiêu đề. Phép phân biệt phải hẹp đúng mức: rộng quá thì chặn việc hợp lệ, hẹp quá thì lọt.
 
@@ -264,7 +264,7 @@ Mỗi mục đến từ một điều tra đã đóng.
 
 **Gặp:** 2026-09-08 · CP-32 · mutation sau bản vá vòng 9
 **Triệu chứng:** hai mutation vốn chết nay sống sót, ở hai dòng tôi không sửa
-**Nguyên nhân:** bản vá mới che luôn việc của chúng. Cắt `CR` cuối dòng thành vô nghĩa vì chỗ cắt dòng đã dừng ở CR; còn `markContent` ở `;` thì vẫn cần — nhưng `lastCommentContentLine` che phần lớn ca nên mutation trông như dư.
+**Nguyên nhân:** bản vá mới che luôn việc của chúng. Cắt `CR` cuối dòng thành vô nghĩa vì chỗ cắt dòng đã dừng ở CR; còn `markContent` ở `;` thì vẫn cần — nhưng `lastCommentContentLine` che phần lớn case nên mutation trông như dư.
 **Vùng ảnh hưởng:** mọi lần vá vào code đã có phép bảo vệ
 **Phòng tránh:** mutation sống sót sau một bản vá có hai nghĩa khác nhau, và phải phân biệt bằng cách chạy: dựng một loạt đầu vào, mutation rồi so kết quả. Không khác gì thì thật sự dư — xoá đi. Có khác thì đó là lỗ test, viết test. Đoán thì nửa số lần sẽ xoá mất một phép bảo vệ đang làm việc: ở đây `;` rỗng vẫn làm khai báo nhảy sang query sau, và tôi suýt xoá dòng chặn nó.
 
@@ -274,9 +274,9 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Triệu chứng:** phép phân biệt "SQL bị comment" với "văn mô tả" bằng cách xem dòng có mở đầu bằng từ khoá SQL: **lọt** sáu cách vô hiệu hoá query (`-- (select …)`, `-- union all …`, `-- values (…)`, `-- merge into`, dòng nối `--   from t`, khối `/*` mở bằng dòng tiêu đề), đồng thời **chặn oan** năm câu văn thường (`-- update: Konsta changed this`, `-- Select the right threshold first`)
 **Nguyên nhân:** danh sách từ khoá không phải một ranh giới. Thêm từ vào thì chặn thêm văn thường; bớt đi thì lọt thêm query. Không có bộ từ khoá nào đúng, vì thông tin cần thiết — "dòng này là code hay là lời nói về code" — không nằm trong văn bản.
 **Vùng ảnh hưởng:** lib/query-outputs.mjs
-**Phòng tránh:** đổi câu hỏi sang thứ đo được. Ở đây là **bố cục**: một query bị vô hiệu hoá luôn có dòng trống tách nó khỏi query sau, nên "khai báo cách query bởi một dòng trống rồi nội dung khác" bắt được cả sáu ca mà không cần hiểu nội dung. 12/12 ca đúng, so với 6/12 của phép đoán từ khoá.
+**Phòng tránh:** đổi câu hỏi sang thứ đo được. Ở đây là **bố cục**: một query bị vô hiệu hoá luôn có dòng trống tách nó khỏi query sau, nên "khai báo cách query bởi một dòng trống rồi nội dung khác" bắt được cả sáu case mà không cần hiểu nội dung. 12/12 case đúng, so với 6/12 của phép đoán từ khoá.
 
-**Dấu hiệu nhận ra sớm:** khi một phép kiểm cần *danh sách* để đúng, và danh sách đó không thể đầy đủ về nguyên tắc, thì phép kiểm sai — không phải danh sách thiếu.
+**Dấu hiệu nhận ra sớm:** khi một phép kiểm tra cần *danh sách* để đúng, và danh sách đó không thể đầy đủ về nguyên tắc, thì phép kiểm tra sai — không phải danh sách thiếu.
 
 ## CP-32: Mười vòng review, sáu lỗi chặn, bốn vòng sạch ở giữa
 
@@ -286,13 +286,13 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Vùng ảnh hưởng:** mọi tính năng đối chiếu hai danh sách, và cách đọc kết quả review
 **Phòng tránh:** "review sạch" nghĩa là *vòng đó không tìm ra*, không phải *hết lỗ*. Với tính năng mà một lỗi im lặng làm gate xanh sai, hãy liệt kê **hậu quả** cần chặn rồi hỏi "có mấy đường tới đó", thay vì soi từng đoạn code. Và khi vá lần thứ tư vào cùng một chỗ, đó là lúc đổi cách tiếp cận — không phải vá khéo hơn.
 
-## CP-32: Hạ một phép kiểm xuống cảnh báo thì phải kiểm chính cảnh báo đó
+## CP-32: Hạ một phép kiểm tra xuống cảnh báo thì phải kiểm tra chính cảnh báo đó
 
 **Gặp:** 2026-09-08 · CP-32 · blind review vòng 12
-**Triệu chứng:** sau khi đổi `stranded` từ lỗi thành cảnh báo, lỗ được ghi là "exit 0 **kèm cảnh báo**". Thực tế có cả một lớp ca exit 0 mà **không cảnh báo gì** — file viết không có dòng trống.
-**Nguyên nhân:** tín hiệu sinh cảnh báo vẫn là "có dòng trống rồi có nội dung". Khi hạ mức từ chặn xuống báo, tôi kiểm phần *hành vi gate* (không chặn nữa) mà không kiểm phần *phát hiện* còn đúng phạm vi không. Cảnh báo im lặng còn tệ hơn lỗi sai, vì tài liệu đã hứa nó sẽ nói.
-**Vùng ảnh hưởng:** lib/query-outputs.mjs, và mọi lần hạ mức một phép kiểm
-**Phòng tránh:** hạ mức không phải sửa một dòng `severity`. Cảnh báo là lời hứa "chỗ này tôi sẽ nói cho anh biết" — phải kiểm nó phủ đúng những ca mình vừa thôi chặn. Và tài liệu ghi lỗ còn lại thì phải ghi đúng: viết "kèm cảnh báo" trong khi có ca im lặng là dạng sai tệ nhất, vì người đọc tin vào đó.
+**Triệu chứng:** sau khi đổi `stranded` từ lỗi thành cảnh báo, lỗ được ghi là "exit 0 **kèm cảnh báo**". Thực tế có cả một lớp case exit 0 mà **không cảnh báo gì** — file viết không có dòng trống.
+**Nguyên nhân:** tín hiệu sinh cảnh báo vẫn là "có dòng trống rồi có nội dung". Khi hạ mức từ chặn xuống báo, tôi kiểm tra phần *hành vi gate* (không chặn nữa) mà không kiểm tra phần *phát hiện* còn đúng phạm vi không. Cảnh báo im lặng còn tệ hơn lỗi sai, vì tài liệu đã hứa nó sẽ nói.
+**Vùng ảnh hưởng:** lib/query-outputs.mjs, và mọi lần hạ mức một phép kiểm tra
+**Phòng tránh:** hạ mức không phải sửa một dòng `severity`. Cảnh báo là lời hứa "chỗ này tôi sẽ nói cho anh biết" — phải kiểm tra nó phủ đúng những case mình vừa thôi chặn. Và tài liệu ghi lỗ còn lại thì phải ghi đúng: viết "kèm cảnh báo" trong khi có case im lặng là dạng sai tệ nhất, vì người đọc tin vào đó.
 
 ## CP-36: Gate review chỉ soi tới HEAD, nên task nằm giữa lịch sử không đóng được
 

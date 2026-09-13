@@ -98,7 +98,7 @@ export async function checkCommand({ cwd, taskId, only }) {
     // Một repo, không khai `repos`: `repo.name` là null và mọi thứ chạy y như
     // trước — cùng thư mục, cùng khe bản ghi.
     // `test` tự lặp bên trong: nó cần gộp kết quả mọi repo rồi mới đối chiếu
-    // ID một lần. Chia ca theo repo thì backend đòi cả ca frontend.
+    // ID một lần. Chia case theo repo thì backend đòi cả case frontend.
     if (gate === 'test') {
       const result = await run({ cwd: root, taskId, repos: daChon, gateRoot: root });
       lines.push(result.output);

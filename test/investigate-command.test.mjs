@@ -258,10 +258,10 @@ test('CP-11-V6 an untouched pitfall block cannot close an investigation', () => 
   // wrote it — labelled placeholders that once read as real content.
   const filled = readFileSync(file, 'utf8')
     .replace('# INV-1: <triệu chứng, một câu>', '# INV-1: Lịch ngừng cập nhật')
-    .replace('<Người dùng thấy gì. Số liệu nếu có: bao nhiêu ca, từ khi nào, tần suất.>', 'Lịch 3 khách hàng đứng yên.')
+    .replace('<Người dùng thấy gì. Số liệu nếu có: bao nhiêu case, từ khi nào, tần suất.>', 'Lịch 3 khách hàng đứng yên.')
     .replace('### H1: <giả thuyết>', '### H1: token hết hạn')
-    .replace('**Cách kiểm:** <lệnh, script, hay phép đo cụ thể — làm gì thì biết đúng hay sai>', '**Cách kiểm:** gọi API bằng token cũ')
-    .replace('**Kết quả:** <chưa kiểm | đúng | sai — kèm số liệu>', '**Kết quả:** đúng — trả 410')
+    .replace('**Cách kiểm tra:** <lệnh, script, hay phép đo cụ thể — làm gì thì biết đúng hay sai>', '**Cách kiểm tra:** gọi API bằng token cũ')
+    .replace('**Kết quả:** <chưa kiểm tra | đúng | sai — kèm số liệu>', '**Kết quả:** đúng — trả 410')
     .replace('<Output thật, số đo thật. Dán vào, đừng kể lại.>', 'GET /delta → 410')
     .replace('<Nguyên nhân gốc. Phải dẫn được về bằng chứng ở trên, không phải suy luận.>', 'Token sống 30 ngày.')
     .replace('<Task BUILD nào cần mở để sửa. Ghi "không cần" nếu điều tra kết luận là không phải lỗi.>', 'không cần');
@@ -270,6 +270,9 @@ test('CP-11-V6 an untouched pitfall block cannot close an investigation', () => 
   const result = investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
   assert.equal(result.exitCode, 1, result.output);
   assert.match(result.output, /Pitfall/);
+  // The fixture must have filled everything else, or this test stops isolating the
+  // Pitfall block — a template rewording (CP-39) once left three placeholders behind.
+  assert.doesNotMatch(result.output, /Giả thuyết H1|Triệu chứng/, 'chỉ Pitfall được phép còn chữ mẫu');
   assert.equal(existsSync(path.join(root, '.knowledge', 'decided', 'pitfalls.md')), false,
     'không được ghi chữ mẫu vào kho pitfall');
 });

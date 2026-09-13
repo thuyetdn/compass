@@ -274,3 +274,47 @@ test('CP-34-EC7 fence lines stay in the section text they belong to', () => {
   assert.match(rb, /```json/, 'dòng fence là nội dung của section, không được xoá');
   assert.match(rb, /"a": 1/);
 });
+
+// CP-39 — `Kiểm bằng:` gains the full-word form `Kiểm tra bằng:`. Both parse
+// identically; the eight visual-only specs already on disk keep working.
+
+const withKeyword = (line) => MINIMAL.replace('Phạm vi: src/', 'Phạm vi: src/\n' + line);
+
+test('CP-39-H1 `Kiểm tra bằng: mắt` sets verifyBy', () => {
+  assert.equal(parseSpec(withKeyword('Kiểm tra bằng: mắt')).verifyBy, 'mắt');
+});
+
+test('CP-39-H2 the old `Kiểm bằng: mắt` still sets verifyBy', () => {
+  assert.equal(parseSpec(withKeyword('Kiểm bằng: mắt')).verifyBy, 'mắt');
+});
+
+test('CP-39-V2 an empty `Kiểm tra bằng:` leaves verifyBy null like the old form', () => {
+  assert.equal(parseSpec(withKeyword('Kiểm tra bằng:')).verifyBy, null);
+  assert.equal(parseSpec(withKeyword('Kiểm bằng:')).verifyBy, null);
+});
+
+test('CP-39-EC1 both forms with the same value parse once without error', () => {
+  const parsed = parseSpec(withKeyword('Kiểm bằng: mắt\nKiểm tra bằng: mắt'));
+  assert.equal(parsed.verifyBy, 'mắt');
+});
+
+test('CP-39-S1 the new form is read below the first heading, same as the old one', () => {
+  const below = MINIMAL.replace('## Test cases', '## Ràng buộc\nKiểm tra bằng: mắt\n\n## Test cases');
+  assert.equal(parseSpec(below).verifyBy, 'mắt');
+});
+
+test('CP-39-S3 a second declaration in the other form is ignored — first line wins', () => {
+  assert.equal(parseSpec(withKeyword('Kiểm tra bằng: mắt\nKiểm bằng: đọc')).verifyBy, 'mắt');
+  assert.equal(parseSpec(withKeyword('Kiểm bằng: đọc\nKiểm tra bằng: mắt')).verifyBy, 'đọc');
+});
+
+test('CP-39-P2 a 2000-line spec with the new keyword parses in under 50 ms', () => {
+  const padding = Array.from({ length: 1990 }, (_, i) => `Dòng đệm ${i}.`).join('\n');
+  const big = MINIMAL.replace('Phạm vi: src/', 'Phạm vi: src/\nKiểm tra bằng: mắt\n\n## Mục tiêu\n' + padding);
+  const t0 = performance.now();
+  const parsed = parseSpec(big);
+  const ms = performance.now() - t0;
+  assert.equal(parsed.verifyBy, 'mắt');
+  assert.ok(ms < 50, `parse took ${ms.toFixed(1)} ms`);
+});
+

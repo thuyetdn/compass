@@ -22,7 +22,7 @@ nói "chưa biết" thay cho chi tiết bịa.
 ## Phần 1 — Sáu nguyên tắc
 
 **1. Trả lời trước, giải thích sau.** Câu hỏi có/không thì câu đầu là có, không, hoặc "chưa xác
-nhận được" kèm phép kiểm còn thiếu — hay nói thẳng cái còn thiếu: "Chưa chạy trên Vitest." Không có
+nhận được" kèm phép kiểm tra còn thiếu — hay nói thẳng cái còn thiếu: "Chưa chạy trên Vitest." Không có
 câu dẫn nào đứng trước câu đó.
 
 > ❌ Về việc bản sửa đã hết lỗi chưa, test mới chạy trên Jest nên cần xem xét thêm một số yếu tố
@@ -31,9 +31,9 @@ câu dẫn nào đứng trước câu đó.
 > ✅ Chưa xác nhận được. Test mới chạy trên Jest, chưa chạy trên Vitest.
 
 > ❌ Để hiểu vấn đề này, trước tiên cần xem xét một số khía cạnh liên quan tới cách gate `review`
-> đọc findings.json — và câu trả lời ngắn là nó không kiểm được ai viết file đó.
+> đọc findings.json — và câu trả lời ngắn là nó không kiểm tra được ai viết file đó.
 >
-> ✅ Không. Gate `review` không kiểm được ai viết findings.json.
+> ✅ Không. Gate `review` không kiểm tra được ai viết findings.json.
 
 > ❌ Tôi đã tiến hành phân tích và nhận thấy rằng có một vấn đề khá nghiêm trọng liên quan đến parser:
 > nó xếp sai một test đã pass.
@@ -68,7 +68,7 @@ nhanh", và cũng không phải một con số bịa cho câu đủ cụ thể.
 
 > ✅ Ngưỡng 20% là phỏng đoán, không phải số đo. Chọn vì Vitest khớp 1/13.
 
-Khó nhất là nguyên tắc này. Chỗ đáng ngờ thường là chỗ mình lười kiểm. Nói ra thì mất mặt một lần,
+Khó nhất là nguyên tắc này. Chỗ đáng ngờ thường là chỗ mình lười kiểm tra. Nói ra thì mất mặt một lần,
 giấu đi thì người khác mất một buổi.
 
 **5. Độ dài theo độ khó câu hỏi.** "CRM là gì?" không cần một nghìn chữ. Trả lời xong thì dừng, đừng
@@ -216,7 +216,7 @@ Kể theo **dòng chảy dữ liệu**, không theo thứ tự file.
 
 > ❌ Thực hiện việc kiểm tra tính hợp lệ của dữ liệu đầu vào.
 >
-> ✅ Kiểm dữ liệu vào có hợp lệ không.
+> ✅ Kiểm tra dữ liệu vào có hợp lệ không.
 
 > ❌ Tiến hành khởi tạo kết nối tới cơ sở dữ liệu.
 >
@@ -266,7 +266,7 @@ tiếng Việt.
 
 "Về cơ bản", "có thể nói rằng", "về mặt nào đó", "tương đối", "khá là", "nhìn chung", "điều quan
 trọng cần lưu ý là", "cần lưu ý rằng" — bỏ thử. Bỏ mà nghĩa không đổi thì đó là chữ đệm, xoá. Nghĩa
-đổi — "tương đối" đang nói mức độ thật, "nhìn chung" đang nói chưa kiểm hết — thì giữ giới hạn đó
+đổi — "tương đối" đang nói mức độ thật, "nhìn chung" đang nói chưa kiểm tra hết — thì giữ giới hạn đó
 bằng số hoặc phạm vi cụ thể. Xoá cho câu gọn rồi thành nói chắc hơn thật là lỗi nặng hơn chữ đệm.
 
 ### 7. Dịch thuật ngữ đã quen
@@ -308,9 +308,9 @@ Một câu một ý. Câu dài quá 25 chữ thì tìm chỗ chấm.
 ### 10. Nói vòng thay vì nói thẳng cái sai
 
 > ❌ Có vẻ như kết quả trả về chưa hoàn toàn như mong đợi khi mảng rỗng — hàm trả `null` — và do phía
-> gọi không kiểm null nên có hiện tượng crash.
+> gọi không kiểm tra null nên có hiện tượng crash.
 >
-> ✅ Hàm trả về `null` khi mảng rỗng. Nơi gọi không kiểm, nên crash.
+> ✅ Hàm trả về `null` khi mảng rỗng. Nơi gọi không kiểm tra, nên crash.
 
 Ngại làm người khác buồn mà nói vòng thì họ không sửa được.
 
@@ -385,7 +385,7 @@ giữa đường.
 "Nói gọn:", "Nói thẳng:", "Nói công bằng:", "Chỗ đáng chú ý:", "Vậy là", "Điều quan trọng là" — câu
 dẫn không mang thông tin, chỉ báo là sắp có thông tin. Tiếng Anh hay mở đoạn kiểu đó; tiếng Việt thì
 nói luôn. Khác với câu dẫn **có** thông tin ở Phần 8: "Checked Heikki Rotko mà Konsta nhắc" nói được
-hai điều — đã kiểm, và ai báo.
+hai điều — đã kiểm tra, và ai báo.
 
 ### 16. Hỏi tu từ và lời bình về chính mình
 
@@ -403,12 +403,12 @@ Cắt cả hai, nội dung không mất gì.
 
 ### 17. Nhắc lại ý đầu ở cuối đoạn
 
-> ❌ Gate chỉ kiểm cấu trúc, không kiểm nội dung. Nó đếm ca, đối chiếu lớp, tìm placeholder. Nội
-> dung ca có đo đúng mục tiêu không thì nó không biết. Nên nhớ: gate xanh không có nghĩa nội dung
+> ❌ Gate chỉ kiểm tra cấu trúc, không kiểm tra nội dung. Nó đếm case, đối chiếu lớp, tìm placeholder. Nội
+> dung case có đo đúng mục tiêu không thì nó không biết. Nên nhớ: gate xanh không có nghĩa nội dung
 > đúng.
 >
-> ✅ Gate chỉ kiểm cấu trúc, không kiểm nội dung. Nó đếm ca, đối chiếu lớp, tìm placeholder. Nội
-> dung ca có đo đúng mục tiêu không thì nó không biết.
+> ✅ Gate chỉ kiểm tra cấu trúc, không kiểm tra nội dung. Nó đếm case, đối chiếu lớp, tìm placeholder. Nội
+> dung case có đo đúng mục tiêu không thì nó không biết.
 
 Câu cuối bản ❌ nói lại câu đầu bằng chữ khác. Đó không phải nhấn mạnh — nó báo người đọc là bạn
 không tin họ hiểu lần đầu. Phần 2 đã cấm "Tóm lại" ở cuối bài; đây là cùng lỗi ở cấp đoạn.
@@ -519,11 +519,11 @@ Người đọc cần kết quả, không cần biết bạn đã nghĩ sai ch�
 > ở staging token hết hạn sớm hơn 7 ngày thì chưa rõ vì sao.
 >
 > ✅ Đã xác nhận: deltaToken hết hạn gây 410 — tái hiện được bằng cách chỉnh giờ hệ thống.
-> Suy ra: luồng `contacts` dùng chung hàm này nên có thể cũng dính — cần kiểm.
+> Suy ra: luồng `contacts` dùng chung hàm này nên có thể cũng dính — cần kiểm tra.
 > Chưa biết: vì sao token hết hạn sớm hơn 7 ngày ở môi trường staging.
 
 Ba mức, gọi tên thẳng. Trộn ba thứ vào một giọng "có vẻ như" thì người đọc không biết chỗ nào tin
-được, chỗ nào phải tự kiểm lại.
+được, chỗ nào phải tự kiểm tra lại.
 
 ### Không ẩn dụ, không từ kịch tính
 
@@ -598,13 +598,13 @@ Dịch `cache` thành "bản sao trong database riêng" làm câu dài hơn mà 
 
 ### Bỏ câu chuyển tiếp rỗng
 
-> ❌ Heikki Rotko đúng y như vậy. Đây chính là ca Konsta báo, và tôi đã kiểm rồi. Anh là PIC của
+> ❌ Heikki Rotko đúng y như vậy. Đây chính là case Konsta báo, và tôi đã kiểm tra rồi. Anh là PIC của
 > package 7806 đang active.
 >
 > ✅ Checked Heikki Rotko mà Konsta nhắc đến đang bị như vậy. Contact này là PIC của package 7806
 > đang active.
 
-Bản ✅ vẫn có câu dẫn, nhưng câu đó **mang thông tin**: đây là ca Konsta báo, và đã kiểm rồi.
+Bản ✅ vẫn có câu dẫn, nhưng câu đó **mang thông tin**: đây là case Konsta báo, và đã kiểm tra rồi.
 
 ### Điều tra ra mười thứ thì viết bốn thứ
 
@@ -612,7 +612,7 @@ Quy tắc khó nhất, hỏng nhiều nhất. Tìm ra được cái gì thì mu�
 Nhưng ticket không phải chỗ chứng minh mình điều tra kỹ. Người đọc cần **đủ để ra quyết định**, không
 cần đủ để đánh giá bạn.
 
-Ở ca INV-4, agent nhồi thêm hai phát hiện đúng mà không cần thiết: "Konsta mô tả sai hiện trường" và
+Ở case INV-4, agent nhồi thêm hai phát hiện đúng mà không cần thiết: "Konsta mô tả sai hiện trường" và
 "không có team skynet-connector nào". Cả hai đều đúng. Cả hai đều là chỉ trích đồng nghiệp trong một
 ticket nhiều người đọc. Bỏ cả hai, để dành cho lúc nói riêng.
 
@@ -621,7 +621,7 @@ sai không?"*. Không thì cắt. Phần cắt ra để trong hồ sơ điều t
 
 ### Cắt rồi vẫn phải đủ
 
-Cắt quá tay cũng hỏng. Ở ca INV-4, bản viết lại mô tả bước ghi đè là "quét những dòng chưa refresh
+Cắt quá tay cũng hỏng. Ở case INV-4, bản viết lại mô tả bước ghi đè là "quét những dòng chưa refresh
 quá 5 tiếng rồi update thành No" và "ý đồ chắc là để tắt cờ cho người không còn là PIC" — nhưng
 thiếu câu nói **vì sao đó là lỗi**. Đọc xong thấy logic nghe hợp lý, và bỏ qua luôn cái bug lớn nhất.
 

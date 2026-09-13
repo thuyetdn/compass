@@ -21,7 +21,7 @@ Hoặc chạy trực tiếp: `node cli.mjs <lệnh>`
 ```bash
 compass init T-001 --type=feature-s   # tạo spec skeleton
 # điền .compass/T-001/spec.md
-compass spec T-001                     # kiểm spec hợp lệ
+compass spec T-001                     # kiểm tra spec hợp lệ
 # người duyệt → viết code + test
 compass check T-001                    # chạy mọi gate
 compass done T-001                     # cổng cuối
@@ -44,7 +44,7 @@ compass done T-001                     # cổng cuối
 | | AI | Compass |
 |---|---|---|
 | Viết spec, code, test | ✅ | ❌ |
-| Chạy test, đo, kiểm | ❌ | ✅ |
+| Chạy test, đo, kiểm tra | ❌ | ✅ |
 | Ghi bằng chứng | ❌ | ✅ |
 | Phán pass/fail | ❌ | ✅ |
 

@@ -5,18 +5,18 @@
 
 ## Triệu chứng
 
-<Người dùng thấy gì. Số liệu nếu có: bao nhiêu ca, từ khi nào, tần suất.>
+<Người dùng thấy gì. Số liệu nếu có: bao nhiêu case, từ khi nào, tần suất.>
 
 ## Giả thuyết
 
-Mỗi giả thuyết phải nêu **cách kiểm trước khi kiểm**. Không có "để tôi xem thử".
+Mỗi giả thuyết phải nêu **cách kiểm tra trước khi kiểm tra**. Không có "để tôi xem thử".
 
 ### H1: <giả thuyết>
-**Cách kiểm:** <lệnh, script, hay phép đo cụ thể — làm gì thì biết đúng hay sai>
-**Kết quả:** <chưa kiểm | đúng | sai — kèm số liệu>
+**Cách kiểm tra:** <lệnh, script, hay phép đo cụ thể — làm gì thì biết đúng hay sai>
+**Kết quả:** <chưa kiểm tra | đúng | sai — kèm số liệu>
 
 ### H2: <giả thuyết>
-**Cách kiểm:** <...>
+**Cách kiểm tra:** <...>
 **Kết quả:** <...>
 
 ## Bằng chứng

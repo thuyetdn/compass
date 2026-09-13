@@ -18,7 +18,7 @@ import { IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES, BROWSER_GATES, LY_DO_KHONG_D
 // gate đỏ đó biến mất. Bản ghi đã ký thì không có cửa đó — chữ ký phủ cả
 // `skipReason`, nên sửa lời khai là chữ ký lệch.
 //
-// Danh tính không kiểm ở đây: `verifyAllGates` đã chặn bản ghi sửa tay, chuyển
+// Danh tính không kiểm tra ở đây: `verifyAllGates` đã chặn bản ghi sửa tay, chuyển
 // khe, hay chép từ task khác trước khi vòng nào chạm tới nó.
 function laBoQuaHopLe(record, slot) {
   if (!record || typeof record !== 'object') return false;
@@ -127,7 +127,7 @@ export function doneCommand({ cwd, taskId }) {
   // Muốn bỏ thì xoá bản ghi, đừng để nó nằm đó đỏ.
   //
   // `done` không nằm trong IMPLEMENTED_GATES nên dòng lọc dưới đã loại nó — không
-  // cần kiểm riêng.
+  // cần kiểm tra riêng.
   //
   // Chỉ đúng lệnh chạy lại được: `compass check --only=<gate>` **từ chối** gate
   // ngoài danh sách loại task, nên bảo người ta chạy nó là bảo họ đâm vào tường.
@@ -204,7 +204,7 @@ export function doneCommand({ cwd, taskId }) {
     // tên gate, nên so nguyên chuỗi thì mọi bản ghi đa repo thoát hết.
     if (!record || !SOURCE_DEPENDENT_GATES.includes(parseSlot(name).gate)) continue;
     if (!record.sourceHash) {
-      them(`Gate "${name}" không ghi lại mã nguồn đã kiểm — bản ghi từ phiên bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
+      them(`Gate "${name}" không ghi lại mã nguồn đã kiểm tra — bản ghi từ phiên bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
     } else if (record.sourceHash !== currentSourceHash) {
       them(`Code đã thay đổi sau khi gate "${name}" chạy — bằng chứng nói về bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
     }

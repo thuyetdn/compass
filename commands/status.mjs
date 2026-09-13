@@ -11,7 +11,7 @@ import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 
 
 // Không có task id thì in cấu hình. Đòi task id ở đây từng khoá người dùng vào
-// một vòng tròn: kiểm config thì phải có task, có task thì phải viết spec, mà
+// một vòng tròn: kiểm tra config thì phải có task, có task thì phải viết spec, mà
 // viết spec thì cần biết config đọc ra đúng chưa. Dựng config là lúc rẻ nhất để
 // bắt lockfile đoán sai — đắt hơn nhiều nếu phải đợi gate đỏ giữa chừng.
 function cauHinh(root) {
@@ -48,7 +48,7 @@ function cauHinh(root) {
 
   // Trường bỏ rồi nhưng config cũ còn khai. Im lặng thì người dùng vẫn tin nó có
   // tác dụng — đúng cái bẫy khiến nó bị bỏ. Nói ở đây vì đây là nơi người ta đến
-  // để kiểm config.
+  // để kiểm tra config.
   const chet = DEAD_FIELDS.filter((f) => f in cfg.config);
   if (chet.length) {
     lines.push(

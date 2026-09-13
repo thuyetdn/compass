@@ -59,7 +59,7 @@ Nhưng chỉ số đã đo — chưa đo thì viết "chưa đo", không bịa s
 
 > ✅ Ngưỡng 20% là phỏng đoán, không phải số đo. Chọn vì Vitest khớp 1/13.
 
-**Khó nhất là nguyên tắc 4.** Chỗ đáng ngờ thường là chỗ mình lười kiểm. Nói ra thì mất mặt một
+**Khó nhất là nguyên tắc 4.** Chỗ đáng ngờ thường là chỗ mình lười kiểm tra. Nói ra thì mất mặt một
 chút, giấu đi thì người khác sập bẫy.
 
 ### Viết tiếng Việt
@@ -145,9 +145,9 @@ Test case phải có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`), mô tả, và k�
 | Dòng | Khi nào | Gate làm gì |
 |---|---|---|
 | `Lệnh test: <lệnh>` | Task cần suite khác với cả dự án | Chạy lệnh đó thay lệnh trong config |
-| `Kiểm bằng: mắt` | Việc sửa tài liệu, đổi config — không có test tự động | Nói thẳng nó không đo gì, vẫn đòi bảng ca |
+| `Kiểm tra bằng: mắt` | Việc sửa tài liệu, đổi config — không có test tự động | Nói thẳng nó không đo gì, vẫn đòi bảng case |
 
-`Kiểm bằng: mắt` không phải cửa sau. Gate vẫn đòi liệt kê từng ca và cách kiểm, và báo lỗi
+`Kiểm tra bằng: mắt` không phải cửa sau. Gate vẫn đòi liệt kê từng case và cách kiểm tra, và báo lỗi
 nếu suite có test mang task id — lời khai mâu thuẫn với thực tế thì phải sửa, không đoán.
 
 ```
@@ -325,7 +325,7 @@ Diff quá 2MB thì gate từ chối. Không ai đọc hết chừng đó, và ga
 | Dòng không nhận ra định dạng | "không nhận diện được định dạng" |
 | Hai dòng pass khác nhau, cùng ID | "không rõ cái nào của task này" |
 
-Bốn nhóm tách riêng vì đòi bốn việc khác nhau: viết test mới, bỏ skip, kiểm reporter, đặt lại tên.
+Bốn nhóm tách riêng vì đòi bốn việc khác nhau: viết test mới, bỏ skip, kiểm tra reporter, đặt lại tên.
 
 **Reporter phải in tên từng test.** Chỉ in tên **file** thì mọi ID biến mất và gate báo thiếu dù
 bạn đã viết đủ: `node --test` chạy sẵn, Vitest cần `--reporter=tap`, Jest cần `--verbose`.
@@ -334,7 +334,7 @@ bạn đã viết đủ: `node --test` chạy sẵn, Vitest cần `--reporter=ta
 suite thì gate không biết test nào của ai — task chưa viết gì vẫn qua. Đường thoát: đặt tên test
 kèm task id, `test('T-12-H1 …')`. Chỉ đổi tên test của task đang làm.
 
-**Giới hạn:** quét text không kín được. Gate bắt ca thường gặp và **gọi tên thứ nó không phân
+**Giới hạn:** quét text không kín được. Gate bắt case thường gặp và **gọi tên thứ nó không phân
 loại được**, chứ không giả vờ chắc chắn. Đây là lưới chắn, không phải khóa.
 
 Fail → sửa → chạy lại. Không bỏ qua, không giải thích vòng vo.
@@ -351,9 +351,9 @@ Exit 0 mới được báo hoàn thành. Dán output của lệnh này khi báo 
 
 Compass chứng minh **test đã chạy và xanh**. Nó không chứng minh **test đo đúng thứ cần đo**.
 
-Một task có mục tiêu "không còn để lại file rác" có thể pass mọi gate trong khi rác vẫn còn — nếu test case chỉ kiểm hàm dọn chạy được, chứ không kiểm kết quả cuối. Gate không biết điều đó.
+Một task có mục tiêu "không còn để lại file rác" có thể pass mọi gate trong khi rác vẫn còn — nếu test case chỉ kiểm tra hàm dọn chạy được, chứ không kiểm tra kết quả cuối. Gate không biết điều đó.
 
-Nên: sau khi `done` xanh, **tự kiểm mục tiêu gốc một lần**. Nếu spec nói "sau khi chạy không còn X", thì đi đếm X. Trách nhiệm chọn test case đo đúng mục tiêu vẫn nằm ở người viết spec — công cụ chỉ đảm bảo bạn không nói dối về việc đã chạy chúng.
+Nên: sau khi `done` xanh, **tự kiểm tra mục tiêu gốc một lần**. Nếu spec nói "sau khi chạy không còn X", thì đi đếm X. Trách nhiệm chọn test case đo đúng mục tiêu vẫn nằm ở người viết spec — công cụ chỉ đảm bảo bạn không nói dối về việc đã chạy chúng.
 
 ### Compass từ chối bản ghi thế nào
 
@@ -381,7 +381,7 @@ Gate nào đọc code mà thiếu `sourceHash` thì bị coi là bản ghi cũ v
 
 ### Hai giới hạn còn lại
 
-**Khôi phục cả code lẫn bản ghi.** Lưu `gate.json` lúc xanh, sửa code, rồi khôi phục **cả hai** về đúng trạng thái cũ — `done` xanh. Đúng ra là nên thế: code đó thật sự là code đã được kiểm. Chỗ hở thật nằm ở việc không có gì xâu chuỗi các lần chạy theo thời gian.
+**Khôi phục cả code lẫn bản ghi.** Lưu `gate.json` lúc xanh, sửa code, rồi khôi phục **cả hai** về đúng trạng thái cũ — `done` xanh. Đúng ra là nên thế: code đó thật sự là code đã được kiểm tra. Chỗ hở thật nằm ở việc không có gì xâu chuỗi các lần chạy theo thời gian.
 
 **`config.json` được tin.** Compass bắt được lệnh test **đổi sau** khi gate chạy, nhưng nếu ai sửa nó **trước** — trỏ sang một lệnh `echo` in ra TAP giả — thì không phát hiện được. Compass không phán được lệnh đó có phải test suite thật hay không.
 
@@ -393,14 +393,14 @@ Task BUILD giả định đã biết phải làm gì. Chưa biết thì mở đi
 
 ```
 compass investigate INV-1          mở hồ sơ
-     ↓  điền giả thuyết, kiểm, ghi bằng chứng
+     ↓  điền giả thuyết, kiểm tra, ghi bằng chứng
 compass investigate INV-1 --close  đóng — chỉ khi đủ bằng chứng và pitfall
 ```
 
 **Ba luật cứng:**
 
 1. **Không sửa code khi đang điều tra.** Sửa là task BUILD riêng.
-2. **Mỗi giả thuyết nêu cách kiểm TRƯỚC khi kiểm.** Không "để tôi xem thử".
+2. **Mỗi giả thuyết nêu cách kiểm tra TRƯỚC khi kiểm tra.** Không "để tôi xem thử".
 3. **Kết luận phải dẫn về bằng chứng**, không phải suy luận.
 
 `--close` chặn nếu thiếu bằng chứng, thiếu kết luận, thiếu pitfall, hay còn chữ mẫu. Đóng được thì pitfall tự chép vào `.knowledge/decided/pitfalls.md` — lần sau đọc được.
@@ -422,7 +422,7 @@ Ba loại, ba chỗ:
 `/* */` và `<!-- -->` — viết bằng cú pháp của chính loại file đó.
 
 Kết quả chạy — query, log, dump — lưu vào `.compass/<id>/data/`, **đừng paste vào chat**: phiên đóng
-là mất, và hồ sơ dẫn "query trả 47 dòng" mà không ai kiểm lại được thì đó là lời khai, không phải
+là mất, và hồ sơ dẫn "query trả 47 dòng" mà không ai kiểm tra lại được thì đó là lời khai, không phải
 bằng chứng. Tên file theo khuôn `<task-id>-<việc>-<ngày>.<đuôi>`, khớp tên script sinh ra nó:
 `queries/inv1-prod-queries.sql` → `INV-1-prod-queries-0907.csv`. Không phải nghĩ tên, chỉ điền vào khuôn.
 
@@ -448,7 +448,7 @@ select clp.Status, count(*) from crmlaaspackages clp group by clp.Status;
 select * from mastercontact where Email = '<EMAIL>';
 ```
 
-`-- @out: -` nghĩa là "ca chạy tay, đừng đợi file" — dùng cho query có placeholder phải thay.
+`-- @out: -` nghĩa là "case chạy tay, đừng đợi file" — dùng cho query có placeholder phải thay.
 Vẫn phải khai, để không ai lặng lẽ bỏ sót một query.
 
 ```
@@ -477,7 +477,7 @@ hai query cùng gốc tên mà chỉ có một file thì query thứ hai báo th
 Gate này **không** nằm trong `check` hay `done`. Nó chạy khi bạn gọi, vì task không đụng database
 thì không có gì để đối chiếu.
 
-**Giới hạn:** gate kiểm hình dạng tên, không kiểm ý nghĩa. `INV-4-xyz-0908.csv` qua được như
+**Giới hạn:** gate kiểm tra hình dạng tên, không kiểm tra ý nghĩa. `INV-4-xyz-0908.csv` qua được như
 `INV-4-status-gap-0908.csv`. Nó canh bạn khỏi quên và khỏi đặt trùng — tên có tả đúng query hay
 không vẫn là việc của bạn.
 
@@ -485,14 +485,14 @@ không vẫn là việc của bạn.
 báo đó thuộc về query kế tiếp. Gate in dấu `⚠` chỉ đúng hai dòng số:
 
 ```
-⚠ Dòng 1: khai "-" cách query ở dòng 3 một khoảng — kiểm xem nó thuộc query nào
+⚠ Dòng 1: khai "-" cách query ở dòng 3 một khoảng — kiểm tra xem nó thuộc query nào
 ```
 
 Nó **không** phán, vì phán được thì phải biết một dòng comment là code đã tắt hay lời nói về code —
-văn bản không chứa thông tin đó. Ba cách đoán đều sai cả hai chiều: đọc từ khoá SQL thì lọt sáu ca
+văn bản không chứa thông tin đó. Ba cách đoán đều sai cả hai chiều: đọc từ khoá SQL thì lọt sáu case
 và chặn oan năm câu văn thường; đòi dòng trống thì lọt mọi file viết liền.
 
-Ca nguy hiểm nhất thì gate **có** chặn: nếu query thật cũng có khai báo riêng, hai khai báo cho một
+Case nguy hiểm nhất thì gate **có** chặn: nếu query thật cũng có khai báo riêng, hai khai báo cho một
 query là mâu thuẫn đo được, gate đỏ và chỉ ra cả hai dòng. Chỉ khi query thật **không** khai gì thì
 dấu `⚠` là thứ duy nhất báo bạn — đọc nó.
 
@@ -584,4 +584,4 @@ Chưa có: trang xem knowledge bằng trình duyệt, và lệnh dựng config n
 | "Còn 1 test fail nhưng không liên quan" | Fail là fail |
 | "Tôi sẽ sửa gate.json cho nhanh" | Chữ ký sẽ lộ — sửa giá trị, chuyển khe, chép từ task khác đều bị bắt. Và đó là gian lận. |
 | "Người duyệt chắc sẽ đồng ý thôi" | Chờ họ nói. Đoán ý là bỏ qua checkpoint. |
-| "compass done xanh rồi, xong" | Gate chứng minh test đã chạy, không chứng minh test đo đúng thứ. Tự kiểm mục tiêu gốc một lần. |
+| "compass done xanh rồi, xong" | Gate chứng minh test đã chạy, không chứng minh test đo đúng thứ. Tự kiểm tra mục tiêu gốc một lần. |

@@ -16,7 +16,7 @@ const PITFALLS = path.join('.knowledge', 'decided', 'pitfalls.md');
 
 const RULES = [
   'Không sửa code khi đang điều tra — sửa là task BUILD riêng.',
-  'Mỗi giả thuyết phải nêu cách kiểm TRƯỚC khi kiểm. Không "để tôi xem thử".',
+  'Mỗi giả thuyết phải nêu cách kiểm tra TRƯỚC khi kiểm tra. Không "để tôi xem thử".',
   'Kết luận phải dẫn về bằng chứng, không phải suy luận.',
 ];
 
@@ -146,7 +146,7 @@ export function investigateCommand({ cwd, taskId, close }) {
   });
 
   const lines = [
-    pass('investigate', `${taskId} đóng — ${parsed.hypotheses.length} giả thuyết đã kiểm`),
+    pass('investigate', `${taskId} đóng — ${parsed.hypotheses.length} giả thuyết đã kiểm tra`),
   ];
   lines.push('', pitfallWritten
     ? `Pitfall đã ghi vào ${PITFALLS}`
