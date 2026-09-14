@@ -8,15 +8,30 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const goc = join(dirname(fileURLToPath(import.meta.url)), '..');
-const duongDan = join(goc, 'skills', 'compass', 'references', 'ngon-ngu.md');
+const thuMuc = dirname(fileURLToPath(import.meta.url));
 
-let quyTac;
-try {
-  quyTac = readFileSync(duongDan, 'utf8');
-} catch (err) {
-  // Hook hỏng thì im lặng thoát — không chặn phiên làm việc của người dùng.
-  process.stderr.write(`compass: không đọc được ${duongDan}: ${err.message}\n`);
+// Hai kiểu bố trí: script nằm trong scripts/ (bản repo), hoặc nằm ngay gốc
+// thư mục cài (bản copy tay). Thử cả hai thay vì giả định một kiểu.
+const noiTim = [
+  join(thuMuc, '..', 'skills', 'compass', 'references', 'ngon-ngu.md'),
+  join(thuMuc, 'skills', 'compass', 'references', 'ngon-ngu.md'),
+];
+
+let quyTac = null;
+for (const duongDan of noiTim) {
+  try {
+    quyTac = readFileSync(duongDan, 'utf8');
+    break;
+  } catch {
+    // thử nơi tiếp theo
+  }
+}
+
+if (quyTac === null) {
+  // Hook hỏng thì thoát im lặng — không chặn phiên làm việc của người dùng.
+  process.stderr.write(
+    `compass: khong tim thay ngon-ngu.md, da thu:\n  ${noiTim.join('\n  ')}\n`
+  );
   process.exit(0);
 }
 
