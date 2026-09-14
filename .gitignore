@@ -2,8 +2,10 @@ node_modules/
 dist/
 *.log
 
-# Thư mục thăm dò tạm của agent soi code — không thuộc dự án.
+# Thư mục thăm dò tạm của agent soi code — không thuộc dự án. Mỗi agent tự đặt
+# một tên khác nhau, nên danh sách này dài thêm mỗi lần gặp tên mới.
 .probe-tmp/
+.tmp-review/
 
 # Máy sinh: verify được nên không cần lưu, và nó đổi mỗi lần sync.
 **/.knowledge/derived/

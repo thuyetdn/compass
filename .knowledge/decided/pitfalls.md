@@ -336,3 +336,32 @@ làm được cho `test`. Đóng nó là nói dối, sửa nó là một task ri
 **Phòng tránh:** gate `review` bắt được lỗi thật mà 941 test không bắt được — bốn lỗi trên đều nằm
 ngoài vùng test phủ. Task cũ chưa soi thì đừng đóng gọn cho xong; soi rồi sửa, hoặc để đỏ và ghi rõ
 lý do. Trạng thái từng task đọc ở `.compass/<id>/evidence/findings.json`.
+
+### Test xanh không có nghĩa test đo gì — 2026-09-14, gate `secrets` (CP-40)
+
+Bốn test do chính người viết code viết ra **không đo thứ tên nó khai**. Cả bốn đều xanh, đều
+có id đúng, và gate `test` đếm đủ "30/30 test cases đã chạy". Người soi độc lập bắt được cả bốn;
+không cái nào tự lộ ra.
+
+| Test | Tên khai | Thực tế đo |
+|---|---|---|
+| `CP-40-EC7` | file đã ignore thì gate xanh | truyền vào danh sách rỗng — giống hệt trường hợp cơ bản |
+| `CP-40-S4` | gốc soi bắt đầu bằng `-` bị từ chối | điều kiện `A && !B` với `B` khớp chữ "không" — mọi output đều thoả |
+| `CP-40-S3` | gate không đọc file `.env` | tìm chuỗi đánh dấu, mà một bản băm nội dung cũng qua |
+| `CP-40-EC18` | trường `reason` khớp trạng thái | cả ba đều đi nhánh khác, không chạm dòng cần canh |
+
+Cái thứ tư đáng nhớ nhất: nó được viết **để vá** lỗi người soi vừa chỉ ra, và vẫn rỗng. Viết
+xong thấy xanh nên tưởng xong; phá code thì vẫn xanh. Phải sửa hai lần mới đúng.
+
+**Phép thử duy nhất đáng tin: cố ý phá code, xem test có đỏ không.** Xanh không chứng minh gì —
+test đo đúng và test rỗng trông giống hệt nhau khi xanh. Người soi vòng ba dùng đúng cách này:
+đổi `reason: chuaIgnore ? 2 : 1` thành `reason: 1`, chạy 46 test, xanh cả 46.
+
+Ba vòng soi cho gate `secrets` ra 4 → 6 → 5 lỗi chặn, vòng nào cũng còn Critical. Hai lỗi nặng
+nhất nằm ngoài vùng test phủ và **ngoài cả phạm vi task**: `hashSource` (dùng chung cho mọi gate,
+code có sẵn từ trước) đọc từng byte file `.env` rồi băm vào bản ghi đã ký, trái đúng điều spec và
+SKILL.md khai; và `.ENV` viết hoa lọt sạch ba lý do trên chính Windows, nơi `.ENV` là file dotenv.
+
+**Phòng tránh:** gate viết bằng khớp mẫu để canh bảo mật thì mỗi vòng soi còn ra lỗi mới — đó là
+giới hạn tự thân, không phải vá thiếu. Dừng khi phần đáng tin đã chắc (lý do 1 và 2 chỉ cần tên
+file và git), và ghi rõ phần còn lại là lưới chắn chứ không phải khoá.
