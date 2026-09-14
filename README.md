@@ -15,6 +15,9 @@ Trong Claude Code, chạy hai lệnh:
 
 Xong. Không cần clone, không cần sửa file tay.
 
+Repo private, nên máy cài phải đã đăng nhập git vào tài khoản có quyền đọc
+`thuyetdn/compass`. Máy chưa có credential sẽ fail ở bước `marketplace add`.
+
 Kiểm tra: mở phiên mới, hỏi Claude "quy tắc trả lời tiếng Việt của tôi là gì". Nếu nó kể được các mục Ngắn / Nói thẳng / Từ ngữ thì hook đang chạy.
 
 ## Cập nhật
