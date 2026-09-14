@@ -71,8 +71,11 @@ test('CP-39-EC3 "ca" inside another word is not flagged, standalone "ca" is', ()
 });
 
 test('CP-39-EC4 writing-vi.md keeps its 53 ❌ examples — pairs were rewritten, not dropped', () => {
+  // Sàn, không phải con số cố định. Luật này sinh ra để chặn việc **mất** ví dụ
+  // khi viết lại; khoá cứng bằng `equal` thì thêm một mục mới cũng đỏ, và cái
+  // giá là người viết đi sửa test thay vì thêm ví dụ.
   const text = read('writing-vi.md');
-  assert.equal((text.match(/^> ❌/gmu) ?? []).length, 53);
+  assert.ok((text.match(/^> ❌/gmu) ?? []).length >= 53, 'không được bớt ví dụ ❌');
 });
 
 test('CP-39-EC6 an uppercase heading like "KIỂM TRA" is not flagged', () => {
