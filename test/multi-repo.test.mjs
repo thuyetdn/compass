@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { checkCommand } from '../commands/check.mjs';
 import { doneCommand } from '../commands/done.mjs';
+import { initRepo } from './helpers/git-repo.mjs';
 import { testCommand } from '../commands/test.mjs';
 import { readGates, slotFor, parseSlot } from '../lib/gate-store.mjs';
 import { getSalt, signRecord } from '../lib/signature.mjs';
@@ -37,7 +38,7 @@ function spec({ scope = 'be/src, fe/src', ids = ['H1', 'H2'] } = {}) {
 }
 
 function makeRoot({ config, specText = spec(), dirs = ['be/src', 'fe/src'] }) {
-  const root = mkdtempSync(path.join(tmpdir(), 'compass-multi-'));
+  const root = initRepo(mkdtempSync(path.join(tmpdir(), 'compass-multi-')));
   mkdirSync(path.join(root, '.compass', 'T-1', 'evidence'), { recursive: true });
   writeFileSync(path.join(root, '.compass', 'config.json'), JSON.stringify(config, null, 2));
   writeFileSync(path.join(root, '.compass', 'T-1', 'spec.md'), specText);

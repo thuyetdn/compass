@@ -7,6 +7,7 @@ import { knowledgeCommand } from './commands/knowledge.mjs';
 import { uiCommand } from './commands/ui.mjs';
 import { visualCommand } from './commands/visual.mjs';
 import { reviewCommand } from './commands/review.mjs';
+import { secretsCommand } from './commands/secrets.mjs';
 import { checkCommand } from './commands/check.mjs';
 import { doneCommand } from './commands/done.mjs';
 import { statusCommand } from './commands/status.mjs';
@@ -20,6 +21,7 @@ Dùng:
   compass init <id> --type=<fix|bug|feature-s|feature-m|feature-l>
   compass spec <id>
   compass knowledge [id] [--sync]
+  compass secrets <id>
   compass convention <id>
   compass test <id>
   compass ui <id>
@@ -79,6 +81,10 @@ async function main() {
       case 'visual':
         result = await visualCommand({ cwd, taskId });
         break;
+      case 'secrets':
+        result = secretsCommand({ cwd, taskId });
+        break;
+
       case 'review':
         result = reviewCommand({ cwd, taskId });
         break;

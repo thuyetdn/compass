@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { initRepo } from './helpers/git-repo.mjs';
 
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'cli.mjs');
 
@@ -17,7 +18,7 @@ function compass(cwd, args) {
 const workspaces = [];
 
 function makeWorkspace() {
-  const dir = mkdtempSync(path.join(tmpdir(), 'compass-e2e-'));
+  const dir = initRepo(mkdtempSync(path.join(tmpdir(), 'compass-e2e-')));
   workspaces.push(dir);
   return dir;
 }

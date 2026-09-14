@@ -111,3 +111,27 @@ test('CP-7-E1 an unreadable file does not crash the walk', () => {
   const hash = hashSource(root);
   assert.match(hash, /^sha256:/);
 });
+
+test('CP-40-S11 a .env file is hashed by shape, never by content', () => {
+  // `hashSource` chạy cho MỌI gate, nên nó là đường duy nhất mà nội dung một file
+  // bí mật đi vào `gate.json` — file được ký, nằm trong evidence, và có thể bị gửi
+  // đi nơi khác. Băm là một chiều, nhưng vẫn là hàm của nội dung: đổi một ký tự
+  // trong `.env` mà `sourceHash` đổi theo nghĩa bản ghi mang thông tin về file đó.
+  const root = makeTree({ 'src/a.js': 'export const a = 1;\n', '.env': 'KEY=first\n' });
+  const truoc = hashSource(root);
+
+  // Cùng kích thước, khác nội dung: hash phải giữ nguyên.
+  writeFileSync(path.join(root, '.env'), 'KEY=secnd\n');
+  assert.equal(hashSource(root), truoc, 'nội dung .env không được vào sourceHash');
+
+  // Nhưng file code đổi thì vẫn phải phát hiện được.
+  writeFileSync(path.join(root, 'src', 'a.js'), 'export const a = 2;\n');
+  assert.notEqual(hashSource(root), truoc, 'code đổi mà sourceHash không đổi');
+});
+
+test('CP-40-S12 an uppercase .ENV is hashed by shape too', () => {
+  const root = makeTree({ 'src/a.js': 'export const a = 1;\n', '.ENV': 'KEY=first\n' });
+  const truoc = hashSource(root);
+  writeFileSync(path.join(root, '.ENV'), 'KEY=secnd\n');
+  assert.equal(hashSource(root), truoc, 'nội dung .ENV không được vào sourceHash');
+});

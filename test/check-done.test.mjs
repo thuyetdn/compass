@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { initRepo } from './helpers/git-repo.mjs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { checkCommand } from '../commands/check.mjs';
@@ -33,8 +34,9 @@ Không có.
 const GREEN = 'node -e "console.log(\'ok 1 - test_H1_a\'); console.log(\'ok 2 - test_H2_b\')"';
 const RED   = 'node -e "console.log(\'ok 1 - test_H1_a\'); process.exit(1)"';
 
+
 function makeTask(testCmd, specText = SPEC) {
-  const root = mkdtempSync(path.join(tmpdir(), 'compass-check-'));
+  const root = initRepo(mkdtempSync(path.join(tmpdir(), 'compass-check-')));
   mkdirSync(path.join(root, '.compass', 'T-1', 'evidence'), { recursive: true });
   writeFileSync(path.join(root, '.compass', 'config.json'), JSON.stringify({ test: testCmd }));
   writeFileSync(path.join(root, '.compass', 'T-1', 'spec.md'), specText);
@@ -214,7 +216,7 @@ ${rows.join('\n')}
   ];
   const greenForFeatureM = 'node -e "' + testLines.map(line => `console.log('${line}')`).join('; ') + '"';
 
-  const root = mkdtempSync(path.join(tmpdir(), 'compass-check-'));
+  const root = initRepo(mkdtempSync(path.join(tmpdir(), 'compass-check-')));
   mkdirSync(path.join(root, '.compass', 'T-FM', 'evidence'), { recursive: true });
   writeFileSync(path.join(root, '.compass', 'config.json'), JSON.stringify({ test: greenForFeatureM }));
   writeFileSync(path.join(root, '.compass', 'T-FM', 'spec.md'), featureMSpec);
@@ -279,7 +281,7 @@ Không có.
 ${rows.join('\n')}
 `;
 
-  const root = mkdtempSync(path.join(tmpdir(), 'compass-check-'));
+  const root = initRepo(mkdtempSync(path.join(tmpdir(), 'compass-check-')));
   mkdirSync(path.join(root, '.compass', 'T-FM2', 'evidence'), { recursive: true });
   writeFileSync(path.join(root, '.compass', 'config.json'), JSON.stringify({ test: RED }));
   writeFileSync(path.join(root, '.compass', 'T-FM2', 'spec.md'), featureMSpec);
@@ -824,7 +826,7 @@ Không có.
 ${rows.join('\n')}
 `;
   const cmd = 'node -e "' + oks.map((l) => `console.log('${l}')`).join('; ') + '"';
-  const root = mkdtempSync(path.join(tmpdir(), 'compass-cp33-'));
+  const root = initRepo(mkdtempSync(path.join(tmpdir(), 'compass-cp33-')));
   mkdirSync(path.join(root, '.compass', 'T-FM', 'evidence'), { recursive: true });
   writeFileSync(
     path.join(root, '.compass', 'config.json'),

@@ -140,13 +140,14 @@ compass init <id> --type=<loại>
 
 Test case phải có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`), mô tả, và kỳ vọng **đo được**. "Hoạt động đúng" không phải kỳ vọng đo được.
 
-**Hai dòng khai thêm, dùng khi cần:**
+**Bốn dòng khai thêm, dùng khi cần:**
 
 | Dòng | Khi nào | Gate làm gì |
 |---|---|---|
 | `Lệnh test: <lệnh>` | Task cần suite khác với cả dự án | Chạy lệnh đó thay lệnh trong config |
 | `Kiểm tra bằng: mắt` | Việc sửa tài liệu, đổi config — không có test tự động | Nói thẳng nó không đo gì, vẫn đòi bảng case |
 | `Soi đến: <sha>` | Task nằm giữa lịch sử nhánh, có commit của việc khác đến sau nó | Gate `review` dừng diff ở commit đó và chỉ giữ file trong `Phạm vi:` |
+| `Dùng .env: <lý do>` | Task thật sự cần đọc file `.env` | Gate `secrets` cho phép **đọc**, vẫn chặn commit file `.env` |
 
 `Kiểm tra bằng: mắt` không phải cửa sau. Gate vẫn đòi liệt kê từng case và cách kiểm tra, và báo lỗi
 nếu suite có test mang task id — lời khai mâu thuẫn với thực tế thì phải sửa, không đoán.
@@ -174,7 +175,7 @@ compass check <id>
 Chạy các gate áp dụng, dừng ngay khi fail. Rẻ trước, đắt sau:
 
 ```
-spec (0.1s) → convention (1s) → test (vài giây) → ui (30s) → visual (30s) → review (cần agent)
+spec (0.1s) → secrets (0.3s) → convention (1s) → test (vài giây) → ui (30s) → visual (30s) → review (cần agent)
 ```
 
 Gate nào áp dụng thì tùy loại task — xem bảng Phân loại. Gate `test` không chỉ xem suite xanh:
@@ -199,6 +200,53 @@ compass knowledge --sync   sinh lại
 Gate đỏ khi file nguồn đổi sau lần sinh cuối, và `done` gọi nó — sửa component xong mà không regen thì không đóng được task.
 
 **Giới hạn:** trích bằng regex, không phân tích AST (Node không có parser TS/JSX sẵn, thêm một cái là phá zero-dependency). Component nào không đọc được prop thì đánh dấu `confident: false` — **đừng tin phần đó**. Nói không chắc còn hơn bịa cho chắc.
+
+### Gate `secrets` — file mật khẩu đừng lọt vào commit
+
+Chạy cho **mọi loại task**, kể cả `fix` một dòng: sửa một dòng vẫn commit lộ khoá dễ như làm
+tính năng lớn.
+
+Gate đọc diff của task rồi đỏ khi gặp một trong ba thứ:
+
+| # | Chuyện gì | Gate nói gì |
+|---|---|---|
+| 1 | File `.env` nằm trong diff, hoặc đã bị git theo dõi từ trước | nêu đường dẫn, bảo `git rm --cached` và đổi khoá |
+| 2 | File `.env` có trong thư mục mà `.gitignore` chưa che | đưa sẵn dòng cần thêm vào `.gitignore` |
+| 3 | Dòng code mới đọc `.env` mà spec không khai | chỉ file và số dòng, nhắc dòng `Dùng .env:` |
+
+`.env.example`, `.env.sample`, `.env.template` là tài liệu — miễn. Chặn chúng là chặn đúng file
+dạy người ta đừng commit file thật.
+
+**Muốn đọc `.env` thì khai vào spec**, ở phần đầu như `Gốc soi:`:
+
+```
+Dùng .env: chạy local, không đụng production
+```
+
+Lời khai này là chữ ký của người duyệt, nên `specHash` phủ nó: thêm sau khi duyệt là phải duyệt
+lại. Và nó chỉ cho phép **đọc** — commit file `.env` vẫn đỏ, vì đồng ý đọc không phải đồng ý gửi
+khoá lên repo.
+
+**Gate không bao giờ mở file `.env`.** Nó chỉ làm việc với đường dẫn, text diff và metadata git;
+output nêu tên file, không bao giờ nêu một dòng bên trong. Đó là test, không phải lời hứa — nếu
+gate làm lộ đúng thứ nó canh thì thà đừng có gate.
+
+Một ngoại lệ đã cân nhắc: `sourceHash` băm **kích thước** file `.env` thay cho nội dung, còn
+`diffHash` thì băm cả diff — mà diff của một file `.env` đã bị commit thì chứa nội dung, do git
+đưa vào. Gỡ `diffHash` ra là mất khả năng biết diff đã đổi, tức mất thứ buộc bằng chứng vào một
+bản code. Ranh giới giữ được: giá trị không bao giờ nằm trong `gate.json` ở dạng đọc được.
+
+**Giới hạn:** khớp mẫu theo dòng, không phân tích cú pháp. `process.env.X` và `import.meta.env`
+không tính là đọc file (đúng), nhưng một đường dẫn `.env` ghép động trong biến thì gate không
+thấy. Nó bắt trường hợp thường gặp, không phải lưới kín.
+
+Không phải repo git thì gate **đỏ**, không xanh. Không có diff nghĩa là chưa quét được gì, mà
+báo xanh lúc chưa quét đúng là kiểu sai Compass sinh ra để chặn.
+
+**Thư mục nháp làm gate đỏ oan.** Lý do 2 hỏi git file nào chưa được ignore, nên một thư mục
+tạm chứa file thử — agent soi code hay dựng — làm gate đỏ dù task không đụng gì tới nó. Gặp thì
+thêm tên thư mục đó vào `.gitignore`, cạnh `.probe-tmp/`. Không tự dò được: tên thư mục do người
+tạo đặt, và đoán theo mẫu thì vừa lọt thư mục thật vừa bỏ qua file `.env` thật nằm cạnh nó.
 
 ### Gate `convention` — quy ước viết một lần
 
@@ -574,7 +622,7 @@ hay repo bị bỏ sót — rẻ hơn nhiều so với phát hiện lúc gate đ
 
 ## Giai đoạn hiện tại
 
-Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review`.
+Tám gate: `spec`, `knowledge`, `secrets`, `convention`, `test`, `ui`, `visual`, `review`.
 
 Cộng knowledge base sinh tự động, lệnh `investigate`, config nhiều repo, và `check` chạy gate
 theo từng repo.

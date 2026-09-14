@@ -13,6 +13,7 @@ import { knowledgeCommand } from './knowledge.mjs';
 import { uiCommand } from './ui.mjs';
 import { visualCommand } from './visual.mjs';
 import { reviewCommand } from './review.mjs';
+import { secretsCommand } from './secrets.mjs';
 import { GATE_ORDER, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
 import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 import { loadConfig } from '../lib/config.mjs';
@@ -20,6 +21,7 @@ import { loadConfig } from '../lib/config.mjs';
 const IMPLEMENTED = {
   spec: specCommand,
   knowledge: knowledgeCommand,
+  secrets: secretsCommand,
   convention: conventionCommand,
   test: testCommand,
   ui: uiCommand,
@@ -63,7 +65,7 @@ export async function checkCommand({ cwd, taskId, only }) {
 
   // `spec`, `knowledge`, `review` đọc spec, tài liệu và diff — đều là thứ của
   // cả task, không của riêng repo nào. Chạy một lần ở gốc.
-  const CHUNG = ['spec', 'knowledge', 'review'];
+  const CHUNG = ['spec', 'knowledge', 'secrets', 'review'];
 
   const cfg = loadConfig(root);
   if (!cfg.ok) return { exitCode: 2, output: cfg.errors.join("\n") };
