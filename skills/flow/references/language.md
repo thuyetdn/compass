@@ -162,9 +162,28 @@ Cần chú thích thật thì viết tiếng Việt cho đúng: "hết rồi", "
 Tự đọc thầm lại không đủ. Mấy lỗi trên đều lọt qua nhiều lượt tự soi trong cùng
 một phiên, vì người kiểm tra và người viết là một.
 
-Kiểm tra bằng máy khi cần chắc: transcript phiên nằm ở
-`~/.claude/projects/<tên-project>/<session-id>.jsonl`, lọc block `text` của
-assistant rồi grep các cụm trong bảng.
+Vừa nghĩ vừa viết cho đúng giọng là hai việc đặt lên cùng một lượt, việc nào
+cũng làm dở. Nên tách hẳn: phân tích xong thì có một bước riêng chỉ để viết lại,
+và bước đó không được là chính mình đọc lại chính mình.
+
+Hai lớp, chạy cùng lúc:
+
+**Lớp máy.** Stop hook `scripts/check-voice.mjs` đọc câu trả lời cuối rồi dò các
+cụm trong bảng trên. Dính thì chặn lượt, trả về danh sách cụm bị bắt, phải viết
+lại mới gửi đi được. Hook đọc bảng thẳng từ file này, nên thêm một dòng vào bảng
+là hook bắt thêm cụm đó. Lớp này rẻ và chạy mọi lượt, nhưng chỉ bắt được cụm cố
+định. Bảng không có thì nó không thấy.
+
+**Lớp subagent.** Câu trả lời dài (từ ba đoạn trở lên, hoặc có heading) thì đưa
+bản nháp cho một subagent kèm file này, nhiệm vụ duy nhất là sửa giọng. Agent đó
+không có bối cảnh, không biết mình vừa nghĩ gì, nên đọc bản nháp như đọc văn
+người khác. Đây là lớp bắt lỗi cấu trúc: heading dài thành cả câu, tự chế ẩn dụ,
+gán cho người dùng ý họ không nói. Grep không thấy mấy lỗi đó.
+
+Câu ngắn thì để hook lo, không gọi subagent, đừng làm chậm hội thoại thường.
+
+Lớp subagent có một chỗ yếu: agent không biết bối cảnh nên dễ sửa hỏng thuật ngữ
+kỹ thuật. Nhận bản sửa về thì đọc lại phần thuật ngữ, đừng nhận nguyên xi.
 
 ## Bố cục câu trả lời dài
 
