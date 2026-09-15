@@ -117,8 +117,16 @@ câu, tra chuỗi không thấy.
 Tiếng Anh hỏi bằng trật tự từ, tiếng Việt hỏi bằng tiểu từ cuối câu: nhé, chứ,
 à, chưa, không. Dịch thẳng thì tiểu từ rụng mất, câu nghe cộc và không thật.
 
-Sai: "Tôi viết không?" / "Bạn muốn tôi push?"
-Đúng: "Tôi viết nhé?" / "Bạn muốn tôi push chứ?"
+Sai: "Tôi viết không?"
+Đúng: "Tôi viết nhé?"
+
+Xin phép thì dùng "nhé". Đừng dùng "chứ", vì "chứ" hàm ý đã biết câu trả lời là
+có ("Anh đi chứ?"), hỏi xin phép mà dùng thành ra tự trả lời hộ người nghe.
+
+Có câu thêm tiểu từ không cứu được, phải viết lại cả câu:
+
+Sai: "Bạn muốn tôi push?" (dịch từ "Do you want me to push?")
+Đúng: "Push nhé?"
 
 Riêng câu hỏi trống không kiểu "Chạy test chưa?" thì đúng, vì "chưa" đã là tiểu từ.
 
