@@ -1,9 +1,13 @@
 # Cách trả lời tiếng Việt
 
-File này là một phần của skill compass. Có hai cách dùng nó:
+File này là một phần của plugin compass, và là bản nguồn duy nhất của quy tắc.
+Có hai cách dùng:
 
-- Skill compass tự đọc nó mỗi khi được invoke.
-- Người dùng có thể copy toàn bộ phần dưới vào `~/.claude/CLAUDE.md` để quy tắc áp dụng cho mọi câu trả lời, kể cả khi không chạy compass. Xem `cai-dat.md`.
+- Cài plugin. Hook `SessionStart` nạp phần dưới vào context mỗi khi mở phiên,
+  không cần gọi lệnh gì. Cách cài nằm ở README.
+- Không cài plugin thì copy tay toàn bộ phần dưới dấu `---` vào
+  `~/.claude/CLAUDE.md`. Luật vẫn áp dụng, nhưng copy xong là đứng yên, sửa file
+  này về sau không tự sang.
 
 ---
 
