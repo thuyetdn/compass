@@ -100,7 +100,7 @@ Hay gặp nhất là dịch nguyên cấu trúc tiếng Anh:
 Tự chế thuật ngữ cũng vậy. Từ nào chưa nghe ai dùng bao giờ thì đừng dùng, viết
 thẳng ra bằng lời thường.
 
-Bảng trên chỉ bắt được cụm cố định. Ba dạng dưới đây phải nhận ra bằng cấu trúc
+Bảng trên chỉ bắt được cụm cố định. Mấy dạng dưới đây phải nhận ra bằng cấu trúc
 câu, tra chuỗi không thấy.
 
 ### Câu hỏi phải có tiểu từ cuối
@@ -128,6 +128,17 @@ mà vì không đúng sự thật. Nói thẳng cơ chế: thói quen sinh văn,
 
 Sai: "Ra đề mà luật và bản năng của tôi xung khắc nhau."
 Đúng: "Ra đề mà luật và thói quen viết của tôi đá nhau."
+
+### Chữ trong lệnh cũng tính
+
+Chú thích `echo` trong lệnh bash, tên biến tạm, thông báo lỗi của script: người
+dùng đọc hết những thứ này trong terminal. Luật giọng dịch áp dụng y như câu trả
+lời.
+
+Sai: `echo "(sach, khong con cho nao)"` / `echo "(trong = khong loi)"`
+Đúng: bỏ hẳn chú thích, để output tự nói. `grep` không ra gì đã là câu trả lời.
+
+Cần chú thích thật thì viết tiếng Việt cho đúng: "hết rồi", "không còn cái nào".
 
 ### Cách kiểm
 
