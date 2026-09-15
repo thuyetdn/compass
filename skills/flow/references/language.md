@@ -102,6 +102,7 @@ Hay gặp nhất là dịch nguyên cấu trúc tiếng Anh:
 | "cách thử rẻ nhất" | "thử cái này trước cho nhanh" |
 | "lệnh kiểm" | "lệnh kiểm tra" |
 | "sửa rồi không tự sang" | "sửa rồi phải copy lại" |
+| "mệnh đề loại trừ" | "câu nói rõ khi nào đừng dùng" |
 
 Tự chế thuật ngữ cũng vậy. Từ nào chưa nghe ai dùng bao giờ thì đừng dùng, viết
 thẳng ra bằng lời thường.
@@ -129,6 +130,13 @@ Sai: "Bạn muốn tôi push?" (dịch từ "Do you want me to push?")
 Đúng: "Push nhé?"
 
 Riêng câu hỏi trống không kiểu "Chạy test chưa?" thì đúng, vì "chưa" đã là tiểu từ.
+
+Một tiểu từ thôi, đừng chồng hai cái. "không" đứng cuối đã là tiểu từ hỏi rồi,
+thêm "nhé" vào sau thành câu không ai nói.
+
+Sai: "Viết không nhé?"
+Đúng: "Viết nhé?"
+Đúng: "Tôi viết lại chứ?"
 
 ### Đừng ghép tính từ Anh vào vị ngữ Việt
 
