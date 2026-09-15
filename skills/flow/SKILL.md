@@ -3,7 +3,7 @@ name: flow
 description: Quy trình phát triển có bằng chứng: spec trước code, gate máy chạy thật thay vì AI tự khai kết quả. Dùng khi bắt đầu bất kỳ task lập trình nào (thêm tính năng, sửa bug, refactor), hoặc khi người dùng nhắc compass, gate, spec-first, hay hỏi vì sao AI báo xong mà chưa xong.
 ---
 
-# Compass
+# Compass flow
 
 Quy trình để AI không tự khai là đã xong khi chưa xong.
 
