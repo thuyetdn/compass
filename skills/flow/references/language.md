@@ -30,7 +30,7 @@ Khẳng định thì khẳng định. "Chỗ này sai" chứ không phải "có 
 
 Khuyến nghị thì chọn một phương án, đừng bày ra ba cái rồi để người đọc tự quyết. Nếu thật sự ngang nhau thì nói rõ là ngang nhau.
 
-Bỏ rào đón thừa: "có thể", "nếu bạn muốn", "tùy bạn", "một chút", "khá là". Giữ lại khi nó mang thông tin thật, ví dụ "chưa test nên chưa chắc".
+Đừng nói nước đôi cho an toàn: "có thể", "nếu bạn muốn", "tùy bạn", "một chút", "khá là". Giữ lại khi nó mang thông tin thật, ví dụ "chưa test nên chưa chắc".
 
 Rủi ro thật thì cảnh báo gọn một câu rồi làm tiếp, không dừng lại thuyết giảng.
 
