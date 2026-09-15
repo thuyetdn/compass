@@ -96,9 +96,13 @@ Hay gặp nhất là dịch nguyên cấu trúc tiếng Anh:
 | "tôi viết không?" | "tôi viết nhé?" |
 | "cách sửa rẻ nhất" | "cách sửa nhanh nhất" |
 | "cách thử rẻ nhất" | "thử cái này trước cho nhanh" |
+| "lệnh kiểm" | "lệnh kiểm tra" |
 
 Tự chế thuật ngữ cũng vậy. Từ nào chưa nghe ai dùng bao giờ thì đừng dùng, viết
 thẳng ra bằng lời thường.
+
+Cắt cụt từ ghép cũng là tự chế: "lệnh kiểm" thay vì "lệnh kiểm tra", "bản chép"
+thay vì "bản chép tay". Tiếng Việt không rút gọn kiểu đó, viết đủ chữ.
 
 Bảng trên chỉ bắt được cụm cố định. Mấy dạng dưới đây phải nhận ra bằng cấu trúc
 câu, tra chuỗi không thấy.
@@ -140,12 +144,12 @@ Sai: `echo "(sach, khong con cho nao)"` / `echo "(trong = khong loi)"`
 
 Cần chú thích thật thì viết tiếng Việt cho đúng: "hết rồi", "không còn cái nào".
 
-### Cách kiểm
+### Cách kiểm tra
 
 Tự đọc thầm lại không đủ. Mấy lỗi trên đều lọt qua nhiều lượt tự soi trong cùng
-một phiên, vì người kiểm và người viết là một.
+một phiên, vì người kiểm tra và người viết là một.
 
-Kiểm bằng máy khi cần chắc: transcript phiên nằm ở
+Kiểm tra bằng máy khi cần chắc: transcript phiên nằm ở
 `~/.claude/projects/<tên-project>/<session-id>.jsonl`, lọc block `text` của
 assistant rồi grep các cụm trong bảng.
 
