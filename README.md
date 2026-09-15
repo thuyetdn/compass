@@ -51,7 +51,6 @@ Bản cài so theo `version` trong manifest chứ không so commit, nên sửa c
 | `skills/flow/SKILL.md` | Quy trình spec-first và gate, gọi bằng `/compass:flow` |
 | `skills/flow/references/language.md` | Quy tắc trả lời tiếng Việt, **bản nguồn duy nhất** |
 | `scripts/load-language.mjs` | SessionStart hook, đọc file trên rồi nạp vào context |
-| `commands/compass.md` | Slash command, trỏ vào skill |
 | `hooks/hooks.json` | Đăng ký hook |
 | `.claude-plugin/` | Manifest plugin và marketplace |
 
