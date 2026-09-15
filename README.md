@@ -48,7 +48,7 @@ Bản cài so theo `version` trong manifest chứ không so commit, nên sửa c
 
 | Đường dẫn | Làm gì |
 |---|---|
-| `skills/flow/SKILL.md` | Quy trình spec-first và gate, gọi bằng `/compass:flow` |
+| `skills/flow/SKILL.md` | Quy trình 5 bước: phân làn, spec, gate, commit, báo cáo |
 | `skills/flow/references/language.md` | Quy tắc trả lời tiếng Việt, **bản nguồn duy nhất** |
 | `scripts/load-language.mjs` | SessionStart hook, đọc file trên rồi nạp vào context |
 | `scripts/check-voice.mjs` | Stop hook, chặn câu trả lời dính cụm giọng dịch |
@@ -71,7 +71,17 @@ compass: câu trả lời dính 1 chỗ giọng dịch, chưa gửi đi được
   - cách sửa rẻ nhất
 ```
 
-Hook chỉ bắt được cụm cố định trong bảng. Lỗi cấu trúc (heading dài thành cả câu, tự chế ẩn dụ) thì grep không thấy, phần đó do bước subagent viết lại lo, mô tả trong `language.md` mục "Cách kiểm tra".
+Grep chỉ bắt được cụm cố định trong bảng. Lỗi tôi chế ra lần đầu thì tra chuỗi không thấy: tự chế thuật ngữ, câu hỏi sai tiểu từ, heading dài thành cả câu. Đó là việc của lớp thứ hai.
+
+### Lớp hai: subagent đọc lại
+
+Grep sạch rồi thì Stop hook đưa câu trả lời cho một subagent đọc, khai báo bằng `"type": "agent"` trong `hooks.json`. Subagent không phải người vừa viết nên nhìn ra lỗi, thấy câu nào người Việt không nói ngoài đời thì chặn và chỉ chỗ sai. Claude viết lại, duyệt lại lần nữa, sạch mới tới tay bạn.
+
+Stop hook không sửa thẳng được chữ trong câu trả lời, Claude Code không cho. Nó chỉ chặn được, nên người viết lại vẫn là Claude, subagent chỉ soi.
+
+Giá phải trả: mỗi lượt chậm thêm vài giây và tốn thêm token. Timeout đặt 60 giây. Chống lặp vô hạn có sẵn, `check-voice.mjs` đọc `stop_hook_active` để bỏ qua lần chặn thứ hai, còn Claude Code tự cắt sau 8 lần chặn liên tiếp.
+
+Tắt lớp này thì xóa block `"type": "agent"` trong `hooks/hooks.json`, grep vẫn chạy.
 
 Block code trong câu trả lời được bỏ qua khi dò, vì output lệnh không phải văn Claude viết.
 
