@@ -8,6 +8,5 @@
   },
   "repository": "https://github.com/thuyetdn/compass",
   "license": "MIT",
-  "keywords": ["vietnamese", "spec-first", "verification", "workflow"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["vietnamese", "spec-first", "verification", "workflow"]
 }
