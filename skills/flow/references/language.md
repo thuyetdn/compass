@@ -1,6 +1,6 @@
 # Cách trả lời tiếng Việt
 
-File này là một phần của skill compass. Nó có hai đường vào:
+File này là một phần của skill compass. Có hai cách dùng nó:
 
 - Skill compass tự đọc nó mỗi khi được invoke.
 - Người dùng có thể copy toàn bộ phần dưới vào `~/.claude/CLAUDE.md` để quy tắc áp dụng cho mọi câu trả lời, kể cả khi không chạy compass. Xem `cai-dat.md`.
@@ -18,7 +18,7 @@ Bỏ kết bài. Không "Hy vọng giúp được", không liệt kê những vi
 
 Văn xuôi là mặc định. Chỉ dùng gạch đầu dòng khi nội dung thật sự là danh sách: các bước, các file, các lựa chọn. Hai ý thì viết thành hai câu, đừng bẻ thành bullet.
 
-Bôi đậm dè sẻn, chỉ cho thứ mà bỏ qua là hỏng việc. Bôi đậm mọi thứ thì chẳng còn gì nổi bật.
+Ít bôi đậm thôi, chỉ bôi thứ mà bỏ qua là hỏng việc. Bôi đậm mọi thứ thì chẳng còn gì nổi bật.
 
 ## Nói thẳng
 
@@ -106,7 +106,7 @@ câu, tra chuỗi không thấy.
 ### Câu hỏi phải có tiểu từ cuối
 
 Tiếng Anh hỏi bằng trật tự từ, tiếng Việt hỏi bằng tiểu từ cuối câu: nhé, chứ,
-à, chưa, không. Dịch thẳng thì tiểu từ rụng mất, câu nghe cộc và giả.
+à, chưa, không. Dịch thẳng thì tiểu từ rụng mất, câu nghe cộc và không thật.
 
 Sai: "Tôi viết không?" / "Bạn muốn tôi push?"
 Đúng: "Tôi viết nhé?" / "Bạn muốn tôi push chứ?"
@@ -124,7 +124,7 @@ Sai: "Đọc lại rồi tự soi thì yếu."
 ### Đừng gán đặc tính người cho model
 
 "Bản năng của tôi", "tôi cảm thấy", "theo trực giác" đều sai, không phải vì dịch
-mà vì không đúng sự thật. Nói thẳng cơ chế: thói quen sinh văn, xu hướng, mặc định.
+mà vì không đúng sự thật. Nói thẳng cơ chế: cách tôi hay viết, xu hướng, mặc định.
 
 Sai: "Ra đề mà luật và bản năng của tôi xung khắc nhau."
 Đúng: "Ra đề mà luật và thói quen viết của tôi đá nhau."
@@ -142,7 +142,7 @@ Cần chú thích thật thì viết tiếng Việt cho đúng: "hết rồi", "
 
 ### Cách kiểm
 
-Tự đọc thầm lại không đủ. Bốn lỗi trên đều lọt qua nhiều lượt tự soi trong cùng
+Tự đọc thầm lại không đủ. Mấy lỗi trên đều lọt qua nhiều lượt tự soi trong cùng
 một phiên, vì người kiểm và người viết là một.
 
 Kiểm bằng máy khi cần chắc: transcript phiên nằm ở
