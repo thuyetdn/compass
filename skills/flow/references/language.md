@@ -6,8 +6,8 @@ Có hai cách dùng:
 - Cài plugin. Hook `SessionStart` nạp phần dưới vào context mỗi khi mở phiên,
   không cần gọi lệnh gì. Cách cài nằm ở README.
 - Không cài plugin thì copy tay toàn bộ phần dưới dấu `---` vào
-  `~/.claude/CLAUDE.md`. Luật vẫn áp dụng, nhưng copy xong là đứng yên, sửa file
-  này về sau không tự sang.
+  `~/.claude/CLAUDE.md`. Luật vẫn áp dụng, nhưng sau này sửa file này thì phải
+  copy lại.
 
 ---
 
@@ -101,6 +101,7 @@ Hay gặp nhất là dịch nguyên cấu trúc tiếng Anh:
 | "cách sửa rẻ nhất" | "cách sửa nhanh nhất" |
 | "cách thử rẻ nhất" | "thử cái này trước cho nhanh" |
 | "lệnh kiểm" | "lệnh kiểm tra" |
+| "sửa rồi không tự sang" | "sửa rồi phải copy lại" |
 
 Tự chế thuật ngữ cũng vậy. Từ nào chưa nghe ai dùng bao giờ thì đừng dùng, viết
 thẳng ra bằng lời thường.
