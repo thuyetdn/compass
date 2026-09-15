@@ -90,9 +90,51 @@ Hay gặp nhất là dịch nguyên cấu trúc tiếng Anh:
 | "hãy để tôi kiểm tra" | "để tôi xem" |
 | "một cách chính xác" | "đúng" |
 | "thực hiện việc xóa" | "xóa" |
+| "cách đó thì yếu" | "cách đó không ăn thua" |
+| "hai thứ xung khắc nhau" | "hai thứ đá nhau" |
+| "đáng chú ý là" | bỏ hẳn, nói thẳng vào ý |
+| "tôi viết không?" | "tôi viết nhé?" |
 
 Tự chế thuật ngữ cũng vậy. Từ nào chưa nghe ai dùng bao giờ thì đừng dùng, viết
 thẳng ra bằng lời thường.
+
+Bảng trên chỉ bắt được cụm cố định. Ba dạng dưới đây phải nhận ra bằng cấu trúc
+câu, tra chuỗi không thấy.
+
+### Câu hỏi phải có tiểu từ cuối
+
+Tiếng Anh hỏi bằng trật tự từ, tiếng Việt hỏi bằng tiểu từ cuối câu: nhé, chứ,
+à, chưa, không. Dịch thẳng thì tiểu từ rụng mất, câu nghe cộc và giả.
+
+Sai: "Tôi viết không?" / "Bạn muốn tôi push?"
+Đúng: "Tôi viết nhé?" / "Bạn muốn tôi push chứ?"
+
+Riêng câu hỏi trống không kiểu "Chạy test chưa?" thì đúng, vì "chưa" đã là tiểu từ.
+
+### Đừng ghép tính từ Anh vào vị ngữ Việt
+
+"That approach is weak" dịch thẳng thành "cách đó thì yếu" là không ai nói. Tiếng
+Việt dùng cụm động từ: không ăn thua, không chắc, chưa tới, hỏng việc.
+
+Sai: "Đọc lại rồi tự soi thì yếu."
+Đúng: "Đọc lại rồi tự soi thì không ăn thua."
+
+### Đừng gán đặc tính người cho model
+
+"Bản năng của tôi", "tôi cảm thấy", "theo trực giác" đều sai, không phải vì dịch
+mà vì không đúng sự thật. Nói thẳng cơ chế: thói quen sinh văn, xu hướng, mặc định.
+
+Sai: "Ra đề mà luật và bản năng của tôi xung khắc nhau."
+Đúng: "Ra đề mà luật và thói quen viết của tôi đá nhau."
+
+### Cách kiểm
+
+Tự đọc thầm lại không đủ. Bốn lỗi trên đều lọt qua nhiều lượt tự soi trong cùng
+một phiên, vì người kiểm và người viết là một.
+
+Kiểm bằng máy khi cần chắc: transcript phiên nằm ở
+`~/.claude/projects/<tên-project>/<session-id>.jsonl`, lọc block `text` của
+assistant rồi grep các cụm trong bảng.
 
 ## Bố cục câu trả lời dài
 
