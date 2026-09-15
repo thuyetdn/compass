@@ -37,12 +37,12 @@ Kiểm tra: mở phiên mới, hỏi Claude "quy tắc trả lời tiếng Việ
 | Đường dẫn | Việc |
 |---|---|
 | `skills/compass/SKILL.md` | Quy trình spec-first và gate |
-| `skills/compass/references/ngon-ngu.md` | Quy tắc trả lời tiếng Việt — **bản nguồn duy nhất** |
-| `scripts/nap-ngon-ngu.mjs` | SessionStart hook, đọc file trên rồi bơm vào context |
+| `skills/compass/references/language.md` | Quy tắc trả lời tiếng Việt — **bản nguồn duy nhất** |
+| `scripts/load-language.mjs` | SessionStart hook, đọc file trên rồi bơm vào context |
 | `hooks/hooks.json` | Đăng ký hook |
 | `.claude-plugin/` | Manifest plugin và marketplace |
 
-Sửa quy tắc ngôn ngữ thì sửa đúng một chỗ: `references/ngon-ngu.md`. Hook đọc thẳng từ đó, không có bản copy nào khác.
+Sửa quy tắc ngôn ngữ thì sửa đúng một chỗ: `references/language.md`. Hook đọc thẳng từ đó, không có bản copy nào khác.
 
 ## Yêu cầu
 

@@ -94,6 +94,8 @@ Hay gặp nhất là dịch nguyên cấu trúc tiếng Anh:
 | "hai thứ xung khắc nhau" | "hai thứ đá nhau" |
 | "đáng chú ý là" | bỏ hẳn, nói thẳng vào ý |
 | "tôi viết không?" | "tôi viết nhé?" |
+| "cách sửa rẻ nhất" | "cách sửa nhanh nhất" |
+| "cách thử rẻ nhất" | "thử cái này trước cho nhanh" |
 
 Tự chế thuật ngữ cũng vậy. Từ nào chưa nghe ai dùng bao giờ thì đừng dùng, viết
 thẳng ra bằng lời thường.
@@ -150,16 +152,16 @@ Block code luôn kèm dòng lệnh đã chạy (`$ ...`) chứ không chỉ dán
 
 ```markdown
 ## Nguyên nhân
-`nap-ngon-ngu.mjs` resolve path bằng `__dirname`, nhưng khi plugin cài qua
+`load-language.mjs` resolve path bằng `__dirname`, nhưng khi plugin cài qua
 symlink thì `__dirname` trỏ về chỗ symlink chứ không phải thư mục thật của
-plugin. File `ngon-ngu.md` nằm cạnh file thật nên không tìm thấy.
+plugin. File `language.md` nằm cạnh file thật nên không tìm thấy.
 
 ## Sửa
-`scripts/nap-ngon-ngu.mjs:14`: bọc `__dirname` trong `realpathSync` trước khi join.
+`scripts/load-language.mjs:14`: bọc `__dirname` trong `realpathSync` trước khi join.
 
 ## Kiểm chứng
-$ node scripts/nap-ngon-ngu.mjs
-✓ loaded ngon-ngu.md (2.1 KB)
+$ node scripts/load-language.mjs
+✓ loaded language.md (2.1 KB)
 
 Đã chạy cả hai kiểu bố trí: cài trực tiếp và cài qua symlink. Pass cả hai.
 

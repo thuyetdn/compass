@@ -9,9 +9,9 @@ Quy trình để AI không tự khai là đã xong khi chưa xong.
 
 ## 0. Ngôn ngữ
 
-Quy tắc trả lời tiếng Việt nằm ở `references/ngon-ngu.md`. SessionStart hook của plugin đã nạp nó vào context từ đầu phiên — không cần đọc lại.
+Quy tắc trả lời tiếng Việt nằm ở `references/language.md`. SessionStart hook của plugin đã nạp nó vào context từ đầu phiên — không cần đọc lại.
 
-Nếu context không có mục "Cách trả lời tiếng Việt (compass)", hook chưa chạy: đọc `references/ngon-ngu.md` rồi làm theo, và báo cho người dùng biết hook không hoạt động.
+Nếu context không có mục "Cách trả lời tiếng Việt (compass)", hook chưa chạy: đọc `references/language.md` rồi làm theo, và báo cho người dùng biết hook không hoạt động.
 
 Quy tắc đó áp dụng cho mọi câu chữ sinh ra trong lúc chạy compass: câu trả lời, nội dung spec, commit message, báo cáo gate.
 
