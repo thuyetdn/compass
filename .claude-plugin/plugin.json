@@ -1,7 +1,7 @@
 {
   "name": "compass",
   "displayName": "Compass",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Quy trình phát triển có bằng chứng: spec trước code, gate máy chạy thật. Kèm quy tắc trả lời tiếng Việt tự động áp dụng mọi phiên.",
   "author": {
     "name": "Do Ngoc Thuyet"
