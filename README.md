@@ -2,7 +2,7 @@
 
 Quy trình phát triển có bằng chứng cho Claude Code: spec trước code, gate máy chạy thật thay vì AI tự khai kết quả.
 
-Kèm bộ quy tắc trả lời tiếng Việt — cài xong là có hiệu lực ở mọi phiên, không cần gọi lệnh gì.
+Kèm bộ quy tắc trả lời tiếng Việt, cài xong là có hiệu lực ở mọi phiên, không cần gọi lệnh gì.
 
 ## Cài
 
@@ -36,8 +36,8 @@ Kiểm tra: mở phiên mới, hỏi Claude "quy tắc trả lời tiếng Việ
 
 | Đường dẫn | Việc |
 |---|---|
-| `skills/compass/SKILL.md` | Quy trình spec-first và gate |
-| `skills/compass/references/language.md` | Quy tắc trả lời tiếng Việt — **bản nguồn duy nhất** |
+| `skills/flow/SKILL.md` | Quy trình spec-first và gate |
+| `skills/flow/references/language.md` | Quy tắc trả lời tiếng Việt, **bản nguồn duy nhất** |
 | `scripts/load-language.mjs` | SessionStart hook, đọc file trên rồi bơm vào context |
 | `hooks/hooks.json` | Đăng ký hook |
 | `.claude-plugin/` | Manifest plugin và marketplace |
@@ -46,4 +46,4 @@ Sửa quy tắc ngôn ngữ thì sửa đúng một chỗ: `references/language.
 
 ## Yêu cầu
 
-Node (đã có sẵn nếu chạy được Claude Code). Chạy trên Windows, macOS, Linux — hook dùng `${CLAUDE_PLUGIN_ROOT}` nên đường dẫn tự đúng theo hệ điều hành.
+Node (đã có sẵn nếu chạy được Claude Code). Chạy trên Windows, macOS, Linux. Hook dùng `${CLAUDE_PLUGIN_ROOT}` nên đường dẫn tự đúng theo hệ điều hành.

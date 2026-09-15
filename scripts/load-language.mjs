@@ -13,8 +13,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 // Hai kiểu bố trí: script nằm trong scripts/ (bản repo), hoặc nằm ngay gốc
 // thư mục cài (bản copy tay). Thử cả hai thay vì giả định một kiểu.
 const candidates = [
-  join(here, '..', 'skills', 'compass', 'references', 'language.md'),
-  join(here, 'skills', 'compass', 'references', 'language.md'),
+  join(here, '..', 'skills', 'flow', 'references', 'language.md'),
+  join(here, 'skills', 'flow', 'references', 'language.md'),
 ];
 
 let rules = null;
