@@ -1,0 +1,12 @@
+{
+  "name": "compass",
+  "displayName": "Compass",
+  "version": "3.0.0",
+  "description": "Quy trình phát triển có bằng chứng: spec trước code, gate máy chạy thật thay vì AI tự khai kết quả.",
+  "author": {
+    "name": "Do Ngoc Thuyet"
+  },
+  "repository": "https://github.com/thuyetdn/compass",
+  "license": "MIT",
+  "keywords": ["vietnamese", "spec-first", "verification", "workflow"]
+}

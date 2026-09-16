@@ -1,0 +1,16 @@
+{
+  "name": "compass",
+  "owner": {
+    "name": "Do Ngoc Thuyet"
+  },
+  "description": "Compass — quy trình phát triển có bằng chứng cho người dùng tiếng Việt: spec trước code, gate máy chạy thật.",
+  "plugins": [
+    {
+      "name": "compass",
+      "source": "./",
+      "displayName": "Compass",
+      "description": "Quy trình phát triển có bằng chứng: spec trước code, gate máy chạy thật",
+      "version": "3.0.0"
+    }
+  ]
+}
