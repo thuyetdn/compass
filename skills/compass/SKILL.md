@@ -7,22 +7,21 @@ description: "Quy trình phát triển dựa trên bằng chứng: viết spec t
 
 Quy trình làm việc có bằng chứng kiểm chứng được. La bàn không đi thay bạn — nó đảm bảo bạn không lạc.
 
-## Trước tiên: có `compass` chưa?
+## Gõ lệnh thế nào
+
+Skill này đi kèm chính công cụ nó nói tới, nên không phải cài gì thêm:
 
 ```
-compass
+node "${CLAUDE_PLUGIN_ROOT}/cli.mjs" <lệnh>
 ```
 
-Không thấy lệnh → cài một lần, dùng cho mọi dự án:
+Mọi lệnh bên dưới viết tắt là `compass <lệnh>` cho gọn. Gõ thì thay bằng dòng trên.
 
-```
-npm install -g <đường-dẫn-tới-repo-compass>
-```
+Muốn gõ `compass` trực tiếp trong terminal thì cài một lần từ repo — `npm install -g .` — nhưng
+skill không cần bước đó.
 
-Không cài được thì gọi trực tiếp, thay `compass` bằng `node <đường-dẫn>/cli.mjs` ở mọi lệnh bên dưới.
-
-Lệnh **có** nhưng ném `MODULE_NOT_FOUND` → symlink đứt vì repo bị đổi tên hoặc chuyển chỗ. Chạy lại
-`npm install -g .` từ repo, đừng đi chẩn đoán từng bước.
+Lệnh ném `MODULE_NOT_FOUND` mà bạn đã cài `-g`: symlink đứt vì repo đổi tên hoặc chuyển chỗ. Chạy
+lại `npm install -g .` từ repo, đừng đi chẩn đoán từng bước.
 
 ## Luật tối cao
 

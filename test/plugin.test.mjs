@@ -87,3 +87,24 @@ test('CP-42-H7 the skill frontmatter stays Vietnamese so it triggers on Vietname
       `${rel} description mất tiếng Việt — skill sẽ khó khớp với prompt tiếng Việt`);
   }
 });
+
+test('CP-42-H8 the command the skill tells the agent to run exists at the plugin root', () => {
+  // Skill bảo gõ `node "${CLAUDE_PLUGIN_ROOT}/cli.mjs"`. Plugin khai
+  // `source: "./"` nên plugin root là gốc repo — dòng đó chỉ đúng chừng nào
+  // cli.mjs còn nằm ở đấy. Dời file đi mà quên sửa skill thì agent gõ vào chỗ
+  // trống, và không test nào khác bắt được.
+  const skill = read('skills/compass/SKILL.md');
+  const goi = skill.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"'`\s)]+)/g) ?? [];
+  assert.ok(goi.length, 'skill không còn nói cách gọi CLI qua ${CLAUDE_PLUGIN_ROOT}');
+
+  const source = json('.claude-plugin/marketplace.json').plugins
+    .find((p) => p.name === 'compass').source;
+  assert.equal(source, './',
+    'plugin root không còn là gốc repo — mọi đường dẫn ${CLAUDE_PLUGIN_ROOT} trong skill phải tính lại');
+
+  for (const m of goi) {
+    const rel = m.replace('${CLAUDE_PLUGIN_ROOT}/', '');
+    assert.ok(existsSync(path.join(ROOT, rel)),
+      `skill gọi ${m} nhưng ${rel} không có ở gốc repo`);
+  }
+});

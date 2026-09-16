@@ -10,13 +10,7 @@ exit code thì không.
 
 ## Cài
 
-```bash
-npm install -g .
-```
-
-Hoặc chạy trực tiếp: `node cli.mjs <lệnh>`
-
-Dùng với Claude Code thì cài kèm skill — AI đọc quy trình rồi mới gõ lệnh:
+Dùng với Claude Code thì cài plugin — AI có cả quy trình lẫn công cụ, không phải cài gì thêm:
 
 ```
 /plugin marketplace add <đường-dẫn-tới-repo>
@@ -24,6 +18,14 @@ Dùng với Claude Code thì cài kèm skill — AI đọc quy trình rồi mớ
 ```
 
 Quy trình AI phải theo nằm ở [`skills/compass/SKILL.md`](skills/compass/SKILL.md).
+
+Muốn gõ `compass` trong terminal thì cài thêm lệnh:
+
+```bash
+npm install -g .
+```
+
+Hoặc chạy trực tiếp: `node cli.mjs <lệnh>`
 
 ## Dùng
 
