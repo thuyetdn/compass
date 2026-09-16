@@ -76,3 +76,33 @@ test('CP-42-H5 every relative link in the shipped skill resolves inside the plug
   }
   assert.deepEqual(treo, [], `link gãy trong SKILL.md của plugin:\n${treo.join('\n')}`);
 });
+
+test('CP-42-H6 the manifests stay in English — they are release metadata, not skill content', () => {
+  // Description trong manifest là thứ người duyệt marketplace và người cài đọc
+  // trước khi biết plugin này dành cho ai, nên viết tiếng Anh. Khác với
+  // frontmatter của SKILL.md: chỗ đó phải tiếng Việt vì Claude đọc nó để đoán
+  // lúc nào người dùng gõ tiếng Việt cần tới skill.
+  const CO_DAU = /[À-ɏḀ-ỿ]/u;
+  for (const rel of ['.claude-plugin/plugin.json', '.claude-plugin/marketplace.json']) {
+    const text = read(rel);
+    const dinh = [];
+    text.split('\n').forEach((line, i) => {
+      if (CO_DAU.test(line)) dinh.push(`${i + 1}: ${line.trim()}`);
+    });
+    assert.deepEqual(dinh, [],
+      `${rel} còn chữ có dấu — manifest phải viết tiếng Anh:\n${dinh.join('\n')}`);
+  }
+});
+
+test('CP-42-H7 the skill frontmatter stays Vietnamese so it triggers on Vietnamese prompts', () => {
+  // Mặt kia của H6. Đổi description sang tiếng Anh thì skill khớp kém hẳn khi
+  // người dùng gõ tiếng Việt — hỏng âm thầm, không ai thấy lỗi.
+  const CO_DAU = /[À-ɏḀ-ỿ]/u;
+  for (const rel of ['SKILL.md', 'skills/compass/SKILL.md']) {
+    const fm = read(rel).match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+    const desc = fm[1].match(/^description:\s*(.+)$/m);
+    assert.ok(desc, `${rel} thiếu description`);
+    assert.ok(CO_DAU.test(desc[1]),
+      `${rel} description mất tiếng Việt — skill sẽ khó khớp với prompt tiếng Việt`);
+  }
+});

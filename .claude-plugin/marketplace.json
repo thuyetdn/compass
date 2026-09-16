@@ -3,13 +3,13 @@
   "owner": {
     "name": "Do Ngoc Thuyet"
   },
-  "description": "Compass — quy trình phát triển có bằng chứng cho người dùng tiếng Việt: spec trước code, gate máy chạy thật.",
+  "description": "Compass — an evidence-based development workflow for Vietnamese-speaking users: spec before code, gates that run real commands.",
   "plugins": [
     {
       "name": "compass",
       "source": "./",
       "displayName": "Compass",
-      "description": "Quy trình phát triển có bằng chứng: spec trước code, gate máy chạy thật",
+      "description": "Evidence-based development workflow: spec before code, gates that run real commands",
       "version": "3.0.0"
     }
   ]
