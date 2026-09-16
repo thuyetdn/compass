@@ -387,3 +387,141 @@ test('CP-39-EC5 the two tracked investigations on disk report no missing method'
     assert.deepEqual(errors, [], `${id}: ${errors.join('; ')}`);
   }
 });
+
+// --- CP-45: `DAU_DONG` was a `(X)+` whose every branch could match empty, so a
+// run of indentation could be split between `[>\s]*` and `\s*` in exponentially
+// many ways. On a line that then failed to match, the engine tried every split:
+// 14 spaces cost 1.1 s on HEAD, and each further pair of spaces multiplied that
+// by roughly twelve. A list nested four deep at a 4-space indent hung
+// `investigate --close` for minutes with no output.
+
+// Thirteen prefixes measured as accepted on HEAD, and one measured as rejected.
+const PREFIXES = ['', '- ', '* ', '+ ', '  - ', '1. ', '2) ', '> ', '> - ', '- [ ] ', '- [x] ', '   ', '>  1.  [ ]  '];
+
+// A whole investigation file, with `body` dropped into the hypothesis section.
+function fileWith(body) {
+  return COMPLETE.replace(
+    '### H1: deltaToken hết hạn\n**Cách kiểm:** gọi Graph bằng token đang lưu, xem mã trả về\n**Kết quả:** đúng — Graph trả 410 Gone',
+    `### H1: deltaToken hết hạn\n${body}`,
+  );
+}
+
+test('CP-45-H1 all thirteen prefixes still carry a Kết quả line', () => {
+  for (const prefix of PREFIXES) {
+    const doc = fileWith(`**Cách kiểm:** c\n${prefix}**Kết quả:** x`);
+    const parsed = parseInvestigation(doc);
+    const h1 = parsed.hypotheses.find((h) => h.id === 'H1');
+    assert.equal(h1?.result, 'x', `tiền tố ${JSON.stringify(prefix)} phải bắt được "x"`);
+  }
+});
+
+test('CP-45-H2 both Cách kiểm spellings parse behind a bare and a stacked prefix', () => {
+  for (const keyword of ['Cách kiểm', 'Cách kiểm tra']) {
+    for (const prefix of ['- ', '>  1.  [ ]  ']) {
+      const doc = fileWith(`${prefix}**${keyword}:** y\n**Kết quả:** z`);
+      const h1 = parseInvestigation(doc).hypotheses.find((h) => h.id === 'H1');
+      assert.equal(h1?.method, 'y', `${keyword} sau ${JSON.stringify(prefix)}`);
+    }
+  }
+});
+
+test('CP-45-H3 a file with three-deep nested bullets parses as before', () => {
+  const doc = fileWith('    - **Cách kiểm:** c\n      - **Kết quả:** r');
+  const h1 = parseInvestigation(doc).hypotheses.find((h) => h.id === 'H1');
+  assert.equal(h1.method, 'c');
+  assert.equal(h1.result, 'r');
+});
+
+test('CP-45-V1 a template placeholder is still recognised behind every prefix', () => {
+  // Chi chuoi CO THAT trong template moi tinh la chu mau: module doc chung tu
+  // file chu khong doan theo hinh dang, nen mot chuoi bia ra nhu `<ket qua>`
+  // la noi dung that. Doc hint tu chinh template de test khong tu bia chuan.
+  const hint = readFileSync(TEMPLATE_PATH, 'utf8')
+    .split('\n')
+    .map((l) => l.trim())
+    .find((l) => l.startsWith('**Kết quả:**'))
+    .replace('**Kết quả:**', '')
+    .trim();
+
+  for (const prefix of ['', '- ', '1. ', '> ', '- [ ] ']) {
+    const doc = fileWith(`**Cách kiểm:** c\n${prefix}**Kết quả:** ${hint}`);
+    const report = validateForClose(parseInvestigation(doc));
+    assert.equal(report.ok, false, `chữ mẫu sau ${JSON.stringify(prefix)} phải bị chặn`);
+  }
+});
+
+test('CP-45-V2 text before the prefix still fails to match', () => {
+  const doc = fileWith('**Cách kiểm:** c\nabc **Kết quả:** x');
+  const h1 = parseInvestigation(doc).hypotheses.find((h) => h.id === 'H1');
+  assert.notEqual(h1?.result, 'x', '"abc" đứng trước thì không phải dòng kết quả');
+});
+
+test('CP-45-V3 a quote marker after a bullet is still not a prefix', () => {
+  const doc = fileWith('**Cách kiểm:** c\n- > **Kết quả:** x');
+  const h1 = parseInvestigation(doc).hypotheses.find((h) => h.id === 'H1');
+  assert.notEqual(h1?.result, 'x');
+});
+
+test('CP-45-E1 two hundred spaces alone parse quickly and do not throw', () => {
+  const doc = fileWith(`**Cách kiểm:** c\n${' '.repeat(200)}\n**Kết quả:** x`);
+  const started = Date.now();
+  parseInvestigation(doc);
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 200, `mất ${elapsed}ms, ngưỡng 200ms`);
+});
+
+test('CP-45-E2 a line of prefix characters with no keyword matches nothing', () => {
+  const doc = fileWith('**Cách kiểm:** c\n>  - [ ]  \n**Kết quả:** x');
+  const h1 = parseInvestigation(doc).hypotheses.find((h) => h.id === 'H1');
+  assert.equal(h1.result, 'x', 'dòng chỉ có ký tự tiền tố không nuốt dòng kết quả thật');
+});
+
+test('CP-45-EC1 an empty Kết quả value still captures the empty string', () => {
+  const doc = fileWith('**Cách kiểm:** c\n**Kết quả:**');
+  const h1 = parseInvestigation(doc).hypotheses.find((h) => h.id === 'H1');
+  assert.equal(h1.result, '');
+});
+
+test('CP-45-EC2 sixteen spaces of indent parse and capture', () => {
+  const doc = fileWith(`**Cách kiểm:** c\n${' '.repeat(16)}**Kết quả:** x`);
+  const h1 = parseInvestigation(doc).hypotheses.find((h) => h.id === 'H1');
+  assert.equal(h1.result, 'x');
+});
+
+test('CP-45-EC3 a tab as indentation still parses', () => {
+  const doc = fileWith('**Cách kiểm:** c\n\t- **Kết quả:** x');
+  const h1 = parseInvestigation(doc).hypotheses.find((h) => h.id === 'H1');
+  assert.equal(h1.result, 'x');
+});
+
+test('CP-45-EC4 real content shaped like a hint is not a placeholder', () => {
+  // `<SaveButton />` is an answer, not a template hint. CP-11 got this wrong in
+  // both directions before the hints were read from the template itself.
+  const doc = COMPLETE.replace(
+    '**Vùng ảnh hưởng:** src/modules/outlook/calendar-sync.service.ts',
+    '**Vùng ảnh hưởng:** <SaveButton />',
+  );
+  const report = validateForClose(parseInvestigation(doc));
+  assert.equal(report.ok, true, 'nội dung thật không được đọc thành chữ mẫu');
+});
+
+test('CP-45-S1 forty spaces before a non-matching line cost almost nothing', () => {
+  // The shape that costs minutes today: deep indent, then a line the pattern
+  // ultimately rejects, so the engine explores every way to split the spaces.
+  const doc = fileWith(`**Cách kiểm:** c\n${' '.repeat(40)}Kết quả không có dấu sao\n**Kết quả:** x`);
+  const started = Date.now();
+  parseInvestigation(doc);
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 50, `mất ${elapsed}ms, ngưỡng 50ms`);
+});
+
+test('CP-45-P1 a file whose hypothesis lines carry 16-space indents parses fast', () => {
+  const pad = ' '.repeat(16);
+  const doc = fileWith(`${pad}- **Cách kiểm:** c\n${pad}- **Kết quả:** x`);
+  const started = Date.now();
+  const parsed = parseInvestigation(doc);
+  const elapsed = Date.now() - started;
+
+  assert.equal(parsed.hypotheses.find((h) => h.id === 'H1').result, 'x');
+  assert.ok(elapsed < 500, `mất ${elapsed}ms, ngưỡng 500ms`);
+});
