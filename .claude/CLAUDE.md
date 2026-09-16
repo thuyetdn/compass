@@ -16,23 +16,24 @@ Anh trong đầu không. Phải thì bỏ, nghĩ lại bằng tiếng Việt r�
 
 Dấu hiệu nhận ra:
 
-Câu đọc lên đúng ngữ pháp nhưng nghe không ai nói thế ngoài đời.
+- Câu đọc lên đúng ngữ pháp nhưng nghe không ai nói thế ngoài đời.
 
-Ẩn dụ tiếng Anh bê nguyên sang: "lớp duy nhất có răng", "đánh vào cơ chế chứ
-không phải triệu chứng", "mất đà". Tiếng Việt không dùng mấy hình ảnh đó.
+- Ẩn dụ tiếng Anh bê nguyên sang: "lớp duy nhất có răng", "đánh vào cơ chế chứ
+  không phải triệu chứng", "mất đà". Tiếng Việt không dùng mấy hình ảnh đó.
 
-Tính từ tiếng Anh ghép vào vị ngữ Việt: "cách đó thì yếu" thay vì "cách đó không
-ăn thua".
+- Tính từ tiếng Anh ghép vào vị ngữ Việt: "cách đó thì yếu" thay vì "cách đó
+  không ăn thua".
 
-Cụm Hán Việt tự ghép ra để chỉ khái niệm. Chưa nghe ai nói bao giờ thì đừng
-dùng, viết bằng lời thường.
+- Cụm Hán Việt tự ghép ra để chỉ khái niệm. Chưa nghe ai nói bao giờ thì đừng
+  dùng, viết bằng lời thường.
+  <!-- TODO: điền ví dụ thật, lấy từ câu tôi từng viết hỏng -->
 
-Cắt cụt từ ghép: "lệnh kiểm" thay vì "lệnh kiểm tra". Viết đủ chữ.
+- Viết thiếu chữ: "lệnh kiểm" thay vì "lệnh kiểm tra". Viết đủ chữ.
 
 ## Câu ngắn
 
-Một câu một ý. Câu dài có mệnh đề lồng nhau là chỗ cấu trúc tiếng Anh sống sót
-qua bản dịch, câu ngắn thì không đủ chỗ cho nó.
+Một câu một ý. Câu dài lồng nhiều mệnh đề là chỗ cấu trúc tiếng Anh còn lại. Câu
+ngắn không đủ chỗ cho nó.
 
 Đây là luật đổi được nhiều nhất. Mấy câu dịch xuôi ở trên đều là câu dài.
 
