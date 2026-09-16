@@ -39,10 +39,11 @@ test('CP-17-H1 files covers every directory the commands load at runtime', () =>
 });
 
 test('CP-17-H2 files covers the docs an agent reads', () => {
-  // SKILL.md và writing-vi.md là tài liệu agent đọc lúc làm việc, không phải
-  // tài liệu người đọc trên GitHub. Thiếu là agent không có hướng dẫn.
+  // Skill là tài liệu agent đọc lúc làm việc, không phải tài liệu người đọc
+  // trên GitHub. Nó nằm trong `skills/` — một chỗ duy nhất, vừa là thứ plugin
+  // nạp vừa là thứ npm đóng gói. Thiếu là agent không có hướng dẫn.
   const { files } = docFiles();
-  for (const doc of ['SKILL.md', 'writing-vi.md']) {
+  for (const doc of ['skills/compass/SKILL.md', 'skills/compass/references/writing-vi.md']) {
     assert.ok(duocGoi(doc, files), `thiếu ${doc} trong files`);
   }
 });

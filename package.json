@@ -10,9 +10,8 @@
     "lib/",
     "commands/",
     "templates/",
-    "SKILL.md",
-    "writing-vi.md",
-    "README.md"
+    "README.md",
+    "skills/"
   ],
   "engines": {
     "node": ">=20"

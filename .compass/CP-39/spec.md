@@ -1,6 +1,6 @@
 # CP-39: Compass speaks in clipped words — "kiểm" and "ca" — where readers hear "kiểm tra" and "case"
 Loại: feature-m
-Phạm vi: SKILL.md, writing-vi.md, README.md, templates/investigation.md, .knowledge/decided/pitfalls.md, lib/spec-parser.mjs, lib/investigation-parser.mjs, lib/test-parser.mjs, lib/config.mjs, lib/review-brief.mjs, lib/query-outputs.mjs, commands/test.mjs, commands/done.mjs, commands/investigate.mjs, commands/check.mjs, commands/status.mjs, commands/convention.mjs, test/wording.test.mjs, test/spec-parser.test.mjs, test/investigation-parser.test.mjs, test/test-command.test.mjs, test/investigate-command.test.mjs
+Phạm vi: skills/compass/SKILL.md, skills/compass/references/writing-vi.md, README.md, templates/investigation.md, .knowledge/decided/pitfalls.md, lib/spec-parser.mjs, lib/investigation-parser.mjs, lib/test-parser.mjs, lib/config.mjs, lib/review-brief.mjs, lib/query-outputs.mjs, commands/test.mjs, commands/done.mjs, commands/investigate.mjs, commands/check.mjs, commands/status.mjs, commands/convention.mjs, test/wording.test.mjs, test/spec-parser.test.mjs, test/investigation-parser.test.mjs, test/test-command.test.mjs, test/investigate-command.test.mjs
 Gốc soi: a62c3f2
 
 ## Mục tiêu

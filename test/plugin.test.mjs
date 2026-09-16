@@ -4,15 +4,13 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-// Plugin Claude Code nạp skill từ `skills/<tên>/`, còn npm đóng gói CLI từ gốc
-// repo. Hai kênh phát hành khác nhau nên skill phải có mặt ở cả hai chỗ. Bản
-// trong plugin là BẢN SAO — sửa một bên mà quên bên kia thì agent cài qua
-// `/plugin` đọc hướng dẫn cũ mà không ai biết. Suite này khoá hai bản lại.
+// Skill nằm một chỗ duy nhất: `skills/compass/`. Plugin Claude Code nạp thẳng
+// từ đó, và npm cũng đóng gói đúng thư mục ấy — hai kênh phát hành, một bản
+// nội dung, nên không có bản sao nào để trôi. Suite này canh phần còn lại:
+// manifest hợp lệ, frontmatter Claude đọc được, và không có link gãy.
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
-// So sánh bỏ qua CRLF/LF: khác line-ending không phải là nội dung trôi.
-const lines = (rel) => read(rel).replace(/\r\n/g, '\n').split('\n');
 
 const json = (rel) => JSON.parse(read(rel));
 
@@ -37,31 +35,14 @@ test('CP-42-H2 the skill the plugin ships carries frontmatter Claude Code can re
     'frontmatter thiếu description — Claude không biết lúc nào nên dùng skill');
 });
 
-test('CP-42-H3 the shipped skill matches the root SKILL.md apart from the reference link', () => {
-  const root = lines('SKILL.md');
-  const shipped = lines('skills/compass/SKILL.md');
-  assert.equal(shipped.length, root.length,
-    'hai bản SKILL.md lệch số dòng — một bên đã sửa mà bên kia chưa');
-
-  const drift = [];
-  for (let i = 0; i < root.length; i += 1) {
-    if (root[i] === shipped[i]) continue;
-    // Dòng duy nhất được phép khác: link tới writing-vi.md. Ở gốc repo file
-    // nằm cạnh SKILL.md, trong plugin nó nằm ở references/.
-    const chiKhacDuongDan = root[i].replace('](writing-vi.md)', '](references/writing-vi.md)');
-    if (chiKhacDuongDan === shipped[i]) continue;
-    drift.push(`${i + 1}:\n  gốc:    ${root[i]}\n  plugin: ${shipped[i]}`);
-  }
-  assert.deepEqual(drift, [],
-    `SKILL.md trong plugin đã trôi khỏi bản gốc:\n${drift.join('\n')}`);
-});
-
-test('CP-42-H4 the skill ships the writing guide it tells the agent to read', () => {
+test('CP-42-H3 the skill ships the writing guide it tells the agent to read', () => {
+  // SKILL.md trỏ sang references/writing-vi.md. Thiếu file đó thì agent đọc
+  // vào chỗ trống mà gate nào cũng xanh — hỏng im lặng.
   const ref = 'skills/compass/references/writing-vi.md';
   assert.ok(existsSync(path.join(ROOT, ref)),
-    `SKILL.md trỏ tới ${ref} nhưng file không có — agent cài qua plugin đọc vào chỗ trống`);
-  assert.deepEqual(lines(ref), lines('writing-vi.md'),
-    'writing-vi.md trong plugin đã trôi khỏi bản gốc');
+    `SKILL.md trỏ tới ${ref} nhưng file không có`);
+  assert.match(read('skills/compass/SKILL.md'), /\]\(references\/writing-vi\.md\)/,
+    'SKILL.md không còn trỏ tới hướng dẫn viết — bỏ link thì không ai đọc nó nữa');
 });
 
 test('CP-42-H5 every relative link in the shipped skill resolves inside the plugin', () => {
@@ -98,7 +79,7 @@ test('CP-42-H7 the skill frontmatter stays Vietnamese so it triggers on Vietname
   // Mặt kia của H6. Đổi description sang tiếng Anh thì skill khớp kém hẳn khi
   // người dùng gõ tiếng Việt — hỏng âm thầm, không ai thấy lỗi.
   const CO_DAU = /[À-ɏḀ-ỿ]/u;
-  for (const rel of ['SKILL.md', 'skills/compass/SKILL.md']) {
+  for (const rel of ['skills/compass/SKILL.md']) {
     const fm = read(rel).match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
     const desc = fm[1].match(/^description:\s*(.+)$/m);
     assert.ok(desc, `${rel} thiếu description`);

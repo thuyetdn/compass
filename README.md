@@ -16,6 +16,15 @@ npm install -g .
 
 Hoặc chạy trực tiếp: `node cli.mjs <lệnh>`
 
+Dùng với Claude Code thì cài kèm skill — AI đọc quy trình rồi mới gõ lệnh:
+
+```
+/plugin marketplace add <đường-dẫn-tới-repo>
+/plugin install compass@compass
+```
+
+Quy trình AI phải theo nằm ở [`skills/compass/SKILL.md`](skills/compass/SKILL.md).
+
 ## Dùng
 
 ```bash

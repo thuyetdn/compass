@@ -15,7 +15,8 @@ const CLIPPED_KIEM = /[kK]iểm(?! tra| chứng| soát| định| duyệt| toán|
 // a review caught one at SKILL.md:495 that a lowercase-only pattern let through.
 const STANDALONE_CA = /(?<![\p{L}\p{N}])[cC]a(?![\p{L}\p{N}])/gu;
 
-const DOCS = ['SKILL.md', 'writing-vi.md', 'README.md', '.knowledge/decided/pitfalls.md'];
+const DOCS = ['skills/compass/SKILL.md', 'skills/compass/references/writing-vi.md',
+  'README.md', '.knowledge/decided/pitfalls.md'];
 const TEMPLATE = 'templates/investigation.md';
 
 const listMjs = (dir) => readdirSync(path.join(ROOT, dir))
@@ -74,7 +75,7 @@ test('CP-39-EC4 writing-vi.md keeps its 53 ❌ examples — pairs were rewritten
   // Sàn, không phải con số cố định. Luật này sinh ra để chặn việc **mất** ví dụ
   // khi viết lại; khoá cứng bằng `equal` thì thêm một mục mới cũng đỏ, và cái
   // giá là người viết đi sửa test thay vì thêm ví dụ.
-  const text = read('writing-vi.md');
+  const text = read('skills/compass/references/writing-vi.md');
   assert.ok((text.match(/^> ❌/gmu) ?? []).length >= 53, 'không được bớt ví dụ ❌');
 });
 
