@@ -407,3 +407,88 @@ test('CP-40-P1 a 300-file diff with 20k added lines scans under 500 ms', () => {
   assert.equal(r.ok, true);
   assert.ok(ms < 500, `quét mất ${ms}ms, phải dưới 500ms`);
 });
+
+// --- CP-43: `#` opened a comment in every file, so any line holding one before
+// a `.env` read reported nothing. A JS private field was enough to blind the
+// gate — and the gate runs for every task type, so a one-line fix could add a
+// `.env` read on such a line and stay green.
+
+test('CP-43-H1 a private field no longer hides a .env read', () => {
+  assert.equal(readsEnv("this.#env = 1; readFileSync('.env')", 'src/a.js'), '.env');
+});
+
+test('CP-43-H2 the same line in TypeScript reports the read', () => {
+  assert.equal(readsEnv("this.#env = 1; readFileSync('.env')", 'src/a.ts'), '.env');
+});
+
+test('CP-43-H3 a plain .env read with no # is unchanged', () => {
+  assert.equal(readsEnv("readFileSync('.env')", 'src/a.js'), '.env');
+});
+
+test('CP-43-V1 # still opens a comment in a shell script', () => {
+  assert.equal(readsEnv('# tai lieu ve .env', 'deploy/run.sh'), null);
+});
+
+test('CP-43-V2 a shebang file with no extension keeps # as a comment', () => {
+  assert.equal(readsEnv('#!/bin/sh', 'deploy/run'), null);
+});
+
+test('CP-43-V3 # still opens a comment in YAML', () => {
+  assert.equal(readsEnv('# .env here', 'conf/app.yml'), null);
+});
+
+test('CP-43-V4 a trailing Python comment does not hide a read before it', () => {
+  assert.equal(readsEnv("x = open('.env') # nap", 'tools/a.py'), '.env');
+});
+
+test('CP-43-E1 // still opens a comment after the read', () => {
+  assert.equal(readsEnv("readFileSync('.env') // nap", 'src/a.js'), '.env');
+});
+
+test('CP-43-E2 called with no path, the old behaviour is preserved', () => {
+  // The module is exported and its own tests call the one-argument form.
+  // Changing it would be a second bug, not a fix.
+  assert.equal(readsEnv("this.#env = 1; readFileSync('.env')"), null);
+});
+
+test('CP-43-EC1 a # inside a string never opened a comment', () => {
+  assert.equal(readsEnv("const x = '#'; readFileSync('.env')", 'src/a.js'), '.env');
+});
+
+test('CP-43-EC2 a URL fragment is refused by the URL guard, not by #', () => {
+  assert.equal(readsEnv("url = 'http://x/#/.env'", 'src/a.js'), null);
+});
+
+test('CP-43-EC3 a block comment holding a # does not swallow the read', () => {
+  assert.equal(readsEnv("/* # */ readFileSync('.env')", 'src/a.js'), '.env');
+});
+
+test('CP-43-EC4 Dockerfile and Makefile comment with # despite having no extension', () => {
+  assert.equal(readsEnv('# x .env', 'Dockerfile'), null);
+  assert.equal(readsEnv('# x .env', 'Makefile'), null);
+});
+
+test('CP-43-S1 no code extension can be blinded by adding a #', () => {
+  for (const ext of ['js', 'ts', 'jsx', 'mjs', 'go', 'java']) {
+    assert.equal(
+      readsEnv("a.#b; readFileSync('.env')", `src/a.${ext}`), '.env',
+      `.${ext} phải thấy được lần đọc nằm sau dấu #`,
+    );
+  }
+});
+
+test('CP-43-P1 two thousand lines, half holding a #, scan in under 200 ms', () => {
+  const lines = [];
+  for (let i = 0; i < 1000; i++) {
+    lines.push(`const a${i} = 1;`);
+    lines.push(`this.#f${i} = ${i}; readFileSync('.env');`);
+  }
+
+  const started = Date.now();
+  let hits = 0;
+  for (const line of lines) if (readsEnv(line, 'src/big.js')) hits += 1;
+  const elapsed = Date.now() - started;
+
+  assert.equal(hits, 1000);
+  assert.ok(elapsed < 200, `mất ${elapsed}ms, ngưỡng 200ms`);
+});

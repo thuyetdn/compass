@@ -14,7 +14,7 @@ const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const json = (rel) => JSON.parse(read(rel));
 
-test('CP-43-H1 the plugin manifests are valid JSON and name the plugin compass', () => {
+test('CP-44-H1 the plugin manifests are valid JSON and name the plugin compass', () => {
   const plugin = json('.claude-plugin/plugin.json');
   assert.equal(plugin.name, 'compass', 'tên plugin phải là compass');
   assert.ok(plugin.version, 'thiếu version — Claude Code không cài được');
@@ -26,7 +26,7 @@ test('CP-43-H1 the plugin manifests are valid JSON and name the plugin compass',
     'version ở marketplace.json lệch plugin.json — người cài nhận bản sai');
 });
 
-test('CP-43-H2 the skill the plugin ships carries frontmatter Claude Code can read', () => {
+test('CP-44-H2 the skill the plugin ships carries frontmatter Claude Code can read', () => {
   const text = read('skills/compass/SKILL.md');
   const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
   assert.ok(fm, 'SKILL.md của plugin không có frontmatter — skill sẽ không hiện');
@@ -35,7 +35,7 @@ test('CP-43-H2 the skill the plugin ships carries frontmatter Claude Code can re
     'frontmatter thiếu description — Claude không biết lúc nào nên dùng skill');
 });
 
-test('CP-43-H3 the skill ships the writing guide it tells the agent to read', () => {
+test('CP-44-H3 the skill ships the writing guide it tells the agent to read', () => {
   // SKILL.md trỏ sang references/writing-vi.md. Thiếu file đó thì agent đọc
   // vào chỗ trống mà gate nào cũng xanh — hỏng im lặng.
   const ref = 'skills/compass/references/writing-vi.md';
@@ -45,7 +45,7 @@ test('CP-43-H3 the skill ships the writing guide it tells the agent to read', ()
     'SKILL.md không còn trỏ tới hướng dẫn viết — bỏ link thì không ai đọc nó nữa');
 });
 
-test('CP-43-H5 every relative link in the shipped skill resolves inside the plugin', () => {
+test('CP-44-H5 every relative link in the shipped skill resolves inside the plugin', () => {
   const text = read('skills/compass/SKILL.md');
   const treo = [];
   for (const m of text.matchAll(/\]\(([^)]+)\)/g)) {
@@ -58,7 +58,7 @@ test('CP-43-H5 every relative link in the shipped skill resolves inside the plug
   assert.deepEqual(treo, [], `link gãy trong SKILL.md của plugin:\n${treo.join('\n')}`);
 });
 
-test('CP-43-H6 the manifests stay in English — they are release metadata, not skill content', () => {
+test('CP-44-H6 the manifests stay in English — they are release metadata, not skill content', () => {
   // Description trong manifest là thứ người duyệt marketplace và người cài đọc
   // trước khi biết plugin này dành cho ai, nên viết tiếng Anh. Khác với
   // frontmatter của SKILL.md: chỗ đó phải tiếng Việt vì Claude đọc nó để đoán
@@ -75,7 +75,7 @@ test('CP-43-H6 the manifests stay in English — they are release metadata, not 
   }
 });
 
-test('CP-43-H7 the skill frontmatter stays Vietnamese so it triggers on Vietnamese prompts', () => {
+test('CP-44-H7 the skill frontmatter stays Vietnamese so it triggers on Vietnamese prompts', () => {
   // Mặt kia của H6. Đổi description sang tiếng Anh thì skill khớp kém hẳn khi
   // người dùng gõ tiếng Việt — hỏng âm thầm, không ai thấy lỗi.
   const CO_DAU = /[À-ɏḀ-ỿ]/u;
@@ -88,7 +88,7 @@ test('CP-43-H7 the skill frontmatter stays Vietnamese so it triggers on Vietname
   }
 });
 
-test('CP-43-H8 the command the skill tells the agent to run exists at the plugin root', () => {
+test('CP-44-H8 the command the skill tells the agent to run exists at the plugin root', () => {
   // Skill bảo gõ `node "${CLAUDE_PLUGIN_ROOT}/cli.mjs"`. Plugin khai
   // `source: "./"` nên plugin root là gốc repo — dòng đó chỉ đúng chừng nào
   // cli.mjs còn nằm ở đấy. Dời file đi mà quên sửa skill thì agent gõ vào chỗ
