@@ -368,3 +368,126 @@ test('a property named like a keyword is a property, not a keyword', () => {
     assert.equal(components.Card.usedIn, 1, `"${expression}" là phép chia, không phải regex`);
   }
 });
+
+// --- CP-42: a default inside a nested pattern belongs to the nested name, not
+// to the outer prop. `readProps` took the first `=` in a fragment and called
+// everything after it the default, so `({ a: { b = 1 } })` reported
+// `a.default = "1 }"` — a value that is not a value, for a prop that has no
+// default — while still claiming confidence.
+
+// Returns the props of a component whose parameter list is `params`.
+function propsOf(params) {
+  const root = makeTree({
+    'src/Probe.jsx': `export function Probe${params} { return <i/>; }
+`,
+  });
+  const { components } = scanComponents(root);
+  return components.Probe;
+}
+
+test('CP-42-H1 an object pattern holding a default reports no default', () => {
+  const probe = propsOf('({ a: { b = 1 } })');
+  assert.deepEqual(probe.props.a, {}, 'a không có default — số 1 là của b');
+  assert.equal('default' in probe.props.a, false);
+  assert.equal(probe.confident, true, 'tên prop vẫn đọc được, chỉ ruột là không biết');
+});
+
+test('CP-42-H2 two nested defaults keep a plain prop after them', () => {
+  const probe = propsOf('({ a: { b = 1, c = 2 }, d })');
+  assert.deepEqual(probe.props.a, {});
+  assert.deepEqual(probe.props.d, {});
+  assert.deepEqual(Object.keys(probe.props), ['a', 'd'], 'b và c không phải prop');
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-H3 an array pattern holding a default reports no default', () => {
+  const probe = propsOf('({ a: [x = 1] })');
+  assert.deepEqual(probe.props.a, {});
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-V1 a real default that is an object literal survives', () => {
+  const probe = propsOf('({ x = { k: 1 }, y })');
+  assert.equal(probe.props.x.default, '{ k: 1 }', 'đây là default thật của x');
+  assert.deepEqual(probe.props.y, {});
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-V2 a nested pattern with a real default after it keeps that default', () => {
+  const probe = propsOf('({ a: { b } = {} })');
+  assert.equal(probe.props.a.default, '{}', '`=` nằm SAU pattern, nên là default thật');
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-V3 a real default and a nested one are told apart', () => {
+  const probe = propsOf('({ a = 1, b: { c = 2 } })');
+  assert.equal(probe.props.a.default, '1');
+  assert.deepEqual(probe.props.b, {});
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-E1 a nested pattern that never closes reads as not understood', () => {
+  const probe = propsOf('({ a: { b = 1 )');
+  assert.deepEqual(probe.props, {});
+  assert.equal(probe.confident, false);
+});
+
+test('CP-42-E2 a brace inside a string default still parses', () => {
+  const probe = propsOf("({ close = '}', after })");
+  assert.equal(probe.props.close.default, "'}'");
+  assert.deepEqual(probe.props.after, {});
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-EC1 two levels of nesting report no default', () => {
+  const probe = propsOf('({ a: { b: { c = 1 } } })');
+  assert.deepEqual(probe.props.a, {});
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-EC2 plain and defaulted props after a nested one all survive', () => {
+  const probe = propsOf('({ a: { b = 1 }, d, e = 2 })');
+  assert.deepEqual(Object.keys(probe.props), ['a', 'd', 'e']);
+  assert.equal(probe.props.e.default, '2');
+  assert.deepEqual(probe.props.a, {});
+});
+
+test('CP-42-EC3 an empty nested pattern reports no default', () => {
+  const probe = propsOf('({ a: {} })');
+  assert.deepEqual(probe.props.a, {});
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-EC4 a nested default whose value is a brace in a string', () => {
+  const probe = propsOf("({ a: { b = '}' } })");
+  assert.deepEqual(probe.props.a, {});
+  assert.deepEqual(Object.keys(probe.props), ['a'], 'b không thoát ra thành prop');
+  assert.equal(probe.confident, true);
+});
+
+test('CP-42-S1 a path-like string in a nested default never reaches the output', () => {
+  const probe = propsOf("({ a: { p = '../../etc/passwd' } })");
+  assert.deepEqual(probe.props.a, {});
+  assert.equal(
+    JSON.stringify(probe).includes('etc/passwd'), false,
+    'chuỗi trong nested pattern không được lọt vào KB',
+  );
+});
+
+test('CP-42-P1 fifty props, half of them nested, scan in under 200 ms', () => {
+  const parts = [];
+  for (let i = 0; i < 25; i++) parts.push(`p${i} = ${i}`, `n${i}: { q${i} = ${i} }`);
+  const root = makeTree({
+    'src/Probe.jsx': `export function Probe({ ${parts.join(', ')} }) { return <i/>; }
+`,
+  });
+
+  const started = Date.now();
+  const { components } = scanComponents(root);
+  const elapsed = Date.now() - started;
+
+  assert.equal(Object.keys(components.Probe.props).length, 50);
+  assert.deepEqual(components.Probe.props.n0, {});
+  assert.equal(components.Probe.props.p0.default, '0');
+  assert.ok(elapsed < 200, `mất ${elapsed}ms, ngưỡng 200ms`);
+});
