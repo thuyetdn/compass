@@ -91,6 +91,32 @@ hơn điều mình biết. Câu gọn mà sai thì tệ hơn câu dài mà đún
 
 **Phép thử cuối cùng: đọc thành tiếng.** Câu đúng ngữ pháp mà đọc xong phải đọc lại là câu hỏng.
 
+### Khuôn trả lời — chốt trước, bảng sau
+
+Vào thẳng kết quả. Câu đầu là kết luận, hoặc câu hỏi cần người dùng quyết. Bỏ phần dẫn nhập và phần
+tóm tắt lại điều vừa nói.
+
+Khuôn mặc định: **một dòng in đậm chốt lại, rồi một bảng hai cột trạng thái.**
+
+> **CP-42 chưa code. Bug có thật. Cần bạn duyệt.**
+>
+> | | |
+> |---|---|
+> | Spec gate | ✓ pass |
+> | Bug | 4/4 shape sai, đều `confident: true` |
+> | Suite nền | 1000 test, 0 fail |
+> | Chỗ dễ vỡ | xử lý string trong `flush` (E2, EC4) |
+
+Giá trị trong bảng là số đo hay pass/fail, không phải tính từ — cùng nguyên tắc 3 ở trên.
+
+Việc không có trạng thái để bày thành bảng thì viết văn xuôi ngắn. Đóng khung hết vào bảng thì câu
+chữ có sạch mấy cũng đọc như tài liệu.
+
+Chi tiết — cách đo, lập luận, các bước đã chạy — để dành, nói khi người dùng hỏi thêm.
+
+**Hai thứ không được cắt để cho ngắn:** điều mình chưa chắc, và gate đỏ kèm lý do. Cắt mấy cái đó là
+cắt sai chỗ.
+
 ## Vòng đời task
 
 ```
