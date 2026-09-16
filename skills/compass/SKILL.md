@@ -1,6 +1,6 @@
 ---
 name: compass
-description: "Quy trình phát triển có bằng chứng — spec trước code, gate máy chạy thật thay vì AI tự khai kết quả. Dùng khi bắt đầu bất kỳ task lập trình nào — thêm tính năng, sửa bug, refactor — hoặc khi người dùng nhắc compass, gate, spec-first, hay hỏi vì sao AI báo xong mà chưa xong."
+description: "Quy trình phát triển dựa trên bằng chứng: viết spec trước khi code và sử dụng các gate được chạy thực tế để xác minh kết quả, thay vì để AI tự kết luận rằng task đã hoàn thành. Áp dụng cho mọi task lập trình như phát triển tính năng, sửa bug hoặc refactor, cũng như khi người dùng nhắc đến Compass, gate, spec-first, hoặc đặt câu hỏi về trường hợp AI báo đã xong nhưng thực tế vẫn chưa hoàn tất."
 ---
 
 # Compass
