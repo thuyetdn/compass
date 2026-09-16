@@ -82,7 +82,37 @@ kết quả trước đó họ đã dựa vào để quyết định gì rồi.
 
 ## Không viết giọng dịch
 
-Viết xong đọc thầm lại. Câu nào người Việt không nói ngoài đời thì viết lại.
+Đọc lại sau khi viết thì muộn rồi. Con mắt vừa viết ra câu đó nhìn lại sẽ thấy
+nó bình thường. Ba luật dưới đây áp lúc đang viết, không phải lúc soi lại.
+
+### Chưa nghe ai nói thì đừng viết
+
+Định dùng một cụm hai ba chữ Hán Việt ghép lại để chỉ khái niệm thì dừng một
+nhịp. Tự hỏi: đã nghe ai nói câu này ngoài quán cà phê chưa. Chưa thì viết bằng
+lời thường.
+
+Chữ tự chế nghe rất kêu và rất đúng với người vừa nghĩ ra nó. Đó là lý do đọc
+lại không bắt được, phải chặn ngay lúc định viết.
+
+### Bí thì giữ nguyên tiếng Anh
+
+Không dịch được gọn thì để nguyên chữ tiếng Anh. Dân lập trình Việt nói
+pipeline, fallback, edge case, chứ không dịch mấy chữ đó ra.
+
+Danh sách thuật ngữ ở mục "Từ ngữ" không đóng. Gặp chữ ngoài danh sách mà chưa
+chắc dịch thế nào thì giữ tiếng Anh. Để nguyên thì người đọc vẫn hiểu, dịch sai
+thì thành câu không ai hiểu.
+
+### Đừng nghĩ tiếng Anh rồi dịch
+
+Gốc của mọi lỗi trong mục này là nghĩ bằng tiếng Anh rồi dịch ra lúc viết. Câu
+nào là bản dịch của một câu tiếng Anh trong đầu thì bỏ, nghĩ lại bằng tiếng Việt
+rồi viết.
+
+Dấu hiệu nhận ra: câu đọc lên đúng ngữ pháp nhưng nghe không ai nói vậy, hoặc
+phải đọc hai lần mới hiểu.
+
+### Bảng cụm hay gặp
 
 Hay gặp nhất là dịch nguyên cấu trúc tiếng Anh:
 

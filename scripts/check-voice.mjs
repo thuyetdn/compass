@@ -115,9 +115,20 @@ const EM_DASH = '—';
 
 // Bỏ block code trước khi dò: output lệnh và code mẫu không phải văn của tôi,
 // dính cụm trong đó không tính là lỗi.
+//
+// Bỏ cả chuỗi trong ngoặc kép, vì bàn về chính mấy cụm này thì phải trích ra
+// làm ví dụ. Không bỏ thì hook chặn đúng câu đang giải thích vì sao nó sai.
+// Ngoặc kép thẳng lẫn ngoặc kép cong, vì soạn thảo hay tự đổi.
+//
+// Bỏ cả dòng bảng markdown, cùng một lý do: bảng đối chiếu chữ sai với chữ
+// đúng thì cột trái buộc phải chứa chữ sai. Ô bảng không có ngoặc kép nên
+// luật trên không cứu được.
 const prose = answer
   .replace(/```[\s\S]*?```/g, '')
-  .replace(/`[^`\n]*`/g, '');
+  .replace(/`[^`\n]*`/g, '')
+  .replace(/^[ \t]*\|.*\|[ \t]*$/gm, '')
+  .replace(/"[^"\n]{0,80}"/g, '')
+  .replace(/[“„][^”“\n]{0,80}”/g, '');
 
 const lower = prose.toLowerCase();
 const hits = phrases.filter((p) => lower.includes(p.toLowerCase()));

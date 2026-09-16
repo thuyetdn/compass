@@ -73,17 +73,19 @@ compass: câu trả lời dính 1 chỗ giọng dịch, chưa gửi đi được
 
 Grep chỉ bắt được cụm cố định trong bảng. Lỗi tôi chế ra lần đầu thì tra chuỗi không thấy: tự chế thuật ngữ, câu hỏi sai tiểu từ, heading dài thành cả câu. Đó là việc của lớp thứ hai.
 
-### Lớp hai: subagent đọc lại
+Khi dò, hook bỏ qua block code, chuỗi trong ngoặc kép và dòng bảng markdown. Lý do: bàn về chính mấy cụm sai thì phải trích chúng ra làm ví dụ. Không bỏ thì hook chặn đúng câu đang giải thích vì sao cụm đó sai. Chuỗi trong ngoặc kép chỉ được bỏ khi ngắn dưới 80 ký tự, nhét cả câu vào ngoặc để lách thì vẫn bị chặn.
 
-Grep sạch rồi thì Stop hook đưa câu trả lời cho một subagent đọc, khai báo bằng `"type": "agent"` trong `hooks.json`. Subagent không phải người vừa viết nên nhìn ra lỗi, thấy câu nào người Việt không nói ngoài đời thì chặn và chỉ chỗ sai. Claude viết lại, duyệt lại lần nữa, sạch mới tới tay bạn.
+### Lớp hai: subagent đọc lại (đang tắt)
 
-Stop hook không sửa thẳng được chữ trong câu trả lời, Claude Code không cho. Nó chỉ chặn được, nên người viết lại vẫn là Claude, subagent chỉ soi.
+Ý tưởng: grep sạch rồi thì Stop hook đưa câu trả lời cho một subagent đọc, khai báo bằng `"type": "agent"`. Subagent không phải người vừa viết nên nhìn ra lỗi cấu trúc câu, thứ grep không thấy.
 
-Giá phải trả: mỗi lượt chậm thêm vài giây và tốn thêm token. Timeout đặt 60 giây. Chống lặp vô hạn có sẵn, `check-voice.mjs` đọc `stop_hook_active` để bỏ qua lần chặn thứ hai, còn Claude Code tự cắt sau 8 lần chặn liên tiếp.
+Chạy thử thì hỏng. Sáu lượt liên tiếp nó bắt sai: đòi thêm tiểu từ vào câu kể, bịa ra chữ không tồn tại để thay chữ đúng, bắt cả từ đang dùng xuyên suốt cuộc trò chuyện. Lỗi thật thì để lọt. Chặn oan mỗi lượt tốn một lần sinh lại, hại hơn là giúp.
 
-Tắt lớp này thì xóa block `"type": "agent"` trong `hooks/hooks.json`, grep vẫn chạy.
+Nên nó đang tắt. Prompt cất ở `hooks/agent-hook.disabled.json`, bật lại bằng cách chép block đó vào mảng `Stop` trong `hooks/hooks.json`.
 
-Block code trong câu trả lời được bỏ qua khi dò, vì output lệnh không phải văn Claude viết.
+Nguyên nhân đang nghi, chưa kiểm chứng: prompt giao cho nó một checklist năm mục nên nó trả về mục đầu tiên nhìn ra rồi dừng, và nó không biết trong cuộc trò chuyện người dùng đang dùng những chữ nào nên chữ quen tưởng lạ.
+
+Một điều đã kiểm chứng: Stop hook không sửa thẳng được chữ trong câu trả lời, Claude Code chỉ cho chặn. Nên kể cả khi subagent soi đúng, người viết lại vẫn là Claude.
 
 ## Yêu cầu
 
