@@ -401,6 +401,13 @@ còn file nào. Brief rỗng không phải soi sạch. `Phạm vi` viết cho ng
 `commands/`, dấu `\` trên Windows đều đọc được — nhưng mục mở đầu bằng `-`, chứa `..`, hay là đường dẫn
 tuyệt đối thì bị từ chối trước khi tới git.
 
+**Code nằm trong `.compass/` thì khai vào `Phạm vi`.** Diff của gate bỏ qua `.compass/**`, vì đó là spec,
+sổ gate, brief — thứ gate tự ghi; đưa vào thì mỗi lần ghi sổ diff đổi và review tự mở lại. Nhưng công cụ
+để ở `.compass/scripts/` cũng bị bỏ theo, và task làm chính công cụ đó nhận "0 file" mãi. Khai file đó
+trong `Phạm vi:` (`.compass/scripts/x.mjs (mới)`) thì nó vào brief, có hay không có `Soi đến`, đã commit
+hay chưa. `evidence/`, `review/`, `review-brief.md` và `.salt` thì không bao giờ vào, kể cả khi khai —
+salt lọt vào brief gửi cho agent khác là lộ khoá ký.
+
 Diff quá 2MB thì gate từ chối. Không ai đọc hết chừng đó, và gate xanh trên bản chưa đọc còn tệ hơn không có gate — chia task nhỏ ra.
 
 ### Cách Compass đếm test ID
@@ -652,9 +659,15 @@ Tám gate: `spec`, `knowledge`, `secrets`, `convention`, `test`, `ui`, `visual`,
 Cộng knowledge base sinh tự động, lệnh `investigate`, config nhiều repo, và `check` chạy gate
 theo từng repo.
 
-Chưa xong ở chế độ nhiều repo: `convention`, `ui`, `visual` quét đúng thư mục nhưng **ghi sổ không
-kèm tên repo**, nên hai repo đè lên nhau và chỉ repo cuối còn bằng chứng. Gate vẫn xanh — đây là dạng
-sai khó thấy nhất. Dự án nhiều repo chỉ nên tin `test` và `knowledge` cho tới khi vá xong.
+Chưa xong ở chế độ nhiều repo: `convention`, `ui`, `visual` khi **chạy thật** vẫn quét đúng thư mục
+nhưng **ghi sổ không kèm tên repo**, nên hai repo đè lên nhau và chỉ repo cuối còn bằng chứng. Gate vẫn
+xanh — đây là dạng sai khó thấy nhất. Dự án nhiều repo chỉ nên tin `test` và `knowledge` cho tới khi vá
+xong.
+
+Bản ghi **bỏ qua** thì có tên repo: repo không khai `devUrl` được `check` ghi vào khe `ui@<repo>` và
+`visual@<repo>`. `done` chỉ coi `ui`/`visual` là xong khi **mọi** repo trong `Phạm vi` đều có khe bỏ qua
+hợp lệ. Thiếu một repo, hay config không đọc được, là "chưa chạy" — không có repo nào được ké bỏ qua của
+repo khác.
 
 Chưa có: trang xem knowledge bằng trình duyệt, và lệnh dựng config nhiều repo (làm tay theo mục trên).
 
