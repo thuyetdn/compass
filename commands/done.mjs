@@ -7,6 +7,8 @@ import { hashFile } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
+import { loadConfig } from '../lib/config.mjs';
+import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 
 // Một bản ghi "gate không chạy được" mà `done` chấp nhận thay cho bản ghi xanh.
 // Hẹp hết mức có thể: chỉ gate cần trình duyệt, và chỉ đúng một lý do — cái duy
@@ -27,7 +29,21 @@ function laBoQuaHopLe(record, slot) {
   return record.skipReason === LY_DO_KHONG_DEVURL;
 }
 
-
+// Mọi repo trong phạm vi của task đều có khe `<gate>@<repo>` là bản ghi bỏ qua hợp lệ không? Đọc config
+// chỉ để biết repo nào trong phạm vi — như `check` — không bao giờ để suy ra lý do bỏ qua: lý do phải
+// nằm trong bản ghi đã ký. Config hỏng, task một repo, hay phạm vi rỗng: false, tức là chưa chạy.
+function phamViBoQuaHet(root, spec, gates, gate) {
+  const cfg = loadConfig(root);
+  if (!cfg.ok) return false;
+  const resolved = resolveRepos(root, cfg.config);
+  if (!resolved.ok) return false;
+  const repos = reposForScope(resolved.repos, spec.scope);
+  if (!repos.length || repos.some((r) => r.name === null)) return false;
+  return repos.every((r) => {
+    const slot = `${gate}@${r.name}`;
+    return laBoQuaHopLe(gates[slot], slot);
+  });
+}
 
 // Lệnh chạy lại đúng cho một gate. `compass check` chỉ chạm gate bắt buộc của
 // loại task, nên với gate chạy thêm nó không sửa được gì — bảo người ta chạy nó
@@ -106,6 +122,10 @@ export function doneCommand({ cwd, taskId }) {
   for (const name of required) {
     const record = gates[name];
     if (!record) {
+      // Đa repo: `check` ghi bỏ qua vào khe `ui@<repo>`, không vào khe trần (CP-33). Khe repo chỉ
+      // thay được khe trần khi MỌI repo trong phạm vi đều bỏ qua hợp lệ — repo nào còn phải đo thì
+      // vẫn là chưa chạy. Vòng khe phụ phía dưới nêu từng khe bỏ qua trong báo cáo (CP-47).
+      if (BROWSER_GATES.includes(name) && phamViBoQuaHet(root, spec, gates, name)) continue;
       problems.push(`Gate "${name}" chưa chạy.`);
       continue;
     }

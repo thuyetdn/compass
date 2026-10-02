@@ -1199,3 +1199,97 @@ test('CP-33-EC4 --only=ui writes the same skip record as a full run', async () =
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// ---------------------------------------------------------------- CP-47
+// Đa repo: `check` ghi bỏ qua vào khe `ui@<repo>`, còn vòng bắt buộc của `done` chỉ tra khe trần
+// `ui`, nên task không bao giờ đóng được. Khe repo chỉ được tính khi MỌI repo trong phạm vi đều
+// có bỏ qua hợp lệ — repo nào còn phải đo thì vẫn "chưa chạy".
+
+async function skipBrowserGates(root) {
+  await checkCommand({ cwd: root, taskId: 'T-FM', only: 'ui' });
+  await checkCommand({ cwd: root, taskId: 'T-FM', only: 'visual' });
+}
+
+test('CP-47-H1 repo skips of every repo in scope cover the required browser gates', async () => {
+  const root = makeFeatureMRepos({ be: {}, fe: {} }, ['be/src', 'fe/src']);
+  try {
+    await skipBrowserGates(root);
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
+    assert.equal(saysNotRun(r.output, 'visual'), false, r.output);
+    for (const slot of ['ui@be', 'ui@fe', 'visual@be', 'visual@fe']) assert.ok(r.output.includes(slot), `${slot} phải được nêu là bỏ qua\n${r.output}`);
+    assert.match(r.output, /devUrl/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-47-H2 a single-repo task closes over its skips exactly as before', async () => {
+  const root = makeFeatureM();
+  try {
+    await checkCommand({ cwd: root, taskId: 'T-FM' });
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
+    assert.equal(saysNotRun(r.output, 'visual'), false, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-47-V1 a later devUrl reads the ledger, as CP-33-S3 does for one repo', async () => {
+  // Cùng luật với CP-33-S3: `done` đọc sổ, không suy lại từ config. Bản ghi bỏ qua đã ký vẫn là
+  // bỏ qua (không thành pass), và báo cáo vẫn nói rõ gate chưa từng chạy vì không khai devUrl.
+  const root = makeFeatureMRepos({ be: {}, fe: {} }, ['be/src', 'fe/src']);
+  try {
+    await skipBrowserGates(root);
+    const cfg = path.join(root, '.compass', 'config.json');
+    const config = JSON.parse(readFileSync(cfg, 'utf8'));
+    config.repos.fe = { dev: 'true', devUrl: 'http://localhost:9/' };
+    writeFileSync(cfg, JSON.stringify(config, null, 2));
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
+    assert.match(r.output, /ui@fe[^\n]*devUrl|ui@fe.*\n?.*devUrl/, 'vẫn phải nêu ui@fe là chưa từng chạy');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-47-E1 a missing slot for one repo in scope keeps the gate unrun', async () => {
+  const root = makeFeatureMRepos({ be: {}, fe: {} }, ['be/src', 'fe/src']);
+  try {
+    await skipBrowserGates(root);
+    const file = gatePath(root, 'T-FM');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    delete data['ui@fe'];
+    writeFileSync(file, JSON.stringify(data, null, 2));
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), true, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-47-EC1 only repos in scope have to be skipped', async () => {
+  const root = makeFeatureMRepos({ be: {}, fe: { dev: 'true', devUrl: 'http://localhost:9/' } }, ['be/src']);
+  try {
+    // Repo khai trong config phải có thư mục, dù nằm ngoài phạm vi — không thì resolveRepos từ chối.
+    mkdirSync(path.join(root, 'fe', 'src'), { recursive: true });
+    await skipBrowserGates(root);
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), false, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-47-EC2 an unreadable config keeps the gate unrun', async () => {
+  const root = makeFeatureMRepos({ be: {}, fe: {} }, ['be/src', 'fe/src']);
+  try {
+    await skipBrowserGates(root);
+    writeFileSync(path.join(root, '.compass', 'config.json'), '{ not json');
+    const r = doneCommand({ cwd: root, taskId: 'T-FM' });
+    assert.equal(saysNotRun(r.output, 'ui'), true, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
