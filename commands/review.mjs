@@ -96,6 +96,8 @@ export function reviewCommand({ cwd, taskId }) {
     endRef: khaiCuoi ? spec.reviewEnd : null,
     endFrom: 'spec',
     scopePaths: khaiCuoi ? scopeParsed.paths : [],
+    // Đường dẫn `.compass/` khai trong Phạm vi được soi, có hay không có Soi đến (CP-48).
+    compassPaths: scopeParsed.paths,
   };
 
   // Ba chỗ dựng brief, một hình dạng. Lệch một trường là brief "hiện tại" ở pha
