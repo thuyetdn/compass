@@ -491,3 +491,136 @@ test('CP-42-P1 fifty props, half of them nested, scan in under 200 ms', () => {
   assert.equal(components.Probe.props.p0.default, '0');
   assert.ok(elapsed < 200, `mất ${elapsed}ms, ngưỡng 200ms`);
 });
+
+// --- CP-51: the scan claimed `confident: true` over props it never read.
+// `readProps` dropped any piece whose name failed the identifier pattern
+// without marking anything, and `__proto__` reached the prototype of `props`.
+// The parameter list was read as `[^)]*`, so the first `)` inside a default
+// ended it: an arrow component vanished outright, a declaration was cut short.
+
+// The components found in one `.tsx` file holding `source`.
+function scanSource(source) {
+  const root = makeTree({ 'src/Probe.tsx': source });
+  return scanComponents(root).components;
+}
+
+test('CP-51-H1 an arrow whose default calls a function is found and read', () => {
+  const { Missing } = scanSource('export const Missing = ({ x = fallback(1), y }) => <i/>;\n');
+  assert.ok(Missing, 'Missing phải có mặt — `)` trong default không được làm mất component');
+  assert.deepEqual(Object.keys(Missing.props), ['x', 'y']);
+  assert.equal(Missing.props.x.default, 'fallback(1)');
+  assert.equal(Missing.confident, true);
+});
+
+test('CP-51-H2 a declaration whose default calls a function keeps every prop', () => {
+  const { Decl } = scanSource('export function Decl({ x = fallback(1), y }) { return <i/>; }\n');
+  assert.deepEqual(Object.keys(Decl.props), ['x', 'y']);
+  assert.equal(Decl.props.x.default, 'fallback(1)');
+  assert.equal(Decl.confident, true);
+});
+
+test('CP-51-H3 an arrow whose default is itself an arrow is read whole', () => {
+  const { AD } = scanSource('export const AD = ({ onX = () => {}, y }) => <i/>;\n');
+  assert.deepEqual(Object.keys(AD.props), ['onX', 'y']);
+  assert.equal(AD.props.onX.default, '() => {}');
+  assert.equal(AD.confident, true);
+});
+
+test('CP-51-V1 a quoted key is not a prop name and costs the confidence', () => {
+  for (const key of ["'data-id': dataId", '"aria-label": label']) {
+    const { S } = scanSource(`export function S({ ${key}, a, b }) { return <i/>; }\n`);
+    assert.deepEqual(S.props.a, {}, `${key}: a vẫn phải được ghi`);
+    assert.deepEqual(S.props.b, {}, `${key}: b vẫn phải được ghi`);
+    assert.equal(S.confident, false, `${key}: có một mảnh không đọc được`);
+  }
+});
+
+test('CP-51-V2 a computed key is not a prop name and costs the confidence', () => {
+  const { C } = scanSource('export function C({ [key]: v, a }) { return <i/>; }\n');
+  assert.deepEqual(C.props.a, {});
+  assert.equal(C.confident, false);
+});
+
+test('CP-51-V3 rest, trailing comma, rename and nested pattern keep the confidence', () => {
+  const components = scanSource([
+    'export const Rest = ({ a, ...rest }) => <i/>;',
+    'export const Trailing = ({ a, b, }) => <i/>;',
+    'export const Renamed = ({ a: alias, b }) => <i/>;',
+    'export const Nested = ({ a: { b = 1 }, d }) => <i/>;',
+    '',
+  ].join('\n'));
+  const expected = { Rest: ['a'], Trailing: ['a', 'b'], Renamed: ['a', 'b'], Nested: ['a', 'd'] };
+  for (const [name, keys] of Object.entries(expected)) {
+    assert.ok(components[name], `${name} phải có mặt`);
+    assert.deepEqual(Object.keys(components[name].props), keys, name);
+    assert.equal(components[name].confident, true, `${name}: không mảnh nào là lỗi`);
+  }
+});
+
+test('CP-51-V4 a parenthesised expression is not an arrow component', () => {
+  const components = scanSource('export const Total = (a + b);\nconst f = (x) => x;\n');
+  assert.deepEqual(components, {}, '`)` cân bằng mà không có `=>` theo sau — Total không phải component');
+});
+
+test('CP-51-E1 a parameter list that never balances is listed and admits it', () => {
+  const { Broken } = scanSource('export const Broken = ({ a = f(1, b }) => <i/>;\n');
+  assert.ok(Broken, 'Broken phải có mặt');
+  assert.deepEqual(Broken.props, {});
+  assert.equal(Broken.confident, false);
+});
+
+test('CP-51-E2 a file that ends inside a parameter list does not throw', () => {
+  let components;
+  assert.doesNotThrow(() => { components = scanSource('export function Cut({ a, b'); });
+  assert.ok(components.Cut, 'Cut phải có mặt');
+  assert.deepEqual(components.Cut.props, {});
+  assert.equal(components.Cut.confident, false);
+});
+
+test('CP-51-EC1 an unbalanced header does not swallow the component after it', () => {
+  const components = scanSource([
+    'export const Broken = ({ a = f(1, b }) => <i/>;',
+    '',
+    'export const After = ({ z }) => <i/>;',
+    '',
+  ].join('\n'));
+  assert.ok(components.After, 'After phải có mặt');
+  assert.deepEqual(Object.keys(components.After.props), ['z']);
+  assert.equal(components.After.confident, true);
+  assert.equal(components.Broken.confident, false);
+});
+
+test('CP-51-EC2 a name outside the ASCII pattern costs the confidence', () => {
+  const { U } = scanSource('export function U({ ñame, a }) { return <i/>; }\n');
+  assert.deepEqual(U.props.a, {});
+  assert.equal(U.confident, false);
+});
+
+test('CP-51-EC3 a comment inside the destructuring costs the confidence', () => {
+  const { K } = scanSource('export function K({ a, // the a\n b }) { return <i/>; }\n');
+  assert.deepEqual(K.props.a, {});
+  assert.equal(K.confident, false, 'b nằm sau comment và không đọc được');
+});
+
+test('CP-51-EC4 a closing paren inside a string default does not end the list', () => {
+  const { P } = scanSource("export const P = ({ close = ')', after }) => <i/>;\n");
+  assert.ok(P, 'P phải có mặt');
+  assert.equal(P.props.close.default, "')'");
+  assert.deepEqual(P.props.after, {});
+  assert.equal(P.confident, true);
+});
+
+test('CP-51-EC5 a closing paren inside a comment does not end the list', () => {
+  const { M } = scanSource('export const M = ({ a, /* ) */ b }) => <i/>;\n');
+  assert.ok(M, 'M phải có mặt — `)` trong comment không đóng danh sách');
+  assert.equal(M.confident, false);
+});
+
+test('CP-51-S1 __proto__ never reaches the prototype of props', () => {
+  const { Q } = scanSource('export function Q({ __proto__ = evil, a }) { return <i/>; }\n');
+  assert.deepEqual(Object.keys(Q.props), ['a']);
+  assert.equal(Object.getPrototypeOf(Q.props), Object.prototype);
+  assert.equal('default' in Q.props, false, 'default không được lọt vào qua prototype');
+  assert.equal(Q.confident, false);
+  assert.equal(JSON.stringify(Q).includes('evil'), false);
+});
