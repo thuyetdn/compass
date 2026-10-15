@@ -208,23 +208,10 @@ Tám gate: `spec`, `knowledge`, `secrets`, `convention`, `test`, `ui`, `visual`,
 
 Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
 
-## Compass không chứng minh được gì
-
-Gate xanh nghĩa là **test đã chạy và pass**. Nó không nghĩa là **test đo đúng thứ cần đo**.
-
-Một task có mục tiêu "không còn để lại file rác" vẫn pass mọi gate trong khi rác còn
-nguyên — nếu test chỉ kiểm tra hàm dọn chạy được chứ không đếm file còn lại. Chọn test
-case đo đúng mục tiêu vẫn là việc của người viết spec.
-
-Và `done` đọc bản ghi chứ không chạy lại test. Nó băm code để bắt trường hợp sửa sau khi
-gate xanh, nhưng khôi phục cả code lẫn bản ghi về một lúc xanh cũ thì qua được. Compass
-chặn sai sót vô tình, không chặn cố ý gian lận. Chi tiết:
-[hướng dẫn](docs/huong-dan.md#compass-chứng-minh-gì-không-chứng-minh-gì).
-
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1310 test, ~75 giây
+npm test           # suite chính, 1312 test, ~75 giây
 npm run test:deep  # 10 test qua CLI thật trên examples/todo, ~100 giây
 ```
 

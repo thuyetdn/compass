@@ -4,12 +4,8 @@ Compass buộc AI chứng minh việc đã xong bằng lệnh chạy thật, tha
 code và test; Compass chạy test, đối chiếu, ghi bằng chứng có chữ ký, và chỉ nó được phán pass hay
 fail.
 
-Bài này dành cho dev trong team dùng thử và đánh giá. Đọc xong bạn cài được, chạy được một task tới
-`done`, và biết chính xác một `done` xanh nói lên điều gì, không nói lên điều gì.
-
-Xem trước 3 phút: [video demo](demo/compass-demo.webm), quay từ lệnh chạy thật trên
-`examples/todo`. Đoạn AI viết spec và code trong Claude Code hiện thành thẻ chú thích, không phải
-đoạn chat dựng lại.
+Bài này dành cho dev trong team dùng thử và đánh giá. Đọc xong bạn cài được và chạy được một task
+tới `done`.
 
 ## Cài đặt
 
@@ -128,31 +124,6 @@ chẳng hạn) thì `check` ghi bản ghi bỏ qua thay vì chạy.
 Chi tiết từng gate, kể cả cách khai `Gốc soi:` để thu hẹp phạm vi review, nằm trong
 [SKILL.md](../skills/compass/SKILL.md).
 
-## Compass chứng minh gì, không chứng minh gì
-
-Một `done` xanh chứng minh bốn điều:
-
-- Mọi test ID trong spec đã chạy và **pass**, trên chính lệnh test khai trong config.
-- Bằng chứng nói về bản code hiện tại. `done` băm lại code, spec và config rồi so với lúc gate chạy;
-  sửa code sau khi gate xanh thì `done` đỏ và bảo chạy lại `check`.
-- Bản ghi gate không bị sửa tay, chuyển sang gate khác hay chép từ task khác. Mỗi bản ghi ký bằng
-  một salt chỉ nằm trên máy bạn.
-- Mọi gate mà loại task đòi hỏi đều đã chạy và xanh, hoặc được bỏ qua với lý do ghi rõ.
-
-Nó **không** chứng minh:
-
-- **Test đo đúng thứ cần đo.** Spec nói "không còn file rác" mà test chỉ kiểm tra hàm dọn chạy
-  được thì mọi gate vẫn xanh trong khi rác còn nguyên. Sau khi `done` xanh, tự kiểm tra mục tiêu gốc
-  một lần.
-- **Người đã duyệt spec.** Điểm dừng sau `compass spec` là quy trình AI phải theo, không phải bản
-  ghi. Compass không lưu ai duyệt, lúc nào.
-- **Lệnh test là test thật.** Ai sửa `config.json` trỏ sang một lệnh in ra TAP giả *trước* khi gate
-  chạy thì Compass không phát hiện được. Nó chỉ bắt được lệnh đổi *sau* khi gate chạy.
-- **Reviewer soi kỹ.** Gate `review` kiểm tra findings có đúng định dạng và đúng bản code, không
-  kiểm tra agent soi có tốt không.
-
-Ranh giới chung: Compass chặn sai sót vô tình, không chặn được người cố ý gian lận.
-
 ## Giới hạn
 
 - **Quét bằng regex, không phân tích cú pháp.** `knowledge`, `convention` và `secrets` đọc text theo
@@ -161,8 +132,8 @@ Ranh giới chung: Compass chặn sai sót vô tình, không chặn được ng�
 - **`visual` đỏ vì font.** Chữ render khác nhau giữa các máy và CI làm lệch vài pixel. Ngưỡng
   `visualThreshold` (mặc định 0.1%) giảm bớt, không chữa được.
 - **Nhiều repo.** `convention`, `ui`, `visual` đo từng repo và ghi bằng chứng riêng cho từng repo;
-  `test` gộp mọi repo vào một bản ghi. Chưa có lệnh dựng config nhiều repo, phải viết tay theo mục
-  "Nhiều repo" trong SKILL.md, rồi chạy `compass status` để kiểm tra Compass đọc ra gì.
+  `test` gộp mọi repo vào một bản ghi. Dựng config bằng `compass init --multi`, rồi chạy
+  `compass status` để kiểm tra Compass đọc ra gì.
 - **Worktree mồ côi bị quét như code thường.** Worktree của agent (`.claude/worktrees/` hay chỗ khác,
   miễn tạo bằng `git worktree add`) được nhận ra và bỏ qua, không cần xoá trước khi chạy gate. Nhưng
   xoá thư mục quản trị trong `.git/worktrees/` mà để lại thư mục worktree thì Compass, như git, coi

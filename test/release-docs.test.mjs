@@ -8,13 +8,12 @@ import { fileURLToPath } from 'node:url';
 import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
 
 // CP-58 — the docs a developer meets first must say what the code does, and the
-// demo video must show only what the commands really returned.
+// demo transcript must hold only what the commands really returned.
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const README = 'README.md';
 const GUIDE = 'docs/huong-dan.md';
 const TODO_README = 'examples/todo/README.md';
-const VIDEO = 'docs/demo/compass-demo.webm';
 const TRANSCRIPT = 'docs/demo/transcript.json';
 const RECORDER = path.join(ROOT, 'docs', 'demo', 'record.mjs');
 const SPEC_BASE = 'f94ebdd';
@@ -185,14 +184,11 @@ test('CP-58-H3 every relative link in README, the guide and the todo README poin
   assert.deepEqual(intoDogfood, [], `link trỏ vào thư mục nhánh phát hành sẽ bỏ:\n${intoDogfood.join('\n')}`);
 });
 
-test('CP-58-H4 the demo video is a real webm of a sane size, from a transcript with a red gate and its fix', () => {
-  const file = path.join(ROOT, VIDEO);
-  assert.ok(existsSync(file), `${VIDEO} chưa có — chạy node docs/demo/record.mjs`);
-  const head = readFileSync(file).subarray(0, 4);
-  assert.deepEqual([...head], [0x1a, 0x45, 0xdf, 0xa3], 'không bắt đầu bằng EBML magic');
-  const size = statSync(file).size;
-  assert.ok(size >= 100 * 1024 && size <= 15 * 1024 * 1024, `kích thước ${size} byte nằm ngoài 100 KB–15 MB`);
-
+// Bản ghi demo, không phải file video. Video đã bỏ khỏi repo ở CP-68: 9.8 MB
+// cho một bản quay terminal mà trang demo kể câu chuyện đó tốt hơn. Transcript
+// thì ở lại, vì nó là thứ chứng minh demo nói thật — mọi dòng trên trang demo
+// đều lấy từ đây, và `record.mjs` vẫn quay lại được khi cần.
+test('CP-58-H4 the demo transcript runs a red gate, its fix, and a green done', () => {
   const t = JSON.parse(read(TRANSCRIPT));
   const runs = t.steps.filter((s) => s.kind === 'run');
   for (const s of runs) assert.equal(s.exitCode, s.expectedExit, `bước "${s.command}" có exit ${s.exitCode}, kỳ vọng ${s.expectedExit}`);
@@ -208,7 +204,7 @@ test('CP-58-H4 the demo video is a real webm of a sane size, from a transcript w
 test('CP-58-H5 the guide has the sections a first-time developer needs', () => {
   const headings = splitFences(read(GUIDE)).prose.split('\n').filter((l) => /^#{1,6}\s/.test(l)).map(lower);
   const has = (needle) => headings.some((h) => h.includes(needle));
-  for (const needle of ['cài đặt', 'task đầu tiên', 'các gate', 'chứng minh gì', 'không chứng minh', 'giới hạn', 'góp ý']) {
+  for (const needle of ['cài đặt', 'task đầu tiên', 'các gate', 'giới hạn', 'góp ý']) {
     assert.ok(has(needle), `${GUIDE} thiếu heading chứa "${needle}"`);
   }
 });
