@@ -158,9 +158,10 @@ Ranh giới chung: Compass chặn sai sót vô tình, không chặn được ng�
 - **Nhiều repo.** `convention`, `ui`, `visual` đo từng repo và ghi bằng chứng riêng cho từng repo;
   `test` gộp mọi repo vào một bản ghi. Chưa có lệnh dựng config nhiều repo, phải viết tay theo mục
   "Nhiều repo" trong SKILL.md, rồi chạy `compass status` để kiểm tra Compass đọc ra gì.
-- **Worktree của agent nằm trong repo.** Claude Code chạy agent ở chế độ worktree thì tạo thư mục
-  `.claude/worktrees/` ngay trong repo, và gate `knowledge` quét luôn code trong đó rồi báo đỏ. Chạy
-  gate sau khi gộp xong và xoá worktree.
+- **Worktree mồ côi bị quét như code thường.** Worktree của agent (`.claude/worktrees/` hay chỗ khác,
+  miễn tạo bằng `git worktree add`) được nhận ra và bỏ qua, không cần xoá trước khi chạy gate. Nhưng
+  xoá thư mục quản trị trong `.git/worktrees/` mà để lại thư mục worktree thì Compass, như git, coi
+  nó là file bình thường và quét hết. Dọn bằng `git worktree remove`, đừng xoá tay.
 - **`review` cần một agent khác.** Compass sinh brief nhưng không tự gọi agent; bạn hoặc AI chính phải
   giao brief cho một agent mới, không mang theo lịch sử chat.
 - **`review` từ chối diff quá 2MB.** Không ai đọc hết chừng đó. Chia task nhỏ ra.

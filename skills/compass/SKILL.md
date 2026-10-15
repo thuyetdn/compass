@@ -273,6 +273,13 @@ tạm chứa file thử — agent soi code hay dựng — làm gate đỏ dù ta
 thêm tên thư mục đó vào `.gitignore`, cạnh `.probe-tmp/`. Không tự dò được: tên thư mục do người
 tạo đặt, và đoán theo mẫu thì vừa lọt thư mục thật vừa bỏ qua file `.env` thật nằm cạnh nó.
 
+Worktree tạo bằng `git worktree add` thì khác: nó nhận ra được từ thứ nằm trên đĩa, không cần đoán
+tên. `.git` của nó là file trỏ vào thư mục quản trị có `commondir` — dấu git tự dùng để nhận worktree
+liên kết. Nên worktree của agent (`.claude/worktrees/<tên>/` hay bất kỳ đâu) không cần dòng nào
+trong `.gitignore`: `knowledge`, `convention` và `sourceHash` không đi vào nó, brief không mang nó
+thành gitlink, còn git vốn không liệt kê file bên trong cho `secrets`. Thư mục nháp không có `.git`
+thì vẫn phải thêm vào `.gitignore` như trên.
+
 ### Gate `convention` — quy ước viết một lần
 
 Luật nằm trong `.knowledge/decided/conventions.md`. Phần văn xuôi cho người đọc, khối ```` ```rule ```` cho máy chạy:
@@ -298,7 +305,12 @@ phạm · `scope` nhận glob `**` `*` `?` · `severity` là `error` (chặn) ho
 
 Không có `conventions.md` thì gate pass và nói rõ là chưa có luật nào. Luật khai sai — thiếu trường, regex hỏng, `type` chưa hỗ trợ — thì gate **fail**, vì luật chạy không được trông như có bảo vệ mà thật ra không bảo vệ gì.
 
-`node_modules`, `dist`, `build`, `coverage`, `.git` không bị quét.
+`node_modules`, `dist`, `build`, `coverage`, `.git` không bị quét, và cả worktree liên kết lồng
+trong repo — bản checkout của agent không phải code của task. Nhận theo cấu trúc, không theo tên:
+`.git` là file, dòng đầu `gitdir: <p>`, và `<p>` có file `commondir`. Submodule (`.git` cũng là
+file nhưng không có `commondir`) và repo lồng có `.git` là thư mục vẫn được quét như cũ. Không đọc
+ra được thì cứ quét — gate đỏ oan còn hơn bỏ sót. Gốc quét không bao giờ bị bỏ, nên chạy Compass
+ngay trong worktree vẫn thấy code của nó.
 
 **Giới hạn:** chỉ khớp mẫu theo dòng, không phân tích AST. Luật kiểu "component này phải nhận prop kia" chưa làm được. Quy ước mềm cứ để dạng văn xuôi — vẫn đọc được, chỉ không có gate.
 
