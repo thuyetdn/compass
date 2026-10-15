@@ -6,6 +6,7 @@ Todo list React nhỏ, dùng làm bàn thử cho Compass. Task mẫu: `TD-001` (
 
 ```bash
 npm install
+npx playwright install chromium   # gate ui và visual cần
 npm test          # Vitest, 13 test
 npm run dev       # xem app thật
 ```
@@ -28,4 +29,4 @@ thấy đủ ID và báo fail oan. TAP reporter in đủ tên test nên đối c
 
 Đổi về mặc định thử xem: gate sẽ tự nhắc chính khả năng này trước khi bảo bạn đi viết test.
 
-Chi tiết và các chỗ gãy khác: [ghi chú chạy thử](../../docs/superpowers/notes/2026-09-05-frontend-trial.md).
+Cách dùng Compass từ đầu: [hướng dẫn](../../docs/huong-dan.md).

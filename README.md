@@ -2,6 +2,8 @@
 
 Quy trình phát triển có bằng chứng kiểm chứng được — cho AI có tool.
 
+Mới dùng lần đầu: đọc [hướng dẫn](docs/huong-dan.md), xem [video demo 3 phút](docs/demo/compass-demo.webm).
+
 ## Vấn đề
 
 AI báo "xong" khi chưa xong. Không phải vì nói dối — vì nó thật sự tin thế.
@@ -13,9 +15,11 @@ exit code thì không.
 Dùng với Claude Code thì cài plugin — AI có cả quy trình lẫn công cụ, không phải cài gì thêm:
 
 ```
-/plugin marketplace add <đường-dẫn-tới-repo>
+/plugin marketplace add thuyetdn/compass
 /plugin install compass@compass
 ```
+
+Repo đang để private, nên máy cài phải có quyền đọc repo trên GitHub.
 
 Quy trình AI phải theo nằm ở [`skills/compass/SKILL.md`](skills/compass/SKILL.md).
 
@@ -25,7 +29,7 @@ Muốn gõ `compass` trong terminal thì cài thêm lệnh:
 npm install -g .
 ```
 
-Hoặc chạy trực tiếp: `node cli.mjs <lệnh>`
+Không cài thì chạy thẳng từ thư mục repo, ví dụ `node cli.mjs status`.
 
 ## Dùng
 
@@ -63,10 +67,14 @@ Gate record có chữ ký — sửa tay là lộ.
 
 ## Trạng thái
 
-Bảy gate: `spec`, `knowledge`, `convention`, `test`, `ui`, `visual`, `review`.
+Tám gate: `spec`, `knowledge`, `secrets`, `convention`, `test`, `ui`, `visual`, `review`.
 
 Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
-Khai nhiều repo trong `config.json` nếu một task đụng nhiều nơi.
+Khai nhiều repo trong `config.json` nếu một task đụng nhiều nơi: `convention`, `ui`, `visual` đo
+và ghi bằng chứng riêng cho từng repo.
+
+Compass chứng minh được gì và không chứng minh được gì: xem
+[hướng dẫn](docs/huong-dan.md#compass-chứng-minh-gì-không-chứng-minh-gì).
 
 ## Quy ước
 
@@ -133,4 +141,4 @@ Suite sâu cần Playwright ở `examples/todo`; thiếu thì nó skip kèm hư�
 
 [examples/todo](examples/todo/) — todo list React, task `feature-s` 13 test case.
 
-Thiết kế đầy đủ: [docs/superpowers/specs/2026-09-05-compass-design.md](docs/superpowers/specs/2026-09-05-compass-design.md)
+Quy trình đầy đủ AI phải theo: [skills/compass/SKILL.md](skills/compass/SKILL.md).
