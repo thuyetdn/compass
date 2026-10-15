@@ -370,7 +370,7 @@ Findings theo format cứng:
 
 Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ, Compass sinh brief mới và bắt soi lại. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code.
 
-**Phạm vi soi.** Mặc định Compass so với điểm rẽ khỏi nhánh chính, hoặc commit đầu tiên nếu không có. Nhánh sống lâu thì phạm vi đó là cả dự án chứ không phải một task.
+**Phạm vi soi.** Mặc định Compass so với điểm rẽ khỏi nhánh chính, hoặc commit đầu tiên nếu không có. Repo chỉ có đúng một commit thì Compass so với cây rỗng của git, nên chính commit đó cũng được soi, và gate `secrets` quét nó. Nhánh sống lâu thì phạm vi đó là cả dự án chứ không phải một task.
 
 Khai vào spec của task, một dòng cạnh `Phạm vi:` — **phải ở phần đầu spec, trên heading `##` đầu tiên** — trỏ vào commit ngay **trước** khi task bắt đầu:
 
@@ -499,7 +499,7 @@ compass investigate INV-1 --close  đóng — chỉ khi đủ bằng chứng và
 2. **Mỗi giả thuyết nêu cách kiểm tra TRƯỚC khi kiểm tra.** Không "để tôi xem thử".
 3. **Kết luận phải dẫn về bằng chứng**, không phải suy luận.
 
-`--close` chặn nếu thiếu bằng chứng, thiếu kết luận, thiếu pitfall, hay còn chữ mẫu. Đóng được thì pitfall tự chép vào `.knowledge/decided/pitfalls.md` — lần sau đọc được.
+`--close` chặn nếu thiếu bằng chứng, thiếu kết luận, thiếu pitfall, còn chữ mẫu, hay có khối code mở mà chưa đóng — lỗi nêu số dòng và tên mục. Đóng được thì pitfall tự chép vào `.knowledge/decided/pitfalls.md` — lần sau đọc được.
 
 ### Script và dữ liệu
 
@@ -704,7 +704,7 @@ Chưa có: trang xem knowledge bằng trình duyệt, và lệnh dựng config n
 
 ### Giới hạn còn lại của `done`
 
-`done` đọc `gate.json`, không đo lại code. Sửa code sau khi gate xanh thì `done` vẫn đóng được — đúng với **mọi** gate, không riêng `review`. Chặn được sai sót vô tình, không chặn được cố ý.
+`done` đọc `gate.json` chứ không chạy lại test. Nó băm lại code và so với `sourceHash` của từng bản ghi, nên sửa code sau khi gate xanh thì `done` đỏ và bảo chạy lại `check`. Chỗ còn hở là khôi phục cả code lẫn bản ghi về một lúc xanh cũ — xem "Hai giới hạn còn lại". Chặn được sai sót vô tình, không chặn được cố ý.
 
 ## Red Flags
 
