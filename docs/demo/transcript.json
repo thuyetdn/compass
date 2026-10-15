@@ -1,7 +1,7 @@
 {
   "title": "Compass — demo",
   "recordedAt": "2026-10-15",
-  "compassCommit": "1002651",
+  "compassCommit": "21eefa3",
   "node": "v24.19.0",
   "platform": "win32",
   "scenario": "docs/demo/scenario",
@@ -13,7 +13,7 @@
     },
     {
       "what": "npm ci",
-      "ms": 12881
+      "ms": 17635
     },
     {
       "what": "git init + commit gốc (diff của task tính từ đây)",
@@ -26,7 +26,7 @@
       "command": "compass init TD-002 --type=feature-s",
       "expectedExit": 0,
       "exitCode": 0,
-      "durationMs": 135,
+      "durationMs": 141,
       "stdout": "Đã tạo task TD-002 (loại feature-s)\n  spec: ‹thư-mục-tạm›\\.compass\\TD-002\\spec.md\n\n→ Điền spec, rồi chạy: compass spec TD-002",
       "stderr": "",
       "tempPathMasked": 1,
@@ -46,7 +46,7 @@
       "command": "compass spec TD-002",
       "expectedExit": 0,
       "exitCode": 0,
-      "durationMs": 113,
+      "durationMs": 128,
       "stdout": "✓ Gate spec PASSED\n\n→ Đưa spec cho người duyệt. Duyệt xong mới bắt đầu code.",
       "stderr": "",
       "tempPathMasked": 0
@@ -72,7 +72,7 @@
       "command": "compass knowledge --sync",
       "expectedExit": 0,
       "exitCode": 0,
-      "durationMs": 148,
+      "durationMs": 138,
       "stdout": "✓ Gate knowledge PASSED — đã sinh lại: 1 component từ 6 file",
       "stderr": "",
       "tempPathMasked": 0
@@ -82,7 +82,7 @@
       "command": "compass check TD-002",
       "expectedExit": 1,
       "exitCode": 1,
-      "durationMs": 8675,
+      "durationMs": 9236,
       "stdout": "✓ Gate spec PASSED\n✓ Gate knowledge PASSED — 6 file nguồn còn khớp tài liệu\n✓ Gate secrets PASSED — không thấy file .env nào trong diff, trong index, hay chưa được ignore.\n  package.json changed — check whether a dotenv dependency was added\n✓ Gate convention PASSED — 4 luật, 4 file, không vi phạm\n✗ Gate test FAILED\n  Spec khai báo 13 test cases, chỉ tìm thấy 12 đã chạy.\n  Không tìm thấy dấu vết: EC3\n\n→ Viết test cho các case còn thiếu, hoặc sửa spec nếu chúng không còn cần thiết (sửa spec cần duyệt lại).",
       "stderr": "",
       "tempPathMasked": 0,
@@ -101,7 +101,7 @@
       "command": "compass knowledge --sync",
       "expectedExit": 0,
       "exitCode": 0,
-      "durationMs": 117,
+      "durationMs": 105,
       "stdout": "✓ Gate knowledge PASSED — đã sinh lại: 1 component từ 7 file",
       "stderr": "",
       "tempPathMasked": 0
@@ -111,7 +111,7 @@
       "command": "compass check TD-002",
       "expectedExit": 0,
       "exitCode": 0,
-      "durationMs": 13736,
+      "durationMs": 14280,
       "stdout": "✓ Gate spec PASSED\n✓ Gate knowledge PASSED — 7 file nguồn còn khớp tài liệu\n✓ Gate secrets PASSED — không thấy file .env nào trong diff, trong index, hay chưa được ignore.\n  package.json changed — check whether a dotenv dependency was added\n✓ Gate convention PASSED — 4 luật, 5 file, không vi phạm\n✓ Gate test PASSED — 13/13 test cases đã chạy\n✓ Gate ui PASSED — 16 thuộc tính, 2 viewport, không lệch\n✓ Gate visual PASSED — đã tạo baseline cho 2 viewport\n\nBaseline: .compass/TD-002/baseline/\n→ Lần này chưa so gì cả — xem ảnh, thấy đúng thì commit baseline vào git.",
       "stderr": "",
       "tempPathMasked": 0,
@@ -122,7 +122,7 @@
       "command": "compass done TD-002",
       "expectedExit": 0,
       "exitCode": 0,
-      "durationMs": 122,
+      "durationMs": 113,
       "stdout": "✓ Gate done PASSED — 7 gate đã pass\n\nTask TD-002 hoàn thành. Bằng chứng: .compass/TD-002/evidence/",
       "stderr": "",
       "tempPathMasked": 0,
