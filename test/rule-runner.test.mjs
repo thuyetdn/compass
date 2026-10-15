@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runRules, matchesScope } from '../lib/rule-runner.mjs';
+import { withinBudget } from './helpers/timing.mjs';
 
 function makeRepo(files) {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-rules-'));
@@ -101,9 +102,7 @@ test('errorCount counts only error-level violations', () => {
 test('CP-3-S1 a catastrophic pattern is cut off rather than hanging', () => {
   const root = makeRepo({ 'src/App.jsx': 'a'.repeat(3000) + '!' });
   const rule = { ...HEX_RULE, id: 'evil', pattern: '(a+)+$' };
-  const started = Date.now();
-  const result = runRules(root, [rule]);
-  assert.ok(Date.now() - started < 5000, 'phải dừng, không treo');
+  const { value: result } = withinBudget({ run: () => runRules(root, [rule]), budgetMs: 5000, label: 'phải dừng, không treo' });
   assert.ok(result.skippedRules.includes('evil') || result.violations.length >= 0);
 });
 

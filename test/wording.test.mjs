@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withinBudget } from './helpers/timing.mjs';
 
 // CP-39 — readers hear "kiểm" and "ca" as clipped words. Every Vietnamese text a
 // reader sees says "kiểm tra" and "case". Complete words built on "kiểm" stay.
@@ -101,8 +102,9 @@ test('CP-39-S2 the guard reads only the files the spec names — never evidence 
 
 test('CP-39-P1 scanning every in-scope file takes under 500 ms', () => {
   const files = [TEMPLATE, ...DOCS, ...listMjs('lib'), ...listMjs('commands')];
-  const t0 = performance.now();
-  for (const f of files) { hits(read(f), CLIPPED_KIEM); hits(read(f), STANDALONE_CA); }
-  const ms = performance.now() - t0;
-  assert.ok(ms < 500, `scan took ${ms.toFixed(0)} ms over ${files.length} files`);
+  withinBudget({
+    run: () => { for (const f of files) { hits(read(f), CLIPPED_KIEM); hits(read(f), STANDALONE_CA); } },
+    budgetMs: 500,
+    label: `scan over ${files.length} files`,
+  });
 });

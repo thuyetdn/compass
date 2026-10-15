@@ -8,6 +8,7 @@ import { collectDiff } from '../lib/review-brief.mjs';
 import { reviewCommand } from '../commands/review.mjs';
 import { secretsCommand } from '../commands/secrets.mjs';
 import { initRepo } from './helpers/git-repo.mjs';
+import { withinBudget } from './helpers/timing.mjs';
 
 // CP-52: `resolveBase` lùi về commit đầu repo khi không có nhánh chính để rẽ, nhưng
 // bỏ đường lùi đó khi commit đầu CHÍNH LÀ HEAD và trả về chuỗi `'HEAD'`. Repo một
@@ -334,10 +335,7 @@ test('CP-52-P1 a first commit of 2000 small files is collected in under 5 s', ()
   const files = {};
   for (let i = 0; i < 2000; i++) files[`src/m${Math.floor(i / 100)}/f${i}.js`] = `export const v${i} = ${i};\n`;
   const { root } = oneCommit(files);
-  const t0 = Date.now();
-  const r = collectDiff(root);
-  const ms = Date.now() - t0;
+  const { value: r } = withinBudget({ run: () => collectDiff(root), budgetMs: 5000, label: 'collectDiff' });
   assert.equal(r.ok, true, r.reason);
   assert.equal(r.files.length, 2000);
-  assert.ok(ms < 5000, `collectDiff mất ${ms}ms`);
 });

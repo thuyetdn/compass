@@ -8,6 +8,7 @@ import {
   addedLines,
   normalisePath,
 } from '../lib/secrets-scan.mjs';
+import { withinBudget } from './helpers/timing.mjs';
 
 // A unified diff, built the way git writes one, so the parser is measured
 // against real shape rather than a convenient stub.
@@ -412,11 +413,10 @@ test('CP-40-P1 a 300-file diff with 20k added lines scans under 500 ms', () => {
   }
   const diff = parts.join('\n');
   const files = Array.from({ length: 300 }, (_, f) => `src/f${f}.mjs`);
-  const t0 = Date.now();
-  const r = scanSecrets({ ...CLEAN, diff, diffFiles: files });
-  const ms = Date.now() - t0;
+  const { value: r } = withinBudget({
+    run: () => scanSecrets({ ...CLEAN, diff, diffFiles: files }), budgetMs: 500, label: 'scanSecrets',
+  });
   assert.equal(r.ok, true);
-  assert.ok(ms < 500, `quét mất ${ms}ms, phải dưới 500ms`);
 });
 
 // --- CP-43: `#` opened a comment in every file, so any line holding one before
@@ -495,11 +495,15 @@ test('CP-43-P1 two thousand lines, half holding a #, scan in under 200 ms', () =
     lines.push(`this.#f${i} = ${i}; readFileSync('.env');`);
   }
 
-  const started = Date.now();
-  let hits = 0;
-  for (const line of lines) if (readsEnv(line, 'src/big.js')) hits += 1;
-  const elapsed = Date.now() - started;
+  const { value: hits } = withinBudget({
+    run: () => {
+      let n = 0;
+      for (const line of lines) if (readsEnv(line, 'src/big.js')) n += 1;
+      return n;
+    },
+    budgetMs: 200,
+    label: 'readsEnv × 2000',
+  });
 
   assert.equal(hits, 1000);
-  assert.ok(elapsed < 200, `mất ${elapsed}ms, ngưỡng 200ms`);
 });

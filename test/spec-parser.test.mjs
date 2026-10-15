@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseSpec } from '../lib/spec-parser.mjs';
+import { withinBudget } from './helpers/timing.mjs';
 
 
 const SAMPLE = `# T-001: Thêm bộ lọc theo quốc gia
@@ -311,11 +312,8 @@ test('CP-39-S3 a second declaration in the other form is ignored — first line 
 test('CP-39-P2 a 2000-line spec with the new keyword parses in under 50 ms', () => {
   const padding = Array.from({ length: 1990 }, (_, i) => `Dòng đệm ${i}.`).join('\n');
   const big = MINIMAL.replace('Phạm vi: src/', 'Phạm vi: src/\nKiểm tra bằng: mắt\n\n## Mục tiêu\n' + padding);
-  const t0 = performance.now();
-  const parsed = parseSpec(big);
-  const ms = performance.now() - t0;
+  const { value: parsed } = withinBudget({ run: () => parseSpec(big), budgetMs: 50, label: 'parseSpec' });
   assert.equal(parsed.verifyBy, 'mắt');
-  assert.ok(ms < 50, `parse took ${ms.toFixed(1)} ms`);
 });
 
 // CP-54 — parser giữ lại từ khóa spec đã viết. Gate trích lại dòng khai cho

@@ -24,6 +24,31 @@ export const SCAN_GROWTH = Object.freeze({
   limit: 16,
 });
 
+// Cỡ và ngưỡng của CP-32-P1 (CP-62). Bản cũ lấy một mẫu cho mỗi cỡ, mẫu nhỏ 400
+// truy vấn chỉ 2–4 ms, nên một lần khựng vài ms ở mẫu lớn đọc ra 72× trên code
+// tuyến tính. Ở 3200 mẫu nhỏ đã 10–16 ms, trên sàn 5 ms. Tuyến tính đọc 6–7 dù
+// máy rỗi hay bận; bản hồi quy lịch sử (`lastIndexOf` lùi về đầu file ở mỗi chú
+// thích) đọc 47–50. Ngưỡng 16 nằm giữa.
+export const QUERY_GROWTH = Object.freeze({
+  small: 3200,
+  large: 25600,
+  warmup: 1,
+  pairs: 5,
+  limit: 16,
+});
+
+// Script .sql của CP-32-P1: mỗi truy vấn một dòng `-- @out:` và một `;` nằm trong
+// chuỗi lẫn trong chú thích khối. CP-62-E4 dùng đúng hình dạng này để chứng minh
+// cấu hình trên vẫn bắt được bản hồi quy.
+export function queryScript(n) {
+  const parts = [];
+  for (let i = 0; i < n; i++) {
+    parts.push(`-- @out: INV-4-q${i}-work-0908.csv`);
+    parts.push(`select ${i} from t where s = 'a;b' /* c ; d */;`);
+  }
+  return parts.join('\n');
+}
+
 // Dưới mức này thì độ phân giải đồng hồ và nhiễu lịch chạy lấn hết tín hiệu,
 // và tỉ số không còn nghĩa gì. `Math.max(do1, 1)` cũ biến mẫu 0 ms thành một
 // lần qua vô nghĩa — ở đây từ chối hẳn.
@@ -94,4 +119,41 @@ export function assertLinear(result, limit) {
       operator: '<',
     });
   }
+}
+
+// Vòng thử của CP-55-E1 và CP-62-E4: chứng minh code bậc hai thật vẫn bị
+// `assertLinear` bắt khi đo bằng đồng hồ thật.
+//
+// Một lần đo duy nhất thì mẫu nhỏ bị tải làm chậm 3× là đủ kéo tỉ số xuống dưới
+// ngưỡng, và case đỏ dù harness không mù. Ở đây đo tối đa `attempts` lần và qua
+// ở lần đầu tiên vừa bị bắt vừa xong dưới `budgetMs`. Harness mù thật trước code
+// bậc hai thì trượt cả ba lần, và lỗi liệt kê tỉ số cùng thời gian từng lần.
+export function catchQuadratic({ measure, limit, attempts = 3, budgetMs = Infinity, now = () => performance.now() }) {
+  if (typeof measure !== 'function') throw new TypeError('catchQuadratic: measure phải là hàm');
+  if (!(Number.isInteger(attempts) && attempts >= 1)) {
+    throw new RangeError(`catchQuadratic: attempts phải là số nguyên ≥ 1, nhận ${attempts}`);
+  }
+  const log = [];
+  for (let i = 1; i <= attempts; i++) {
+    const t0 = now();
+    const result = measure();
+    const ms = now() - t0;
+    let error = null;
+    try {
+      assertLinear(result, limit);
+    } catch (err) {
+      if (!(err instanceof AssertionError)) throw err;
+      error = err;
+    }
+    log.push({ ratio: result.ratio, ms, over: ms >= budgetMs });
+    if (error && ms < budgetMs) return { attempt: i, result, ms, error, log };
+  }
+  const budget = Number.isFinite(budgetMs) ? ` và xong dưới ${budgetMs} ms` : '';
+  throw new AssertionError({
+    message: `sau ${attempts} lần thử, không lần nào vừa đạt ngưỡng ${limit}${budget}: `
+      + log.map((a, i) => `lần ${i + 1} tỉ số ${a.ratio.toFixed(1)} trong ${a.ms.toFixed(0)} ms${a.over ? ' (quá giờ)' : ''}`).join('; '),
+    actual: log.map((a) => a.ratio),
+    expected: limit,
+    operator: '>=',
+  });
 }

@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { scanComponents } from '../lib/knowledge-scan.mjs';
+import { withinBudget } from './helpers/timing.mjs';
 
 function makeTree(files) {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-know-'));
@@ -482,14 +483,11 @@ test('CP-42-P1 fifty props, half of them nested, scan in under 200 ms', () => {
 `,
   });
 
-  const started = Date.now();
-  const { components } = scanComponents(root);
-  const elapsed = Date.now() - started;
+  const { value: { components } } = withinBudget({ run: () => scanComponents(root), budgetMs: 200, label: 'scanComponents' });
 
   assert.equal(Object.keys(components.Probe.props).length, 50);
   assert.deepEqual(components.Probe.props.n0, {});
   assert.equal(components.Probe.props.p0.default, '0');
-  assert.ok(elapsed < 200, `mất ${elapsed}ms, ngưỡng 200ms`);
 });
 
 // --- CP-51: the scan claimed `confident: true` over props it never read.

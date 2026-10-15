@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { collectDiff } from '../lib/review-brief.mjs';
+import { withinBudget } from './helpers/timing.mjs';
 
 // CP-46: the scratch index was seeded with `read-tree HEAD`, from the last
 // commit rather than from the real index, and `add -N` only covered
@@ -200,11 +201,8 @@ test('CP-46-P1 two hundred staged files collect in under five seconds', () => {
   for (let i = 0; i < 200; i++) write(root, `p${i}.js`, `${i}\n`);
   git(root, 'add', '-A');
 
-  const started = Date.now();
-  const r = collectDiff(root, { baseRef: base });
-  const elapsed = Date.now() - started;
+  const { value: r } = withinBudget({ run: () => collectDiff(root, { baseRef: base }), budgetMs: 5000, label: 'collectDiff' });
 
   assert.equal(r.files.filter((f) => /^p\d+\.js$/.test(f)).length, 200);
-  assert.ok(elapsed < 5000, `mất ${elapsed}ms, ngưỡng 5000ms`);
   rmSync(root, { recursive: true, force: true });
 });

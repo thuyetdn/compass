@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { waitForUrl, isLocalUrl } from '../lib/dev-server.mjs';
+import { withDeadline, stopTwice, answersOnFirstProbe } from './helpers/timing.mjs';
 
 test('waitForUrl returns as soon as the url answers', async () => {
   const server = createServer((req, res) => { res.writeHead(200); res.end('ok'); });
@@ -50,8 +51,10 @@ test('CP-4-P2 stopping a dev server leaves no process behind', async () => {
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.equal(server.exited, false, 'server phải đang chạy trước khi dừng');
 
-  server.stop();
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  // Đợi chính stop() thay vì ngủ 1500 ms: stop() chỉ trả về khi cây tiến trình đã
+  // chết, còn `taskkill /t /f` khi máy bận mất tới 1.5 giây (CP-62). Hạn chót chỉ
+  // để chống treo.
+  await withDeadline(server.stop(), 20000, 'server.stop()');
   assert.equal(server.exited, true, 'server phải chết sau khi stop');
 });
 
@@ -59,10 +62,8 @@ test('CP-4-P3 stopping a server twice is harmless', async () => {
   const { startDevServer } = await import('../lib/dev-server.mjs');
   const server = startDevServer('node -e "setInterval(() => {}, 1000)"', process.cwd());
   await new Promise((resolve) => setTimeout(resolve, 300));
-  server.stop();
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-  server.stop(); // must not throw
-  assert.equal(server.exited, true);
+  assert.equal(server.exited, false, 'server phải đang chạy trước khi dừng');
+  await stopTwice(server);
 });
 
 test('CP-8-EC3 a shell that exits early still has its children killed', async () => {
@@ -115,11 +116,13 @@ test('CP-8-H1 a server already up answers on the first probe', async () => {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.address().port}/`;
 
-  const t0 = Date.now();
-  const result = await waitForUrl(url, { timeoutMs: 3000, intervalMs: 500 });
-  assert.equal(result.ok, true);
-  assert.ok(Date.now() - t0 < 500, 'server sẵn sàng thì không được đợi hết một nhịp');
-  server.close();
+  // Nhịp 5000 ms, ngân sách 2500 ms (CP-62): bản cũ để hồi quy rơi đúng vào ngân
+  // sách 500 ms, còn lần hỏi đầu khi máy bận đã chạm 218 ms.
+  try {
+    await answersOnFirstProbe({ waitForUrl, url, intervalMs: 5000, timeoutMs: 10000, budgetMs: 2500 });
+  } finally {
+    server.close();
+  }
 });
 
 test('CP-8-H2 a server that comes up late is still waited for', async () => {

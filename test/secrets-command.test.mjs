@@ -10,6 +10,7 @@ import { doneCommand } from '../commands/done.mjs';
 import { readGate, verifyAllGates } from '../lib/gate-store.mjs';
 import { collectDiff } from '../lib/review-brief.mjs';
 import { initRepo } from './helpers/git-repo.mjs';
+import { withinBudget } from './helpers/timing.mjs';
 
 const SPEC = `# T-S: Gate secrets
 Loại: fix
@@ -206,11 +207,10 @@ test('CP-40-S4 a base ref starting with - is refused, never passed to git', () =
 });
 
 test('CP-40-P2 scanning this repo end to end stays under 3 s', () => {
-  const t0 = Date.now();
-  const result = secretsCommand({ cwd: process.cwd(), taskId: 'CP-40' });
-  const ms = Date.now() - t0;
+  const { value: result } = withinBudget({
+    run: () => secretsCommand({ cwd: process.cwd(), taskId: 'CP-40' }), budgetMs: 3000, label: 'secretsCommand',
+  });
   assert.equal(result.exitCode, 0, result.output);
-  assert.ok(ms < 3000, `mất ${ms}ms, phải dưới 3000ms`);
 });
 
 test('CP-40-E7 a committed .env fails the real command and names the path', () => {

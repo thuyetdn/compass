@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseQueryOutputs, validateOutputName, matchDeclaredFile } from '../lib/query-outputs.mjs';
+import { measureGrowth, assertLinear, QUERY_GROWTH, queryScript } from './helpers/growth.mjs';
 
 // A declaration marks the query that follows it. Splitting on ';' is wrong when
 // the ';' sits inside a string literal or a comment, so the fixtures below carry
@@ -281,30 +282,18 @@ test('CP-32-S4 rejects an absolute path as a declared name', () => {
 });
 
 test('CP-32-P1 parse cost stays linear in query count', () => {
-  const build = (n) => {
-    const parts = [];
-    for (let i = 0; i < n; i++) {
-      parts.push(`-- @out: INV-4-q${i}-work-0908.csv`);
-      parts.push(`select ${i} from t where s = 'a;b' /* c ; d */;`);
-    }
-    return parts.join('\n');
-  };
+  // Measure the shape, not a wall-clock threshold, so the ratio holds on a slow
+  // machine too (CP-10). One sample per size used to read 72x on linear code
+  // when a few-ms stall hit the large sample (CP-62); the CP-55 harness takes
+  // the smallest ratio of five interleaved pairs instead. 8x the queries reads
+  // 6–7 when linear and 47–50 for the historical lastIndexOf regression.
+  const { small, large, warmup, pairs, limit } = QUERY_GROWTH;
+  const sqls = { [small]: queryScript(small), [large]: queryScript(large) };
+  // A fixture that parses to nothing times an empty loop; pin it before timing.
+  for (const n of [small, large]) assert.equal(parseQueryOutputs(sqls[n], 'INV-4').queries.length, n);
 
-  const timeOf = (n) => {
-    const sql = build(n);
-    const start = process.hrtime.bigint();
-    parseQueryOutputs(sql, 'INV-4');
-    return Number(process.hrtime.bigint() - start) / 1e6;
-  };
-
-  timeOf(200); // warm up, so JIT compilation does not land inside a measurement
-
-  const base = Math.max(timeOf(400), 1);
-  const big = timeOf(6400); // 16x the queries
-
-  // Linear would land near 16x; quadratic near 256x. Measure the shape, not a
-  // wall-clock threshold, so the ratio holds on a slow machine too (CP-10).
-  assert.ok(big / base < 64, `expected sub-quadratic growth, got ${(big / base).toFixed(1)}x`);
+  const result = measureGrowth({ run: (n) => parseQueryOutputs(sqls[n], 'INV-4'), small, large, warmup, pairs });
+  assertLinear(result, limit);
 });
 
 test('CP-32-S5 ignores a marker that only looks like one inside a comment', () => {

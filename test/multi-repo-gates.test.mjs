@@ -28,6 +28,7 @@ import { gatePath, specPath } from '../lib/paths.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { initRepo } from './helpers/git-repo.mjs';
+import { withinBudget, withDeadline, readMarker } from './helpers/timing.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PNG_URL = pathToFileURL(path.join(ROOT, 'lib', 'png.mjs')).href;
@@ -381,9 +382,14 @@ test('CP-56-E1 the dev server starts in fe, and a dead one fails ui with fe\'s c
   const port = await freePort();
   writeServer(path.join(root, 'fe'), { port, cwdMarker: moc, listen: false });
   installStub(path.join(root, 'fe'));
+  // Server không bao giờ lắng nghe, nên gate đỏ "không phản hồi" với mọi hạn chờ;
+  // hạn chờ chỉ quyết định nó kịp ghi dấu cwd trước khi bị giết hay không. Từ
+  // spawn tới lúc ghi dấu đo được 62–272 ms khi máy rỗi nhưng 1146–1669 ms khi máy
+  // bận (CP-62), nên 500 ms cũ là một cuộc đua. Đừng hạ số này "cho nhanh".
+  const devTimeoutMs = 3000;
   setConfig(root, (c) => ({
     ...c,
-    repos: { ...c.repos, fe: { ...c.repos.fe, dev: 'node srv.cjs', devUrl: `http://127.0.0.1:${port}/`, devTimeoutMs: 500 } },
+    repos: { ...c.repos, fe: { ...c.repos.fe, dev: 'node srv.cjs', devUrl: `http://127.0.0.1:${port}/`, devTimeoutMs } },
   }));
   writeContract(root);
 
@@ -391,7 +397,7 @@ test('CP-56-E1 the dev server starts in fe, and a dead one fails ui with fe\'s c
   assert.equal(r.exitCode, 2, r.output);
   assert.match(r.output, /Dev server không phản hồi/);
   assert.match(r.output, /Lệnh: node srv\.cjs/);
-  assert.ok(same(readFileSync(moc, 'utf8').trim(), path.join(root, 'fe')), 'dev server phải chạy trong fe/');
+  assert.ok(same(readMarker(moc, { devTimeoutMs }).trim(), path.join(root, 'fe')), 'dev server phải chạy trong fe/');
   const fe = readGate(root, 'T-1', 'ui', 'fe');
   assert.ok(!fe || fe.exitCode !== 0, 'không có ui@fe xanh');
 });
@@ -705,13 +711,13 @@ test('CP-56-P1 each repo is walked once, not the root twice', async () => {
   });
   writeRules(root);
 
-  const t0 = Date.now();
-  const r = await checkCommand({ cwd: root, taskId: 'T-1', only: 'convention' });
-  const ms = Date.now() - t0;
+  // Đồng hồ 2 giây cũ không phân biệt được một lần quét với hai (hai lần quét gốc
+  // chỉ tốn 116 ms) mà lại đỏ khi máy bận (1.4–2.1 giây). Số `scanned` — 500 và 3,
+  // không phải 503 — mới là thứ bắt hồi quy đó (CP-62). Hạn chót chỉ chống treo.
+  const r = await withDeadline(checkCommand({ cwd: root, taskId: 'T-1', only: 'convention' }), 20000, 'check --only=convention');
   assert.equal(r.exitCode, 0, r.output);
   assert.equal(readGate(root, 'T-1', 'convention', 'fe').scanned, 500);
   assert.equal(readGate(root, 'T-1', 'convention', 'be').scanned, 3);
-  assert.ok(ms < 2000, `mất ${ms}ms`);
 });
 
 test('CP-56-P2 each dev server is stopped before the next repo starts its own', async () => {
@@ -744,9 +750,6 @@ test('CP-56-P3 done reads six per-repo slots over 500 files quickly', async () =
   const slots = Object.keys(readGates(root, 'T-1')).filter((k) => /^(convention|ui|visual)@/.test(k));
   assert.equal(slots.length, 6);
 
-  const t0 = Date.now();
-  const r = doneCommand({ cwd: root, taskId: 'T-1' });
-  const ms = Date.now() - t0;
+  const { value: r } = withinBudget({ run: () => doneCommand({ cwd: root, taskId: 'T-1' }), budgetMs: 2000, label: 'done' });
   assert.equal(r.exitCode, 0, r.output);
-  assert.ok(ms < 2000, `mất ${ms}ms`);
 });

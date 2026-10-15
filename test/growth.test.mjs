@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { measureGrowth, assertLinear, SCAN_GROWTH } from './helpers/growth.mjs';
+import { measureGrowth, assertLinear, catchQuadratic, SCAN_GROWTH } from './helpers/growth.mjs';
 
 // CP-55 — harness đo hình dạng mà CP-10-P1 dùng. Mọi quyết định của nó được
 // kiểm bằng đồng hồ giả (`now`), nên kết quả là tất định. Chỉ E1 dùng đồng hồ
@@ -116,7 +116,6 @@ function quadraticUsedIn({ names, texts }) {
 }
 
 test('CP-55-E1 real quadratic code, timed for real, still trips the limit', (t) => {
-  const started = performance.now();
   const trees = { [SMALL]: inMemoryTree(SMALL), [LARGE]: inMemoryTree(LARGE) };
   // Fixture hỏng thì vòng lặp chạy rỗng; chốt trước khi tính giờ. Lượt này
   // cũng là lượt khởi động JIT, nên harness không chạy thêm lượt nào: một lượt
@@ -127,20 +126,27 @@ test('CP-55-E1 real quadratic code, timed for real, still trips the limit', (t) 
   // giây khi máy rỗi, và chạy chung suite thì hai cặp đã mất tới 4 giây. Một
   // cặp cũng là phía khó cho qua hơn — tỉ số nhỏ nhất chỉ có thể thấp đi khi
   // thêm cặp.
-  const result = measureGrowth({
-    run: (n) => quadraticUsedIn(trees[n]),
-    small: SMALL,
-    large: LARGE,
-    warmup: 0,
-    pairs: 1,
+  //
+  // Tối đa ba lần thử (CP-62): mẫu nhỏ 16–30 ms bị tải làm chậm 3× là đủ kéo tỉ
+  // số xuống dưới 16 trong một lần đo. Case qua ở lần đầu tiên vừa bị bắt vừa
+  // xong dưới 5 giây; harness mù trước code bậc hai thì trượt cả ba lần, và lỗi
+  // liệt kê tỉ số cùng thời gian của từng lần.
+  const caught = catchQuadratic({
+    measure: () => measureGrowth({
+      run: (n) => quadraticUsedIn(trees[n]),
+      small: SMALL,
+      large: LARGE,
+      warmup: 0,
+      pairs: 1,
+    }),
+    limit: LIMIT,
+    attempts: 3,
+    budgetMs: 5000,
   });
-  t.diagnostic(`tỉ số ${result.ratio.toFixed(1)}; nhỏ ${result.small.map((x) => x.toFixed(1)).join('/')} ms; `
-    + `lớn ${result.large.map((x) => x.toFixed(0)).join('/')} ms`);
+  t.diagnostic(caught.log.map((a, i) => `lần ${i + 1}: tỉ số ${a.ratio.toFixed(1)} trong ${a.ms.toFixed(0)} ms`).join('; '));
 
-  assert.ok(result.ratio >= LIMIT, `stub bậc hai chỉ đọc ${result.ratio.toFixed(1)}`);
-  assert.throws(() => assertLinear(result, LIMIT), (err) => err instanceof AssertionError && /bậc hai/.test(err.message));
-  const elapsed = performance.now() - started;
-  assert.ok(elapsed < 5000, `E1 phải xong dưới 5 giây, mất ${elapsed.toFixed(0)} ms`);
+  assert.ok(caught.result.ratio >= LIMIT, `stub bậc hai chỉ đọc ${caught.result.ratio.toFixed(1)}`);
+  assert.ok(caught.error instanceof AssertionError && /bậc hai/.test(caught.error.message));
 });
 
 test('CP-55-E2 an error from the measured code comes out unchanged', () => {

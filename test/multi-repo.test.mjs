@@ -11,6 +11,7 @@ import path from 'node:path';
 import { checkCommand } from '../commands/check.mjs';
 import { doneCommand } from '../commands/done.mjs';
 import { initRepo } from './helpers/git-repo.mjs';
+import { withinBudgetAsync } from './helpers/timing.mjs';
 import { testCommand } from '../commands/test.mjs';
 import { readGates, readGate, slotFor, parseSlot } from '../lib/gate-store.mjs';
 import { getSalt, signRecord } from '../lib/signature.mjs';
@@ -307,10 +308,11 @@ test('CP-13-P2 a single-repo project pays nothing for the multi-repo path', asyn
     specText: spec({ scope: 'src/' }),
     dirs: ['src'],
   });
-  const t0 = Date.now();
-  await checkCommand({ cwd: root, taskId: 'T-1' });
-  const ms = Date.now() - t0;
-  assert.ok(ms < 10000, `check một repo mất ${ms}ms — quá lâu cho hai gate và một lệnh node`);
+  await withinBudgetAsync({
+    run: () => checkCommand({ cwd: root, taskId: 'T-1' }),
+    budgetMs: 10000,
+    label: 'check một repo — quá lâu cho hai gate và một lệnh node',
+  });
 });
 
 test('CP-13-S3 a bare `compass test` cannot overwrite multi-repo evidence with a green root run', async () => {

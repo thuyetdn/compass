@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseInvestigation, validateForClose } from '../lib/investigation-parser.mjs';
+import { withinBudget } from './helpers/timing.mjs';
 
 const TEMPLATE_PATH = path.join(
   path.dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'investigation.md',
@@ -464,10 +465,7 @@ test('CP-45-V3 a quote marker after a bullet is still not a prefix', () => {
 
 test('CP-45-E1 two hundred spaces alone parse quickly and do not throw', () => {
   const doc = fileWith(`**Cách kiểm:** c\n${' '.repeat(200)}\n**Kết quả:** x`);
-  const started = Date.now();
-  parseInvestigation(doc);
-  const elapsed = Date.now() - started;
-  assert.ok(elapsed < 200, `mất ${elapsed}ms, ngưỡng 200ms`);
+  withinBudget({ run: () => parseInvestigation(doc), budgetMs: 200, label: 'parseInvestigation' });
 });
 
 test('CP-45-E2 a line of prefix characters with no keyword matches nothing', () => {
@@ -509,21 +507,15 @@ test('CP-45-S1 forty spaces before a non-matching line cost almost nothing', () 
   // The shape that costs minutes today: deep indent, then a line the pattern
   // ultimately rejects, so the engine explores every way to split the spaces.
   const doc = fileWith(`**Cách kiểm:** c\n${' '.repeat(40)}Kết quả không có dấu sao\n**Kết quả:** x`);
-  const started = Date.now();
-  parseInvestigation(doc);
-  const elapsed = Date.now() - started;
-  assert.ok(elapsed < 50, `mất ${elapsed}ms, ngưỡng 50ms`);
+  withinBudget({ run: () => parseInvestigation(doc), budgetMs: 50, label: 'parseInvestigation' });
 });
 
 test('CP-45-P1 a file whose hypothesis lines carry 16-space indents parses fast', () => {
   const pad = ' '.repeat(16);
   const doc = fileWith(`${pad}- **Cách kiểm:** c\n${pad}- **Kết quả:** x`);
-  const started = Date.now();
-  const parsed = parseInvestigation(doc);
-  const elapsed = Date.now() - started;
+  const { value: parsed } = withinBudget({ run: () => parseInvestigation(doc), budgetMs: 500, label: 'parseInvestigation' });
 
   assert.equal(parsed.hypotheses.find((h) => h.id === 'H1').result, 'x');
-  assert.ok(elapsed < 500, `mất ${elapsed}ms, ngưỡng 500ms`);
 });
 
 // ---- CP-53: dòng `## ` trong khối code không phải ranh giới mục ----
