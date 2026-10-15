@@ -6,6 +6,8 @@ import path from 'node:path';
 import { knowledgeCommand } from '../commands/knowledge.mjs';
 import { readGate } from '../lib/gate-store.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
+import { scanComponents } from '../lib/knowledge-scan.mjs';
+import { measureGrowth, assertLinear, SCAN_GROWTH } from './helpers/growth.mjs';
 
 const SPEC = `# T-1: Tiêu đề
 Loại: fix
@@ -44,8 +46,9 @@ function makeRepo({ knowledge = true, files = {} } = {}) {
 
 const APP = { 'src/Button.jsx': 'export function Button({ variant = "a", size }) { return <b>{size}</b>; }\n' };
 
-// Quét một cây nguồn giả n file, mỗi file import file kế tiếp. Trả về mili-giây.
-function doQuet(n) {
+// Cây nguồn giả n file, mỗi file import file kế tiếp. Dựng một lần, ngoài
+// vùng tính giờ: ghi 4000 file mất gần hai giây, tốn hơn chính lượt quét.
+function cayNguon(n) {
   const files = {};
   for (let i = 0; i < n; i++) {
     files[`src/C${i}.jsx`] =
@@ -54,12 +57,7 @@ function doQuet(n) {
       `export function C${i}({ a, b }) { return null; }
 `;
   }
-  const root = makeRepo({ files });
-  const t0 = Date.now();
-  const r = knowledgeCommand({ cwd: root, sync: true });
-  const ms = Date.now() - t0;
-  assert.equal(r.exitCode, 0, r.output);
-  return ms;
+  return makeRepo({ files });
 }
 
 test('CP-10-V1 a project with no .knowledge passes and says so', () => {
@@ -235,18 +233,32 @@ test('CP-10-EC2 syncing does not move the source hash', () => {
   assert.equal(hashSource(root), truoc, 'sync không được đụng vào sourceHash');
 });
 
-test('CP-10-P1 the scan grows with the file count, not its square', () => {
+test('CP-10-P1 the scan grows with the file count, not its square', (t) => {
   // Đo **hình dạng**, không đo tốc độ: ngưỡng tuyệt đối không canh được gì vì
   // 120 file chạy 25ms, còn dư 200 lần trước khi chạm 5 giây.
   //
   // Và phải đo ở thang đủ lớn. Bản trước chọn 150→600, nơi số hạng bậc hai
   // chưa kịp trội: code vẫn O(component × file) mà tỉ số chỉ 2.9, test xanh.
-  // Ở 500→2000 thì cùng code đó cho tỉ số 6.8, và 1000→4000 cho 10.2.
-  const do1 = doQuet(500);
-  const do2 = doQuet(2000);
+  //
+  // Bản sau đo cả `knowledge --sync` ở 500→2000, một mẫu mỗi cỡ, chốt `< 8`.
+  // Nó chập chờn ở cả hai phía (CP-55): code tuyến tính đọc 3.3 nhưng một đợt
+  // tải rơi vào mẫu lớn đẩy lên 8.7, còn bản sao bậc hai lại chỉ đọc 5.7–8.6,
+  // vì phần ghi JSON và băm manifest tuyến tính vẫn chiếm phần lớn thời gian.
+  //
+  // Nên giờ: chỉ tính giờ `scanComponents` — chỗ CP-10 thật sự từng bậc hai —
+  // ở 500→4000, nhiều cặp xen kẽ, lấy tỉ số nhỏ nhất. Tuyến tính đọc quanh
+  // 7–8, bậc hai quanh 35, ngưỡng 16. Hệ quả: lệnh `knowledge` (ghi derived,
+  // băm manifest) không còn được test này canh.
+  const { small, large, warmup, pairs, limit } = SCAN_GROWTH;
+  const roots = { [small]: cayNguon(small), [large]: cayNguon(large) };
 
-  // Bốn lần số file. Tuyến tính thì ~4x, bậc hai thì ~16x. Chốt ở 8 — đủ xa cả
-  // hai phía để nhiễu máy không làm test chập chờn.
-  const tiSo = do2 / Math.max(do1, 1);
-  assert.ok(tiSo < 8, `gấp 4 lần file làm thời gian gấp ${tiSo.toFixed(1)} lần — bậc hai`);
+  // Fixture hỏng thì lượt quét rỗng và tỉ số của hai số gần 0 chẳng nói gì.
+  for (const n of [small, large]) {
+    assert.equal(Object.keys(scanComponents(roots[n]).components).length, n, `cây ${n} file`);
+  }
+
+  const result = measureGrowth({ run: (n) => scanComponents(roots[n]), small, large, warmup, pairs });
+  t.diagnostic(`tỉ số ${result.ratio.toFixed(2)} (các cặp ${result.ratios.map((r) => r.toFixed(2)).join(' · ')}); `
+    + `nhỏ ${result.small.map((x) => x.toFixed(0)).join('/')} ms; lớn ${result.large.map((x) => x.toFixed(0)).join('/')} ms`);
+  assertLinear(result, limit);
 });

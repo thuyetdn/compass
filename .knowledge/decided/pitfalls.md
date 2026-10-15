@@ -72,7 +72,7 @@ Mỗi mục đến từ một điều tra đã đóng.
 **Triệu chứng:** test khai "quét xong dưới 5 giây" xanh, trong khi gate chạy bậc hai — 120 file 91ms nhưng 960 file gần 4 giây
 **Nguyên nhân:** ngưỡng chọn theo cỡ dữ liệu test, không theo cỡ dữ liệu thật. 120 file chạy 25ms nên còn dư 200 lần trước khi chạm 5 giây; code chậm đi 20 lần vẫn xanh.
 **Vùng ảnh hưởng:** mọi test hiệu năng
-**Phòng tránh:** đo **hình dạng**, không đo tốc độ. Chạy hai cỡ dữ liệu rồi so tỉ số: gấp bốn số file mà thời gian gấp bốn là tuyến tính, gấp mười sáu là bậc hai. Tỉ số không phụ thuộc máy nhanh hay chậm, nên vừa canh được vừa không chập chờn.
+**Phòng tránh:** đo **hình dạng**, không đo tốc độ. Chạy hai cỡ dữ liệu rồi so tỉ số: gấp bốn số file mà thời gian gấp bốn là tuyến tính, gấp mười sáu là bậc hai. Tỉ số không phụ thuộc máy nhanh hay chậm, nhưng một mẫu cho mỗi cỡ vẫn chập chờn: một đợt tải rơi vào mẫu lớn là đủ đẩy 3.5 lên 8.7 (CP-55). Lấy nhiều cặp xen kẽ nhỏ, lớn, nhỏ, lớn, chia mỗi mẫu lớn cho mẫu nhỏ ngay trước nó, rồi lấy tỉ số nhỏ nhất — `test/helpers/growth.mjs`.
 
 ## CP-11: Fixture phải đi tới được chỗ cần kiểm tra
 
