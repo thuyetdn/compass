@@ -84,7 +84,9 @@ Phân vân giữa hai loại thì chọn loại nặng hơn.
 
 Mỗi test case trong spec có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`) và tên test phải bắt đầu bằng ID
 đó. Nhiều task dùng chung một test suite thì `H1` trùng nhau, nên đặt kèm task id:
-`test('T-12-H1 lọc theo quốc gia', …)`.
+`test('T-12-H1 lọc theo quốc gia', …)`. Đặt kèm cho mọi test của task, không chỉ test bị trùng:
+task đã đặt tên kèm task id thì test tên trần không được tính, nên một test `S1 …` trần sẽ không
+được đếm là S1 của T-12 và gate đỏ, bảo đổi tên thành `T-12-S1 …`.
 
 ## Các gate
 

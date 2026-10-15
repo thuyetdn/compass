@@ -446,14 +446,18 @@ test('CP-15-EC17 a colliding ID is not also filed under the other buckets', () =
 
 test('CP-15-EC18 a longer ID does not answer for the escape hatch of a shorter one', () => {
   // `CP-15-H10` mang tiền tố task id và bắt đầu bằng chữ `H1`. Nó là test của
-  // H10, không phải của H1 — nên H1 vẫn đụng độ, và H10 vẫn được tính.
+  // H10, không phải của H1 — nên H1 vẫn không được tính, và H10 vẫn được tính.
+  //
+  // Từ CP-63, `CP-15-H10` cho biết task này đặt tên kèm task id, nên hai dòng
+  // `H1` trần vào nhóm "test tên trần không được tính" chứ không vào nhóm đụng độ.
   const output = [
     'ok 1 - H1 test của task khác',
     'ok 2 - H1 test của task khác nữa',
     'ok 3 - CP-15-H10 test của ID khác',
   ].join('\n');
   const result = extractRanIds(output, ['H1', 'H10'], { taskId: 'CP-15' });
-  assert.deepEqual(result.collided, ['H1'], 'CP-15-H10 không phải test của H1');
+  assert.ok(!result.ran.includes('H1'), 'CP-15-H10 không phải test của H1');
+  assert.deepEqual(result.seenOnBareLines, ['H1']);
   assert.deepEqual(result.ran, ['H10']);
 });
 

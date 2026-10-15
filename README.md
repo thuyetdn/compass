@@ -128,6 +128,20 @@ test('T-12-H1 thêm một việc', ...)   // gate nhận ra đây là test của
 Chỉ cần đổi tên test của task đang làm, không phải đổi test của người khác. Nhận cả
 `T-12-H1`, `T-12: H1`, `[T-12] H1`.
 
+Trong suite chung với task khác, đặt tên kèm task id cho mọi test của task, không chỉ test bị
+đụng. Luật: task đã đặt tên kèm task id thì test tên trần không được tính. Có `T-12-H1` pass rồi thì
+một test `S1 …` trần không còn đứng thay cho S1 của T-12, dù chỉ có mình nó mang S1:
+
+```
+✗ Gate test FAILED
+  Spec khai báo 13 test cases, chỉ tìm thấy 12 đã chạy.
+  Task này đặt tên test kèm "T-12-", nên test tên trần không được tính: S1
+        S1 hiện thẻ script dạng chữ
+```
+
+Task chưa đặt tên kèm task id cho test nào thì gate không có gì để dựa vào, và vẫn tính một test
+trần duy nhất, kể cả khi đó là test của task khác.
+
 ## Test
 
 ```bash

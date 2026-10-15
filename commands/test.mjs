@@ -193,6 +193,7 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
     seenOnSharedLines: extracted.seenOnSharedLines,
     collidedIds: extracted.collided,
     seenOnOtherTasks: extracted.seenOnOtherTasks,
+    seenOnBareLines: extracted.seenOnBareLines,
   }, repo);
 
   if (ok) {
@@ -227,6 +228,14 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
       lines.push(`Có test mang ID này nhưng đều khai là của task khác: ${extracted.seenOnOtherTasks.join(", ")}`);
       lines.push(`      Task này chưa viết test cho những case đó.`);
     }
+    if (extracted.seenOnBareLines.length > 0) {
+      lines.push(`Task này đặt tên test kèm "${taskId}-", nên test tên trần không được tính: ${extracted.seenOnBareLines.join(', ')}`);
+      for (const id of extracted.seenOnBareLines) {
+        for (const name of extracted.bareMatches[id].slice(0, 3)) {
+          lines.push(`      ${name}`);
+        }
+      }
+    }
     if (extracted.collided.length > 0) {
       lines.push(`Khớp nhiều test khác nhau, không rõ cái nào là của task này: ${extracted.collided.join(', ')}`);
       for (const id of extracted.collided) {
@@ -240,7 +249,8 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
               !extracted.seenOnUnknownLines.includes(id) &&
               !extracted.seenOnSharedLines.includes(id) &&
               !extracted.collided.includes(id) &&
-              !extracted.seenOnOtherTasks.includes(id)
+              !extracted.seenOnOtherTasks.includes(id) &&
+              !extracted.seenOnBareLines.includes(id)
     );
     if (neverSeen.length > 0) {
       lines.push(`Không tìm thấy dấu vết: ${neverSeen.join(', ')}`);
@@ -263,6 +273,8 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
     // nhau trên cùng màn hình, và đẩy người dùng đi sửa reporter đang chạy đúng.
     ...extracted.collided,
     ...extracted.seenOnOtherTasks,
+    // Cùng lý do: test tên trần bị bỏ qua vẫn là test đã in tên ra output.
+    ...extracted.seenOnBareLines,
   ]).size;
   const reporterLikely = suiteOk && !comparison.ok && specIds.length > 0 &&
     seenAnywhere / specIds.length < REPORTER_SUSPECT_RATIO;
@@ -277,6 +289,10 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
     // ai. Lời khuyên viết thêm test sẽ làm mọi thứ tệ hơn: thêm một dòng nữa
     // mang cùng ID là thêm một dòng đụng.
     hints.push(hint(`Những ID này đã có test chạy, nhưng nhiều test khác nhau cùng mang một ID nên gate không biết cái nào của task này. Đặt tên test kèm task id để chỉ rõ: \`${taskId}-${extracted.collided[0]} …\`. Chỉ cần đổi tên test của task này, không phải đổi test của người khác.`));
+  }
+  if (extracted.seenOnBareLines.length > 0) {
+    const ten = `${taskId}-${extracted.seenOnBareLines[0]}`;
+    hints.push(hint(`Test tên trần không cho biết nó của task nào. Nếu đó là test của task này, đổi tên thành \`${ten} …\`. Nếu không, viết test \`${ten} …\` cho case đó. Không cần đổi test của task khác.`));
   }
   hints.push(hint('Viết test cho các case còn thiếu, hoặc sửa spec nếu chúng không còn cần thiết (sửa spec cần duyệt lại).'));
 

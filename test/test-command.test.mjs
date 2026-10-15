@@ -258,7 +258,9 @@ test('CP-15-E2 a red suite with a collision reports both', () => {
 });
 
 test('CP-15-H9 naming a test with the task id resolves the collision', () => {
-  const escaped = 'node -e "console.log(\'ok 1 - H1 chuyện của task khác\'); console.log(\'ok 2 - T-1-H1 case một\'); console.log(\'ok 3 - H2 case hai\')"';
+  // H2 cũng mang tiền tố: từ CP-63, task đã đặt tên kèm task id thì test tên
+  // trần `H2 case hai` không còn được tính cho nó. Case này đo đường thoát của H1.
+  const escaped = 'node -e "console.log(\'ok 1 - H1 chuyện của task khác\'); console.log(\'ok 2 - T-1-H1 case một\'); console.log(\'ok 3 - T-1-H2 case hai\')"';
   const root = makeTask(escaped);
   const result = testCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 0, result.output);

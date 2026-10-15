@@ -432,8 +432,9 @@ Diff quá 2MB thì gate từ chối. Không ai đọc hết chừng đó, và ga
 | Dòng fail / skip / error | "xuất hiện nhưng không pass" |
 | Dòng không nhận ra định dạng | "không nhận diện được định dạng" |
 | Hai dòng pass khác nhau, cùng ID | "không rõ cái nào của task này" |
+| Dòng pass tên trần, trong khi task đã có test đặt tên kèm task id | "test tên trần không được tính" |
 
-Bốn nhóm tách riêng vì đòi bốn việc khác nhau: viết test mới, bỏ skip, kiểm tra reporter, đặt lại tên.
+Các nhóm tách riêng vì đòi những việc khác nhau: viết test mới, bỏ skip, kiểm tra reporter, đặt lại tên.
 
 **Reporter phải in tên từng test.** Chỉ in tên **file** thì mọi ID biến mất và gate báo thiếu dù
 bạn đã viết đủ: `node --test` chạy sẵn, Vitest cần `--reporter=tap`, Jest cần `--verbose`.
@@ -441,6 +442,12 @@ bạn đã viết đủ: `node --test` chạy sẵn, Vitest cần `--reporter=ta
 **Một ID khớp nhiều test là đỏ.** Mọi spec đều dùng `H1`, `V1`, `EC1`, nên nhiều task chung một
 suite thì gate không biết test nào của ai — task chưa viết gì vẫn qua. Đường thoát: đặt tên test
 kèm task id, `test('T-12-H1 …')`. Chỉ đổi tên test của task đang làm.
+
+**Đặt tiền tố thì đặt cho mọi test của task.** Luật: task đã đặt tên kèm task id thì test tên trần
+không được tính. Chỉ cần một test `T-12-H1 …` pass, `S1 …` trần không còn được tính là S1 của T-12,
+dù nó là dòng duy nhất mang S1. Test trần không cho biết nó của ai — trong suite chung, nó dễ là test
+của task khác. Gate đỏ, in tên test bị bỏ, và bảo đổi thành `T-12-S1 …`. Task không đặt tiền tố nào
+thì gate không có tín hiệu gì, và vẫn tính một dòng trần duy nhất — kể cả khi đó là test của task khác.
 
 **Giới hạn:** quét text không kín được. Gate bắt case thường gặp và **gọi tên thứ nó không phân
 loại được**, chứ không giả vờ chắc chắn. Đây là lưới chắn, không phải khóa.
