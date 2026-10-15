@@ -32,7 +32,9 @@ function git(cwd, args) {
   execFileSync('git', args, { cwd, stdio: 'ignore' });
 }
 
-function makeRepo({ withChanges = true, gitInit = true } = {}) {
+// `withSource: false` để commit đầu chỉ mang file của Compass. Từ CP-52 repo một
+// commit được soi từ cây rỗng, nên `src/filter.js` trong commit đầu là việc phải soi.
+function makeRepo({ withChanges = true, gitInit = true, withSource = true } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-review-'));
   mkdirSync(path.join(root, '.compass', 'T-1', 'evidence'), { recursive: true });
   mkdirSync(path.join(root, 'src'), { recursive: true });
@@ -43,7 +45,7 @@ function makeRepo({ withChanges = true, gitInit = true } = {}) {
     git(root, ['init']);
     git(root, ['config', 'user.email', 'test@example.com']);
     git(root, ['config', 'user.name', 'Test']);
-    writeFileSync(path.join(root, 'src', 'filter.js'), 'export const filter = () => [];\n');
+    if (withSource) writeFileSync(path.join(root, 'src', 'filter.js'), 'export const filter = () => [];\n');
     git(root, ['add', '-A']);
     git(root, ['commit', '-m', 'base']);
 
@@ -193,7 +195,8 @@ test('CP-6-E1 a directory that is not a git repo is reported', () => {
 });
 
 test('CP-6-E2 nothing to review is reported rather than briefed', () => {
-  const root = makeRepo({ withChanges: false });
+  // Commit duy nhất chỉ mang `.compass/`: diff từ cây rỗng vẫn rỗng (CP-52).
+  const root = makeRepo({ withChanges: false, withSource: false });
   const result = reviewCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 2);
   assert.match(result.output, /Không có thay đổi/);

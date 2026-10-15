@@ -113,6 +113,8 @@ export function reviewCommand({ cwd, taskId }) {
     end: collected.end ?? null,
     endAtHead: collected.endAtHead ?? false,
     narrowedTo: collected.narrowedTo ?? [],
+    // Repo một commit soi từ cây rỗng; brief phải nói ra điều đó (CP-52).
+    fromEmptyTree: collected.fromEmptyTree ?? false,
   });
 
   // Phase two: an agent has answered, so read the verdict — but only if the
