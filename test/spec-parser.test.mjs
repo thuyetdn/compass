@@ -318,6 +318,40 @@ test('CP-39-P2 a 2000-line spec with the new keyword parses in under 50 ms', () 
   assert.ok(ms < 50, `parse took ${ms.toFixed(1)} ms`);
 });
 
+// CP-54 — parser giữ lại từ khóa spec đã viết. Gate trích lại dòng khai cho
+// người đọc; spec viết `Kiểm bằng:` mà gate trích `Kiểm tra bằng:` thì người đó
+// tìm trong spec không thấy dòng nào như vậy.
+
+test('CP-54-V1 verifyByKeyword names the form the spec wrote, or null when nothing is declared', () => {
+  const cu = parseSpec(withKeyword('Kiểm bằng: Mắt'));
+  assert.equal(cu.verifyByKeyword, 'Kiểm bằng');
+  assert.equal(cu.verifyBy, 'mắt');
+
+  const moi = parseSpec(withKeyword('Kiểm tra bằng: mắt'));
+  assert.equal(moi.verifyByKeyword, 'Kiểm tra bằng');
+  assert.equal(moi.verifyBy, 'mắt');
+
+  const khong = parseSpec(MINIMAL);
+  assert.equal(khong.verifyByKeyword, null);
+  assert.equal(khong.verifyBy, null);
+});
+
+test('CP-54-V2 an empty `Kiểm bằng:` sets neither the value nor the keyword', () => {
+  const s = parseSpec(withKeyword('Kiểm bằng:'));
+  assert.equal(s.verifyBy, null);
+  assert.equal(s.verifyByKeyword, null);
+});
+
+test('CP-54-EC1 the keyword comes from the same line as the value, in either order', () => {
+  const truoc = parseSpec(withKeyword('Kiểm tra bằng: mắt\nKiểm bằng: đọc'));
+  assert.equal(truoc.verifyBy, 'mắt');
+  assert.equal(truoc.verifyByKeyword, 'Kiểm tra bằng');
+
+  const nguoc = parseSpec(withKeyword('Kiểm bằng: đọc\nKiểm tra bằng: mắt'));
+  assert.equal(nguoc.verifyBy, 'đọc');
+  assert.equal(nguoc.verifyByKeyword, 'Kiểm bằng');
+});
+
 // ---- CP-36: task khai cả commit kết thúc ----
 
 test('CP-36-H1 parseSpec reads a declared review end', () => {

@@ -388,11 +388,77 @@ test('CP-39-E1 owning real tests under `Kiểm tra bằng:` is a contradiction q
   assert.match(result.output, /Bỏ dòng "Kiểm tra bằng:"/);
 });
 
-test('CP-39-E2 the old form in the same situation gets the same exit code and message shape', () => {
-  const coTest = 'node -e "console.log(\'ok 1 - T-1-H1 test thật\')"';
-  const root = makeTask(coTest, SPEC_MAT);
+// CP-54 — gate trích đúng từ khóa spec đã viết. Spec viết `Kiểm bằng:` mà gate
+// bảo bỏ dòng `Kiểm tra bằng:` thì người đọc tìm trong spec không thấy dòng nào.
+
+const SPEC_BOI = SPEC.replace('Phạm vi: src/', 'Phạm vi: docs/\nKiểm bằng: bói toán');
+const coTestCuaMinh = 'node -e "console.log(\'ok 1 - T-1-H1 test thật\')"';
+
+test('CP-54-H1 an unknown value in the old form is quoted with the old keyword', () => {
+  const root = makeTask(printBoth, SPEC_BOI);
   const result = testCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 2);
-  assert.match(result.output, /Spec khai kiểm tra bằng mắt/);
+  assert.match(result.output, /"Kiểm bằng: bói toán" không hợp lệ/);
+  assert.doesNotMatch(result.output, /Kiểm tra bằng/, 'spec không có dòng nào viết như vậy');
+});
+
+test('CP-54-H2 an unknown value in the new form is still quoted with the new keyword', () => {
+  const la = SPEC.replace('Phạm vi: src/', 'Phạm vi: docs/\nKiểm tra bằng: bói toán');
+  const root = makeTask(printBoth, la);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /"Kiểm tra bằng: bói toán" không hợp lệ/);
+});
+
+test('CP-54-H3 the old form in the contradiction path is told to drop `Kiểm bằng:`', async (t) => {
+  // H3 chính là CP-39-E2, sửa lại — assertion cũ của nó khóa đúng lỗi này. Nó
+  // giữ tên cũ để gate của CP-39 vẫn thấy case E2 của mình.
+  await t.test('CP-39-E2 the old form in the same situation gets the same exit code and message shape', () => {
+    const root = makeTask(coTestCuaMinh, SPEC_MAT);
+    const result = testCommand({ cwd: root, taskId: 'T-1' });
+    assert.equal(result.exitCode, 2);
+    assert.match(result.output, /Spec khai kiểm tra bằng mắt/);
+    assert.match(result.output, /Bỏ dòng "Kiểm bằng:"/);
+    assert.doesNotMatch(result.output, /Bỏ dòng "Kiểm tra bằng:"/);
+  });
+});
+
+test('CP-54-H4 the new form in the contradiction path is still told to drop `Kiểm tra bằng:`', () => {
+  const root = makeTask(coTestCuaMinh, SPEC_MAT_MOI);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
   assert.match(result.output, /Bỏ dòng "Kiểm tra bằng:"/);
+});
+
+test('CP-54-E1 a valid old-form declaration keeps its prose and its gate record shape', () => {
+  const root = makeTask(printBoth, SPEC_MAT);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.match(result.output, /2 case kiểm tra bằng mắt/, 'dòng pass là lời kể, không phải trích dòng');
+  const gate = readGate(root, 'T-1', 'test');
+  assert.equal(gate.verifyBy, 'mắt');
+  assert.equal('verifyByKeyword' in gate, false, 'từ khóa chỉ định hình lời nhắn, không phải bằng chứng');
+});
+
+test('CP-54-E2 an unknown old-form value still lists the valid ones and writes no record', () => {
+  const root = makeTask(printBoth, SPEC_BOI);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.match(result.output, /Giá trị nhận: mắt, người, eye, manual\./);
+  assert.equal(readGate(root, 'T-1', 'test'), null);
+});
+
+test('CP-54-EC2 an empty old-form line before a filled new-form line quotes the new keyword', () => {
+  const la = SPEC.replace('Phạm vi: src/', 'Phạm vi: docs/\nKiểm bằng:\nKiểm tra bằng: bói toán');
+  const root = makeTask(printBoth, la);
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /"Kiểm tra bằng: bói toán" không hợp lệ/);
+});
+
+test('CP-54-EC3 a CRLF spec in the old form is quoted without a carriage return', () => {
+  const root = makeTask(printBoth, SPEC_BOI.replace(/\n/g, '\r\n'));
+  const result = testCommand({ cwd: root, taskId: 'T-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /"Kiểm bằng: bói toán" không hợp lệ/);
+  assert.doesNotMatch(result.output, /\r/);
 });

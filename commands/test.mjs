@@ -64,7 +64,7 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
     if (!KIEM_HOP_LE.includes(spec.verifyBy)) {
       return {
         exitCode: 2,
-        output: `"Kiểm tra bằng: ${spec.verifyBy}" không hợp lệ. Giá trị nhận: ${KIEM_HOP_LE.join(", ")}.`,
+        output: `"${spec.verifyByKeyword}: ${spec.verifyBy}" không hợp lệ. Giá trị nhận: ${KIEM_HOP_LE.join(", ")}.`,
       };
     }
     if (specIds.length === 0) {
@@ -90,7 +90,7 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
         exitCode: 2,
         output: [
           `Spec khai kiểm tra bằng ${spec.verifyBy}, nhưng suite có test mang ID của task này: ${cuaMinh.join(", ")}.`,
-          "Bỏ dòng \"Kiểm tra bằng:\" nếu task có test thật, hoặc đổi tên test nếu chúng thuộc task khác.",
+          `Bỏ dòng "${spec.verifyByKeyword}:" nếu task có test thật, hoặc đổi tên test nếu chúng thuộc task khác.`,
         ].join("\n"),
       };
     }
