@@ -220,6 +220,7 @@ Tài liệu sai tệ hơn không có tài liệu: người đọc tin vào thôn
 ```
 compass knowledge          docs còn khớp code không?
 compass knowledge --sync   sinh lại
+compass knowledge --page   ghi trang HTML xem bằng trình duyệt
 ```
 
 Gate đỏ khi file nguồn đổi sau lần sinh cuối, và `done` gọi nó — sửa component xong mà không regen thì không đóng được task.
@@ -674,8 +675,21 @@ Bốn điều cần biết:
 
 ### Dựng config cho dự án nhiều repo
 
-`compass init` chỉ đẻ config một repo. Nhiều repo thì **đọc từng thư mục con rồi viết**, đừng hỏi
-người dùng từng repo một — thông tin đã nằm sẵn trong file.
+```
+compass init --multi
+```
+
+Lệnh này đọc các thư mục con và viết `repos` giúp bạn. Nó không nhận task id: nó dựng **config**,
+không mở task. Chạy một lần lúc bắt đầu dự án, rồi `init <id> --type=` như thường.
+
+Ba lúc nó từ chối ghi, cả ba cùng một lý do — một config sai tệ hơn không có config, vì người dùng
+tin là nó đúng: config đã tồn tại (in cái dò được, để người tự gộp), không thấy repo con nào, và
+hai repo cùng tranh một `devUrl` (phải người chọn cổng, đoán thì `visual` chụp nhầm trang).
+
+Lệnh đọc file chứ không chạy gì của dự án đích: một `scripts.test` chứa `&& rm -rf` đi vào config
+nguyên văn như một chuỗi, không được thực thi lúc dò. Symlink bị bỏ qua hẳn, không đi theo.
+
+Dò sai hay thiếu thì sửa tay theo bảng dưới — thông tin đều nằm sẵn trong file.
 
 Với mỗi thư mục con có `package.json`:
 
@@ -723,7 +737,14 @@ hoặc, với `ui`/`visual`, khe bỏ qua hợp lệ mà `check` ghi cho repo kh
 hay config không đọc được, là "chưa chạy" — không có repo nào được ké bản ghi của repo khác, và khe trần
 không bao giờ được dùng thay.
 
-Chưa có: trang xem knowledge bằng trình duyệt, và lệnh dựng config nhiều repo (làm tay theo mục trên).
+`compass knowledge --page` ghi `.knowledge/derived/index.html` — một file tự chứa, mở bằng trình
+duyệt, không cần mạng. Tài liệu trong `decided/` nằm cạnh component máy quét, và component nào
+`confident: false` thì dòng "đừng tin" nằm ngay cạnh nó, không phải ở cuối trang. Trang đọc
+`components.json` chứ không quét lại: quét lại thì trang và gate có thể nói hai tập component khác
+nhau, và lúc đó không ai biết tin cái nào.
+
+Tài liệu trong `decided/` hiện nguyên văn, không render markdown — render nghĩa là sinh HTML từ text
+của dự án đích, và một file `.md` chứa `<script>` sẽ chạy.
 
 ### Giới hạn còn lại của `done`
 
