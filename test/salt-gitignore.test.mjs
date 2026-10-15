@@ -168,8 +168,11 @@ test('CP-30-E1 .gitignore có sẵn thì không thêm dòng data/', () => {
   const noiDung = readFileSync(ignorePath(root), 'utf8');
   rmSync(root, { recursive: true, force: true });
 
-  // Giữ luật CP-28: đã có thì không đụng. Dự án cũ phải tự thêm — SKILL.md nói.
-  assert.equal(noiDung, '.salt\n');
+  // CP-59 đảo luật này cho đúng một trường hợp: file chỉ có `.salt` là file
+  // `init` cũ viết, không phải người dùng sửa — nên được nâng lên mặc định.
+  // Tên test giữ nguyên để lịch sử thấy quyết định đổi ở đâu. File có thêm bất
+  // cứ gì khác vẫn là của người dùng: CP-28-V1 và CP-28-EC1 canh chuyện đó.
+  assert.equal(noiDung, '.salt\ndata/\n');
 });
 
 test('CP-30-EC2 .gitignore do getSalt viết ra chạy đúng với git thật', () => {

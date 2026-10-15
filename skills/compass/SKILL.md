@@ -522,8 +522,11 @@ là mất, và hồ sơ dẫn "query trả 47 dòng" mà không ai kiểm tra l�
 bằng chứng. Tên file theo khuôn `<task-id>-<việc>-<ngày>.<đuôi>`, khớp tên script sinh ra nó:
 `queries/inv1-prod-queries.sql` → `INV-1-prod-queries-0907.csv`. Không phải nghĩ tên, chỉ điền vào khuôn.
 
-`data/` được `.gitignore` che sẵn vì query production trả về email và tên khách hàng. Dự án dựng
-trước tháng 9/2026 có `.gitignore` chỉ một dòng `.salt` — tự thêm `data/` vào.
+`data/` được che sẵn vì query production trả về email và tên khách hàng. Compass viết
+`.compass/.gitignore` gồm hai dòng `.salt` và `data/`, dù `init` hay gate đầu tiên chạm `.compass/`
+trước. File chỉ có đúng một dòng `.salt` là file `init` bản cũ viết: `init` nâng nó lên và báo một
+dòng. File có nội dung khác là của bạn, Compass không sửa byte nào; nếu git nói `data/` chưa bị bỏ
+qua, `init` cảnh báo và đưa dòng cần thêm — `data/`.
 
 ```
 compass scripts        liệt kê những gì đã có
