@@ -88,6 +88,9 @@ Mỗi test case trong spec có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`) và tên
 task đã đặt tên kèm task id thì test tên trần không được tính, nên một test `S1 …` trần sẽ không
 được đếm là S1 của T-12 và gate đỏ, bảo đổi tên thành `T-12-S1 …`.
 
+Mỗi tên test chỉ mang đúng một ID của spec. Tên `T-12-H1 xử lý giống H2` nhắc tới hai ID, nên gate
+không biết dòng đó là của case nào và không tính H1.
+
 ## Các gate
 
 `check` chạy từ gate rẻ tới gate đắt và dừng ở gate đỏ đầu tiên.

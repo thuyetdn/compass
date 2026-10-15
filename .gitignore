@@ -7,6 +7,10 @@ dist/
 .probe-tmp/
 .tmp-review/
 
+# Claude Code tạo worktree của agent ở đây. Gate đã bỏ qua chúng (CP-60), nhưng `git add .`
+# vẫn đưa chúng vào commit dưới dạng gitlink.
+.claude/worktrees/
+
 # Máy sinh: verify được nên không cần lưu, và nó đổi mỗi lần sync.
 **/.knowledge/derived/
 

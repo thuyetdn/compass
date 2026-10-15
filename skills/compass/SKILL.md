@@ -523,7 +523,8 @@ compass investigate INV-1 --close  đóng — chỉ khi đủ bằng chứng và
 ### Script và dữ liệu
 
 Mọi file sinh ra lúc điều tra đều lưu vào `.compass/scripts/`, mỗi cái mở đầu bằng một dòng comment
-nói nó làm gì. Đừng để ở `output/` — thư mục đó bị `.gitignore` che, và công cụ để đó là mất.
+nói nó làm gì. Đừng để ở `output/`: thư mục đó thuộc về một task và chứa thứ làm ra cho người dùng,
+`compass scripts` không đọc tới, nên task sau không tìm thấy công cụ để ở đó.
 
 Ba loại, ba chỗ:
 
