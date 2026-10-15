@@ -575,10 +575,11 @@ test('CP-35-S3 a fenced ## line truncates the new entry but never eats a neighbo
     investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
 
     const text = pitfallsOf(root);
-    // Đánh đổi có ý thức: gate coi dòng `## ` trong khối code là heading, nên
-    // mục mới bị cắt tại đó và phần sau khối vẫn nằm lại. Thấy được ngay khi đọc
-    // file. Đoán ngược lại — "đó không phải heading" — là quét tới cuối file và
-    // xoá sạch mọi mục phía sau, im lặng, exit 0. Ba lần thử đọc fence đều sập.
+    // Đánh đổi có ý thức: dòng `## ` trong khối này được sửa tay vào file, thân
+    // mới không có khối code nào làm chứng cho nó (luật nhân chứng, CP-53), nên
+    // mục cũ hết ở đó và phần sau khối vẫn nằm lại. Thấy được ngay khi đọc file.
+    // Đoán ngược lại — "đó không phải heading" — là quét tới cuối file và xoá
+    // sạch mọi mục phía sau, im lặng, exit 0. Ba lần thử đọc fence đều sập.
     assert.match(text, /Mục sau/, 'điều phải giữ: mục kế tiếp không bao giờ mất');
     assert.match(text, /deltaToken/, 'mục mới vẫn được ghi');
   } finally {
@@ -1145,6 +1146,214 @@ test('CP-35-EC14 a comment that merely mentions the HTML opener keeps its descri
     const r = scriptsCommand({ cwd: root });
     assert.match(r.output, /Lọc bỏ các khối/, r.output);
     assert.match(r.output, /Tìm chuỗi/, r.output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---- CP-53: khối code trong Pitfall đi nguyên vào pitfalls.md, và ở yên đó ----
+
+const F3 = String.fromCharCode(96).repeat(3);
+const PITFALL_CU = '**Gặp:** 2026-09-05 · INV-1\n**Nguyên nhân:** deltaToken sống 30 ngày\n**Phòng tránh:** bắt 410 rồi full sync lại';
+const CP53_PITFALL = [
+  'Đừng tin heading.', '', F3 + 'md', '## Đây là ví dụ, không phải mục', F3, '',
+  'Bài học: dòng ## trong code block không phải ranh giới.',
+].join(NL);
+const FENCED = FILLED.replace(PITFALL_CU, CP53_PITFALL);
+const INV1_HEADING = '## INV-1: Lịch ngừng cập nhật';
+const PITFALLS_HEADER = '# Bẫy đã từng sập' + NL + NL + 'Mỗi mục đến từ một điều tra đã đóng.' + NL;
+const MUC_SAU = '## Mục sau' + NL + NL + 'Giữ nguyên.' + NL;
+
+function dem(text, chuoi) {
+  return text.split(chuoi).length - 1;
+}
+
+function dongBang(text, dong) {
+  return text.split(/\r?\n/).filter((l) => l === dong).length;
+}
+
+function dongLai(root) {
+  return investigateCommand({ cwd: root, taskId: 'INV-1', close: true });
+}
+
+// Kịch bản H3: đóng lần đầu, thêm một mục phía sau nếu cần, ghi lại byte, đóng
+// lần hai. EC3 và EC4 là đúng kịch bản này với EOL và vị trí khác.
+function cp53DongHaiLan(root, { eol = NL, hangXom = true } = {}) {
+  assert.notEqual(FENCED, FILLED, 'fixture phải thật sự thay được mục Pitfall');
+  readyToClose(root, 'INV-1', FENCED.split(NL).join(eol));
+  const r1 = dongLai(root);
+  assert.equal(r1.exitCode, 0, r1.output);
+  if (hangXom) writePitfalls(root, pitfallsOf(root) + eol + MUC_SAU.split(NL).join(eol));
+  const truoc = pitfallsOf(root);
+  const r2 = dongLai(root);
+  assert.equal(r2.exitCode, 0, r2.output);
+  return { truoc, sau: pitfallsOf(root) };
+}
+
+test('CP-53-H3 re-closing an entry whose fence holds a ## line changes nothing', () => {
+  const root = makeRepo();
+  try {
+    const { truoc, sau } = cp53DongHaiLan(root);
+
+    assert.equal(sau, truoc, 'đóng lại phải cho ra đúng cùng một file');
+    assert.equal(dongBang(sau, INV1_HEADING), 1);
+    assert.equal(dem(sau, 'Bài học:'), 1, 'đoạn sau khối code phải vào mục, và chỉ một lần');
+    assert.ok(sau.endsWith(NL + MUC_SAU), 'mục kế tiếp còn nguyên');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-53-E1 a Pitfall fence that never closes refuses the close and writes nothing', () => {
+  const doc = FILLED.replace(PITFALL_CU, ['Đừng tin heading.', '', F3 + 'sh', 'rm -rf build'].join(NL));
+  const dongMo = doc.split(NL).indexOf(F3 + 'sh') + 1;
+  const dongLoi = new RegExp('dòng ' + dongMo + '(?!\\d)');
+
+  const root = makeRepo();
+  const coSan = makeRepo();
+  try {
+    readyToClose(root, 'INV-1', doc);
+    const r = dongLai(root);
+    assert.equal(r.exitCode, 1, r.output);
+    const loi = r.output.split(/\r?\n/).find((l) => dongLoi.test(l));
+    assert.ok(loi, `lỗi phải nêu dòng ${dongMo}:\n${r.output}`);
+    assert.match(loi, /Pitfall/, 'lỗi phải nêu mục chứa khối chưa đóng');
+    assert.equal(existsSync(path.join(root, ...PITFALL_FILE)), false, 'không được ghi pitfalls.md');
+    assert.equal(readGate(root, 'INV-1', 'investigate'), null, 'không được ghi bản ghi gate');
+
+    writePitfalls(coSan, PITFALLS_HEADER);
+    readyToClose(coSan, 'INV-1', doc);
+    assert.equal(dongLai(coSan).exitCode, 1);
+    assert.equal(pitfallsOf(coSan), PITFALLS_HEADER, 'file có sẵn phải nguyên từng byte');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(coSan, { recursive: true, force: true });
+  }
+});
+
+test('CP-53-E2 an unclosed fence in Bằng chứng is named, with no spurious empty-section error', () => {
+  const doc = FILLED.replace(
+    'GET /calendarView/delta → 410 Gone',
+    ['GET /calendarView/delta → 410 Gone', '', F3, '{"error":"resyncRequired"}'].join(NL),
+  );
+  const dongMo = doc.split(NL).indexOf(F3) + 1;
+  const root = makeRepo();
+  try {
+    readyToClose(root, 'INV-1', doc);
+    const r = dongLai(root);
+
+    assert.equal(r.exitCode, 1, r.output);
+    const loi = r.output.split(/\r?\n/).find((l) => new RegExp('dòng ' + dongMo + '(?!\\d)').test(l));
+    assert.ok(loi, `lỗi phải nêu dòng ${dongMo}:\n${r.output}`);
+    assert.match(loi, /Bằng chứng/);
+    assert.doesNotMatch(r.output, /Việc cần làm tiếp/, 'các mục khác vẫn đọc như cũ');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-53-EC1 re-closing repairs a stump that ends in an open fence without eating what follows', () => {
+  const root = makeRepo();
+  try {
+    // Đúng thứ HEAD đã ghi: mục dừng ở dấu mở ```md. Mục Z có một khối cân
+    // bằng mà dấu lẻ kia ghép được, và trong khối đó có dòng `## `.
+    writePitfalls(root, PITFALLS_HEADER + [
+      '', INV1_HEADING, '', 'Đừng tin heading.', '', F3 + 'md',
+      '', '## Mục Y', '', 'Y phải còn.',
+      '', '## Mục Z', '', 'Có code:', '', F3, '## trong Z', F3, '', 'Z phải còn.', '',
+    ].join(NL));
+    const truoc = pitfallsOf(root);
+
+    readyToClose(root, 'INV-1', FENCED);
+    const r = dongLai(root);
+    assert.equal(r.exitCode, 0, r.output);
+
+    const sau = pitfallsOf(root);
+    assert.ok(sau.includes(INV1_HEADING + NL + NL + CP53_PITFALL + NL), 'mục INV-1 phải mang đủ thân mới');
+    assert.equal(
+      sau.slice(sau.indexOf('## Mục Y')),
+      truoc.slice(truoc.indexOf('## Mục Y')),
+      'Mục Y và Mục Z phải nguyên từng byte',
+    );
+    assert.equal(dongBang(sau, INV1_HEADING), 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-53-EC2 editing the fenced line falls back to a visible tail, never a lost neighbour', () => {
+  const root = makeRepo();
+  try {
+    const file = readyToClose(root, 'INV-1', FENCED);
+    assert.equal(dongLai(root).exitCode, 0);
+    writePitfalls(root, pitfallsOf(root) + NL + MUC_SAU);
+
+    writeFileSync(file, FENCED.replace('## Đây là ví dụ, không phải mục', '## Ví dụ đã sửa'));
+    const r = dongLai(root);
+    assert.equal(r.exitCode, 0, r.output);
+
+    const sau = pitfallsOf(root);
+    assert.ok(sau.endsWith(NL + MUC_SAU), 'mục kế tiếp còn nguyên');
+    assert.equal(dongBang(sau, '## Mục sau'), 1);
+    assert.ok(dongBang(sau, '## Ví dụ đã sửa') >= 1, 'dòng mới phải có trong file');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-53-EC3 the same re-close in CRLF is byte-identical and adds no bare LF', () => {
+  const root = makeRepo();
+  try {
+    writePitfalls(root, PITFALLS_HEADER.split(NL).join(CRLF));
+    const { truoc, sau } = cp53DongHaiLan(root, { eol: CRLF });
+
+    assert.equal(sau, truoc);
+    assert.equal(sau.split(NL).length - sau.split(CRLF).length, 0, 'không được có LF trần');
+    assert.equal(dongBang(sau, INV1_HEADING), 1);
+    assert.equal(dem(sau, 'Bài học:'), 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-53-EC4 the same re-close with the entry last in the file is byte-identical', () => {
+  const root = makeRepo();
+  try {
+    const { truoc, sau } = cp53DongHaiLan(root, { hangXom: false });
+
+    assert.equal(sau, truoc);
+    assert.equal(dongBang(sau, INV1_HEADING), 1);
+    assert.equal(dem(sau, 'Bài học:'), 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CP-53-S1 an odd fence paired across entries cannot make a neighbour heading look hidden', () => {
+  const root = makeRepo();
+  try {
+    // Dấu lẻ ở INV-1 ghép với dấu lẻ trong Mục Y, nên đọc fence thì `## Mục Y`
+    // nằm trong khối. Thân mới cũng có dòng `## ` trong khối — nhưng không phải
+    // dòng này, nên không có gì làm chứng cho việc nuốt nó.
+    writePitfalls(root, PITFALLS_HEADER + [
+      '', INV1_HEADING, '', 'Bản cũ.', '', F3,
+      '', '## Mục Y', '', 'Y phải còn.', '', F3,
+      '', '## Mục W', '', 'W phải còn.', '',
+    ].join(NL));
+    const truoc = pitfallsOf(root);
+
+    readyToClose(root, 'INV-1', FENCED);
+    const r = dongLai(root);
+    assert.equal(r.exitCode, 0, r.output);
+
+    const sau = pitfallsOf(root);
+    assert.equal(
+      sau.slice(sau.indexOf('## Mục Y')),
+      truoc.slice(truoc.indexOf('## Mục Y')),
+      'Mục Y phải nguyên từng byte',
+    );
+    assert.match(sau, /W phải còn\./);
+    assert.match(sau, /Bài học:/, 'mục mới vẫn được ghi');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

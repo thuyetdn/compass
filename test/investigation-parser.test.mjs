@@ -525,3 +525,123 @@ test('CP-45-P1 a file whose hypothesis lines carry 16-space indents parses fast'
   assert.equal(parsed.hypotheses.find((h) => h.id === 'H1').result, 'x');
   assert.ok(elapsed < 500, `mất ${elapsed}ms, ngưỡng 500ms`);
 });
+
+// ---- CP-53: dòng `## ` trong khối code không phải ranh giới mục ----
+
+const F3 = String.fromCharCode(96).repeat(3);
+
+// Thay thân một mục của COMPLETE. COMPLETE không có dòng `## ` nào trong khối
+// code, nên tìm theo chuỗi ở đây không vấp đúng cái bug đang đo.
+function cp53WithSection(doc, heading, body) {
+  const start = doc.indexOf(`\n## ${heading}\n`);
+  const next = doc.indexOf('\n## ', start + 1);
+  return doc.slice(0, start) + `\n## ${heading}\n\n${body}\n` + (next === -1 ? '' : doc.slice(next));
+}
+
+function cp53Pitfall(open, close = open) {
+  return [
+    'Đừng tin heading.',
+    '',
+    open,
+    '## Đây là ví dụ, không phải mục',
+    close,
+    '',
+    'Bài học: dòng ## trong code block không phải ranh giới.',
+  ].join('\n');
+}
+
+test('CP-53-H1 a backtick fence holding a ## line stays inside the Pitfall', () => {
+  const pitfall = cp53Pitfall(F3 + 'md', F3);
+  const parsed = parseInvestigation(cp53WithSection(COMPLETE, 'Pitfall', pitfall));
+
+  assert.equal(parsed.pitfall, pitfall, 'cả khối, kể cả dấu fence và đoạn bài học phía sau');
+  const report = validateForClose(parsed);
+  assert.equal(report.ok, true, report.errors.join('\n'));
+});
+
+test('CP-53-H2 a tilde fence holding a ## line stays inside the Pitfall', () => {
+  const parsed = parseInvestigation(cp53WithSection(COMPLETE, 'Pitfall', cp53Pitfall('~~~')));
+
+  assert.ok(parsed.pitfall.endsWith('không phải ranh giới.'), parsed.pitfall);
+  assert.equal(parsed.pitfall.split('\n').filter((l) => l === '~~~').length, 2);
+});
+
+test('CP-53-H4 a fenced ## line between method and result does not end the hypothesis', () => {
+  const doc = cp53WithSection(COMPLETE, 'Giả thuyết', [
+    '### H1: deltaToken hết hạn',
+    '**Cách kiểm:** đếm dòng log sau 410',
+    F3,
+    '## log line',
+    F3,
+    '**Kết quả:** đúng — 3 dòng',
+  ].join('\n'));
+  const parsed = parseInvestigation(doc);
+
+  assert.equal(parsed.hypotheses[0].result, 'đúng — 3 dòng');
+  assert.ok(
+    !validateForClose(parsed).errors.includes('Giả thuyết H1 chưa có kết quả kiểm tra'),
+    'ô kết quả đã điền',
+  );
+});
+
+test('CP-53-V1 a fenced sample holding ## Pitfall is evidence, not the Pitfall section', () => {
+  const sample = [F3, '## Pitfall', 'chữ mẫu trong ví dụ', F3].join('\n');
+  // Pitfall trước: thay Bằng chứng trước thì chính helper tìm theo chuỗi vấp
+  // vào `## Pitfall` của mẫu.
+  let doc = cp53WithSection(COMPLETE, 'Pitfall', '**Phòng tránh:** Z.');
+  doc = cp53WithSection(doc, 'Bằng chứng', `Mẫu đã dán:\n\n${sample}`);
+  const parsed = parseInvestigation(doc);
+
+  assert.ok(parsed.evidence.includes(sample), parsed.evidence);
+  assert.equal(parsed.pitfall, '**Phòng tránh:** Z.');
+});
+
+test('CP-53-V2 only a matching closer ends a fence, and four spaces is not a fence', () => {
+  // Mỗi ca có đúng một dòng `## X` ngay sau một dấu nằm giữa khối. Dấu đó mà
+  // bị đọc thành dấu đóng thì `## X` thành ranh giới và mục Pitfall bị cắt.
+  const trong = {
+    'a: ``` mở, ~~~ ở giữa': [F3, '~~~', '## X', F3],
+    'b: bốn backtick mở, ba ở giữa': [F3 + '`', F3, '## X', F3 + '`'],
+    'c: ``` mở, ```js ở giữa': [F3, F3 + 'js', '## X', F3],
+  };
+  for (const [ca, khoi] of Object.entries(trong)) {
+    const body = ['Trước.', ...khoi, 'Sau.'].join('\n');
+    const parsed = parseInvestigation(cp53WithSection(COMPLETE, 'Pitfall', body));
+    assert.equal(parsed.pitfall, body, `${ca}: dòng ## X vẫn nằm trong khối`);
+  }
+
+  // Dòng KHÔNG phải dấu mở thì `## X` là mục mới. Khối ```js…``` phía sau để
+  // cả hai cách đọc cùng kết thúc với mọi khối đã đóng: đọc nhầm dòng kia thành
+  // dấu mở thì ```js là chữ trong khối và ``` đóng nó. Thiếu khối đó thì cách
+  // đọc nhầm để lại một khối mở, parser quay về cách đọc không fence, và ra
+  // đúng kết quả của cách đọc đúng — test xanh dù luật sai.
+  const khongPhaiDauMo = {
+    'd: dấu thụt bốn dấu cách': '    ' + F3,
+    'e: info string có backtick': F3 + 'a`b',
+  };
+  for (const [ca, dong] of Object.entries(khongPhaiDauMo)) {
+    const body = ['Trước.', dong, '## X', F3 + 'js', 'y', F3, 'Sau.'].join('\n');
+    const parsed = parseInvestigation(cp53WithSection(COMPLETE, 'Pitfall', body));
+    assert.equal(parsed.pitfall, 'Trước.\n' + dong, `${ca}: không phải fence, ## X là mục mới`);
+    assert.equal(parsed.unclosedFence, null, `${ca}: không có khối nào còn mở`);
+  }
+});
+
+test('CP-53-EC5 a fenced ### line does not create a hypothesis', () => {
+  const doc = cp53WithSection(COMPLETE, 'Giả thuyết', [
+    '### H1: deltaToken hết hạn',
+    '**Cách kiểm:** gọi Graph bằng token đang lưu',
+    '**Kết quả:** đúng — trả 410',
+    '',
+    F3,
+    '### H9: giả',
+    '**Cách kiểm:** không có',
+    '**Kết quả:** chữ trong ví dụ',
+    F3,
+  ].join('\n'));
+  const parsed = parseInvestigation(doc);
+
+  assert.equal(parsed.hypotheses.length, 1, JSON.stringify(parsed.hypotheses));
+  assert.equal(parsed.hypotheses[0].id, 'H1');
+  assert.equal(parsed.hypotheses[0].result, 'đúng — trả 410', 'dòng trong khối không ghi đè kết quả thật');
+});
