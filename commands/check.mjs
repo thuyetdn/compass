@@ -17,7 +17,8 @@ import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 import { loadConfig } from '../lib/config.mjs';
 
 const IMPLEMENTED = {
-  spec: specCommand,
+  // Không kèm lời nhắc duyệt spec: giữa một lần chạy gate thì bước đó đã qua.
+  spec: (args) => specCommand({ ...args, reviewHint: false }),
   knowledge: knowledgeCommand,
   secrets: secretsCommand,
   convention: conventionCommand,

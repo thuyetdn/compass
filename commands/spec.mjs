@@ -5,7 +5,10 @@ import { writeGate } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 
-export function specCommand({ cwd, taskId }) {
+// `reviewHint` mặc định bật: lời nhắc đưa spec đi duyệt thuộc về lúc chạy
+// `compass spec` một mình. `check` tắt nó — lúc đó spec đã duyệt, code đã viết.
+// Người gọi quyết, không ai lọc câu này khỏi output sau khi nhận về.
+export function specCommand({ cwd, taskId, reviewHint = true }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass spec <id>' };
 
   const validation = validateTaskId(taskId);
@@ -40,6 +43,8 @@ export function specCommand({ cwd, taskId }) {
       output: [fail('spec', result.errors), '', hint('Sửa spec rồi chạy lại: compass spec ' + taskId)].join('\n'),
     };
   }
+
+  if (!reviewHint) return { exitCode: 0, output: pass('spec') };
 
   return {
     exitCode: 0,
