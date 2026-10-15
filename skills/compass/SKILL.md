@@ -63,7 +63,7 @@ chút, giấu đi thì người khác sập bẫy.
 
 ### Viết tiếng Việt
 
-Đọc [`writing-vi.md`](references/writing-vi.md) khi viết tiếng Việt cho người đọc: 53 cặp câu **❌ → ✅** chia
+Đọc [`writing-vi.md`](references/writing-vi.md) khi viết tiếng Việt cho người đọc: 56 cặp câu **❌ → ✅** chia
 theo từ ngữ, định dạng và giọng. Bắt chước cặp câu, đừng học tên luật.
 
 **Viết ticket, email, báo cáo gửi đồng nghiệp → đọc thêm Phần 8.** Bảy phần đầu dạy viết câu cho

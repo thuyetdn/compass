@@ -640,7 +640,8 @@ Mục trên dạy bỏ câu thừa. Mục này dạy xếp câu còn lại — c
 **Câu đầu tiên phải trả lời câu hỏi lớn nhất.** Người đọc quyết định dựa vào nó; mọi thứ sau đó chỉ
 là cơ sở. Chôn kết luận xuống cuối bắt họ đọc hết mới biết mình cần biết gì.
 
-> ❌ (bốn đoạn kỹ thuật về script, ICalUId, cron) … Và điều quan trọng nhất — khách sẽ nhận mail.
+> ❌ (bốn đoạn kỹ thuật về script, ICalUId, cron) … Và điều quan trọng nhất — vá được, nhưng 4 khách
+> sẽ nhận mail báo đổi giờ, không có cách nào gửi thầm.
 >
 > ✅ **Vá được, nhưng 4 khách sẽ nhận mail báo đổi giờ.** Không có cách nào gửi thầm.
 
@@ -652,12 +653,10 @@ năm câu thì đọc tới cái cuối đã quên cái đầu.
 > trong 9 row này. Tôi đã đối chiếu cả BlockerId lẫn trường blockers, 0/9. Chín row của bạn là loại
 > khác hẳn: event lệch 21 đến 77 ngày, phải dời chứ không phải nối.
 >
-> ✅ 9 dòng dữ liệu thật ra chỉ là 4 cuộc hẹn (trùng nhau):
-> > - **2 cái làm được ngay** — Hari, Angenietje. Hạn 25/11, còn xa.
-> > - **1 cái gấp** — Adama. Cron quét 16/09, còn 2 ngày.
-> > - **1 cái thiếu dữ liệu** — Kaya. Không có giờ kết thúc.
-> >
-> > Script cũ không dùng được, phải dựng cái mới.
+> ✅ **Script có sẵn không dùng được cho 9 row này: nó nối, còn 9 row này cần dời.**
+> > - Script sinh ra để nối dài event thiếu độ dài (60' → 120'). 9 row này lệch 21 đến 77 ngày.
+> > - Plan của script có 160 event / 331 blocker id, chứa 0/9 row — đã đối chiếu cả BlockerId lẫn
+> >   trường blockers.
 
 **Chi tiết kỹ thuật xuống dưới cùng.** Ai cần thì đọc, không cần thì bỏ qua. Đặt nó trước kết luận
 là bắt mọi người trả giá cho một người.
@@ -667,6 +666,6 @@ không. Bày ra hai đường ngang nhau là đẩy việc chọn sang người 
 
 > ❌ Bạn muốn tôi dựng plan cho 3 event đó không, hay tra DB tìm slot của Kaya trước để làm trọn cả 4?
 >
-> ✅ Tôi đề nghị chạy thử 1 cuộc hẹn trước để bạn tự mở hộp thư xem mail thật, rồi mới làm nốt. Làm không?
+> ✅ Tôi đề nghị dựng plan cho 3 event đó trước, slot của Kaya tra DB sau. Làm không?
 
 **Phép thử:** che hết trừ câu đầu. Người đọc quyết được chưa? Chưa thì viết lại câu đầu.
