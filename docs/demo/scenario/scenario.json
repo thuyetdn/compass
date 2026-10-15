@@ -1,0 +1,42 @@
+{
+  "title": "Compass — demo",
+  "fixture": "../../../examples/todo",
+  "setup": { "npmInstall": true, "git": true },
+  "steps": [
+    { "run": ["compass", "init", "TD-002", "--type=feature-s"], "expect": 0, "still": "init" },
+    {
+      "caption": "Trong Claude Code: AI viết spec",
+      "detail": "Mục tiêu, ràng buộc, rủi ro hồi quy và 13 test case cho tính năng \"Xóa việc đã xong\".",
+      "copy": [
+        ["spec.md", ".compass/TD-002/spec.md"],
+        ["design-contract.json", ".compass/TD-002/design-contract.json"]
+      ]
+    },
+    { "run": ["compass", "spec", "TD-002"], "expect": 0, "expectMatch": "Gate spec PASSED" },
+    {
+      "caption": "Người duyệt spec",
+      "detail": "Điểm dừng bắt buộc: AI chờ người đọc spec và nói tiếp, rồi mới viết code."
+    },
+    {
+      "caption": "AI viết code + test",
+      "detail": "Code của tính năng và 12 test. Test cho case EC3 bị bỏ sót.",
+      "copy": [
+        ["App.jsx", "src/App.jsx"],
+        ["App.css", "src/App.css"],
+        ["ClearDone.test.jsx", "test/ClearDone.test.jsx"]
+      ]
+    },
+    { "run": ["compass", "knowledge", "--sync"], "expect": 0 },
+    { "run": ["compass", "check", "TD-002"], "expect": 1, "expectMatch": "EC3", "still": "check-red" },
+    {
+      "caption": "AI viết nốt test còn thiếu",
+      "detail": "Gate test chỉ ra đúng ID còn thiếu. AI thêm test EC3 rồi chạy lại.",
+      "copy": [
+        ["ClearDone.edge.test.jsx", "test/ClearDone.edge.test.jsx"]
+      ]
+    },
+    { "run": ["compass", "knowledge", "--sync"], "expect": 0 },
+    { "run": ["compass", "check", "TD-002"], "expect": 0, "still": "check-green" },
+    { "run": ["compass", "done", "TD-002"], "expect": 0, "still": "done-green" }
+  ]
+}

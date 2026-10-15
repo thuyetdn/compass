@@ -1,0 +1,132 @@
+{
+  "title": "Compass — demo",
+  "recordedAt": "2026-10-15",
+  "compassCommit": "c50b51b",
+  "node": "v24.19.0",
+  "platform": "win32",
+  "scenario": "docs/demo/scenario",
+  "tempPathMark": "‹thư-mục-tạm›",
+  "setup": [
+    {
+      "what": "chép examples/todo sang thư mục tạm (18 file git theo dõi)",
+      "ms": 0
+    },
+    {
+      "what": "npm ci",
+      "ms": 8633
+    },
+    {
+      "what": "git init + commit gốc (diff của task tính từ đây)",
+      "ms": 0
+    }
+  ],
+  "steps": [
+    {
+      "kind": "run",
+      "command": "compass init TD-002 --type=feature-s",
+      "expectedExit": 0,
+      "exitCode": 0,
+      "durationMs": 86,
+      "stdout": "Đã tạo task TD-002 (loại feature-s)\n  spec: ‹thư-mục-tạm›\\.compass\\TD-002\\spec.md\n\n→ Điền spec, rồi chạy: compass spec TD-002",
+      "stderr": "",
+      "tempPathMasked": 1,
+      "still": "init"
+    },
+    {
+      "kind": "caption",
+      "text": "Trong Claude Code: AI viết spec",
+      "detail": "Mục tiêu, ràng buộc, rủi ro hồi quy và 13 test case cho tính năng \"Xóa việc đã xong\".",
+      "files": [
+        ".compass/TD-002/spec.md",
+        ".compass/TD-002/design-contract.json"
+      ]
+    },
+    {
+      "kind": "run",
+      "command": "compass spec TD-002",
+      "expectedExit": 0,
+      "exitCode": 0,
+      "durationMs": 90,
+      "stdout": "✓ Gate spec PASSED\n\n→ Đưa spec cho người duyệt. Duyệt xong mới bắt đầu code.",
+      "stderr": "",
+      "tempPathMasked": 0
+    },
+    {
+      "kind": "caption",
+      "text": "Người duyệt spec",
+      "detail": "Điểm dừng bắt buộc: AI chờ người đọc spec và nói tiếp, rồi mới viết code.",
+      "files": []
+    },
+    {
+      "kind": "caption",
+      "text": "AI viết code + test",
+      "detail": "Code của tính năng và 12 test. Test cho case EC3 bị bỏ sót.",
+      "files": [
+        "src/App.jsx",
+        "src/App.css",
+        "test/ClearDone.test.jsx"
+      ]
+    },
+    {
+      "kind": "run",
+      "command": "compass knowledge --sync",
+      "expectedExit": 0,
+      "exitCode": 0,
+      "durationMs": 108,
+      "stdout": "✓ Gate knowledge PASSED — đã sinh lại: 1 component từ 6 file",
+      "stderr": "",
+      "tempPathMasked": 0
+    },
+    {
+      "kind": "run",
+      "command": "compass check TD-002",
+      "expectedExit": 1,
+      "exitCode": 1,
+      "durationMs": 8435,
+      "stdout": "✓ Gate spec PASSED\n\n→ Đưa spec cho người duyệt. Duyệt xong mới bắt đầu code.\n✓ Gate knowledge PASSED — 6 file nguồn còn khớp tài liệu\n✓ Gate secrets PASSED — không thấy file .env nào trong diff, trong index, hay chưa được ignore.\n✓ Gate convention PASSED — 4 luật, 4 file, không vi phạm\n✗ Gate test FAILED\n  Spec khai báo 13 test cases, chỉ tìm thấy 12 đã chạy.\n  Không tìm thấy dấu vết: EC3\n\n→ Viết test cho các case còn thiếu, hoặc sửa spec nếu chúng không còn cần thiết (sửa spec cần duyệt lại).",
+      "stderr": "",
+      "tempPathMasked": 0,
+      "still": "check-red"
+    },
+    {
+      "kind": "caption",
+      "text": "AI viết nốt test còn thiếu",
+      "detail": "Gate test chỉ ra đúng ID còn thiếu. AI thêm test EC3 rồi chạy lại.",
+      "files": [
+        "test/ClearDone.edge.test.jsx"
+      ]
+    },
+    {
+      "kind": "run",
+      "command": "compass knowledge --sync",
+      "expectedExit": 0,
+      "exitCode": 0,
+      "durationMs": 105,
+      "stdout": "✓ Gate knowledge PASSED — đã sinh lại: 1 component từ 7 file",
+      "stderr": "",
+      "tempPathMasked": 0
+    },
+    {
+      "kind": "run",
+      "command": "compass check TD-002",
+      "expectedExit": 0,
+      "exitCode": 0,
+      "durationMs": 13025,
+      "stdout": "✓ Gate spec PASSED\n\n→ Đưa spec cho người duyệt. Duyệt xong mới bắt đầu code.\n✓ Gate knowledge PASSED — 7 file nguồn còn khớp tài liệu\n✓ Gate secrets PASSED — không thấy file .env nào trong diff, trong index, hay chưa được ignore.\n✓ Gate convention PASSED — 4 luật, 5 file, không vi phạm\n✓ Gate test PASSED — 13/13 test cases đã chạy\n✓ Gate ui PASSED — 16 thuộc tính, 2 viewport, không lệch\n✓ Gate visual PASSED — đã tạo baseline cho 2 viewport\n\nBaseline: .compass/TD-002/baseline/\n→ Lần này chưa so gì cả — xem ảnh, thấy đúng thì commit baseline vào git.",
+      "stderr": "",
+      "tempPathMasked": 0,
+      "still": "check-green"
+    },
+    {
+      "kind": "run",
+      "command": "compass done TD-002",
+      "expectedExit": 0,
+      "exitCode": 0,
+      "durationMs": 94,
+      "stdout": "✓ Gate done PASSED — 7 gate đã pass\n\nTask TD-002 hoàn thành. Bằng chứng: .compass/TD-002/evidence/",
+      "stderr": "",
+      "tempPathMasked": 0,
+      "still": "done-green"
+    }
+  ]
+}

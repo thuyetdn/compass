@@ -1,0 +1,28 @@
+{
+  "viewports": [
+    { "name": "desktop", "width": 1280, "height": 900 },
+    { "name": "mobile", "width": 375, "height": 720 }
+  ],
+  "elements": [
+    {
+      "name": "Tiêu đề",
+      "selector": "h1",
+      "properties": {
+        "color": "#111827",
+        "font-size": "32px",
+        "font-weight": "700"
+      }
+    },
+    {
+      "name": "Nút xóa việc đã xong",
+      "selector": ".clear-done",
+      "properties": {
+        "color": "#111827",
+        "font-size": "14px",
+        "border-radius": "8px",
+        "padding-left": "16px",
+        "padding-right": "16px"
+      }
+    }
+  ]
+}
