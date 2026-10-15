@@ -7,6 +7,7 @@ import { TASK_TYPES, rulesFor } from '../lib/task-types.mjs';
 import { DEFAULT_CONFIG } from '../lib/config.mjs';
 import { hint } from '../lib/report.mjs';
 import { ensureCompassGitignore } from '../lib/signature.mjs';
+import { detectRepos } from '../lib/repo-detect.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = path.join(here, '..', 'templates', 'spec.md');
@@ -115,4 +116,73 @@ export function initCommand({ cwd, taskId, type }) {
     exitCode: 0,
     output: lines.join('\n'),
   };
+}
+
+// `compass init --multi` — dựng config cho dự án nhiều repo bằng cách đọc các
+// thư mục con, thay vì hỏi người dùng từng repo một.
+//
+// Lệnh này không nhận task id: nó dựng **config**, không mở task. Chạy một lần
+// lúc bắt đầu dự án, rồi `init <id> --type=` như bình thường.
+//
+// Ba lúc nó từ chối ghi, và cả ba đều vì cùng một lý do — ghi ra một config sai
+// tệ hơn không ghi gì, vì người dùng tin là nó đúng:
+//   - config đã có     → in cái dò được, để người tự gộp
+//   - không thấy repo  → dự án một repo, `init <id>` lo được
+//   - devUrl trùng nhau → phải người chọn cổng, đoán thì `visual` chụp nhầm trang
+export function initMultiCommand({ cwd }) {
+  const root = findRoot(cwd) ?? cwd;
+  const found = detectRepos(root);
+  const lines = [];
+
+  const describe = (repo) => {
+    const parts = [`  "${repo.name}": test = ${repo.entry.test}`];
+    if (repo.entry.devUrl) parts.push(`      dev = ${repo.entry.dev} · ${repo.entry.devUrl}`);
+    return parts.join('\n');
+  };
+
+  if (found.repos.length === 0) {
+    lines.push('Không tìm thấy repo con nào có package.json.');
+    for (const p of found.problems) lines.push(`  ${p.name}: ${p.reason}`);
+    lines.push('', hint('Dự án một repo thì dùng: compass init <id> --type=<loại>'));
+    return { exitCode: 2, output: lines.join('\n') };
+  }
+
+  lines.push(`Dò được ${found.repos.length} repo:`);
+  for (const repo of found.repos) lines.push(describe(repo));
+
+  if (found.problems.length) {
+    lines.push('', 'Cần bạn nhìn:');
+    for (const p of found.problems) lines.push(`  ${p.name}: ${p.reason}`);
+  }
+
+  const config = { ...DEFAULT_CONFIG, repos: {} };
+  for (const repo of found.repos) config.repos[repo.name] = repo.entry;
+  const block = JSON.stringify(config, null, 2);
+
+  if (found.conflicts.length) {
+    lines.push('', 'Chưa ghi — hai repo cùng một devUrl, phải bạn chọn cổng:');
+    for (const c of found.conflicts) {
+      lines.push(`  ${c.url} ← ${c.names.join(', ')}`);
+    }
+    lines.push('', hint('Khai cổng trong config của từng repo rồi chạy lại.'));
+    return { exitCode: 2, output: lines.join('\n') };
+  }
+
+  if (found.problems.length) {
+    lines.push('', 'Chưa ghi — còn thư mục cần bạn quyết. Config dò được:', block);
+    return { exitCode: 2, output: lines.join('\n') };
+  }
+
+  if (existsSync(configPath(root))) {
+    lines.push('', 'Chưa ghi — config.json đã có. Phần dò được, bạn tự gộp:', block);
+    return { exitCode: 2, output: lines.join('\n') };
+  }
+
+  mkdirSync(compassDir(root), { recursive: true });
+  writeFileSync(configPath(root), block);
+  ensureCompassGitignore(root);
+
+  lines.push('', `Đã ghi: ${configPath(root)}`);
+  lines.push('', hint('Đọc lại cùng người dùng: compass status'));
+  return { exitCode: 0, output: lines.join('\n') };
 }

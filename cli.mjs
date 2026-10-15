@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { initCommand } from './commands/init.mjs';
+import { initCommand, initMultiCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
 import { testCommand } from './commands/test.mjs';
 import { conventionCommand } from './commands/convention.mjs';
@@ -19,8 +19,9 @@ const USAGE = `compass — quy trình có bằng chứng
 
 Dùng:
   compass init <id> --type=<fix|bug|feature-s|feature-m|feature-l>
+  compass init --multi                 dò các repo con, dựng config nhiều repo
   compass spec <id>
-  compass knowledge [id] [--sync]
+  compass knowledge [id] [--sync] [--page]
   compass secrets <id>
   compass convention <id>
   compass test <id>
@@ -61,13 +62,15 @@ async function main() {
     let result;
     switch (command) {
       case 'init':
-        result = initCommand({ cwd, taskId, type: flags.type });
+        result = flags.multi === true
+          ? initMultiCommand({ cwd })
+          : initCommand({ cwd, taskId, type: flags.type });
         break;
       case 'spec':
         result = specCommand({ cwd, taskId });
         break;
       case 'knowledge':
-        result = knowledgeCommand({ cwd, taskId, sync: flags.sync === true });
+        result = knowledgeCommand({ cwd, taskId, sync: flags.sync === true, page: flags.page === true });
         break;
       case 'convention':
         result = conventionCommand({ cwd, taskId });
