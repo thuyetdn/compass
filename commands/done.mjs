@@ -2,11 +2,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { findRoot, specPath, configPath } from '../lib/paths.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
-import { readGates, verifyAllGates, writeGate, parseSlot } from '../lib/gate-store.mjs';
+import { readGates, verifyAllGates, writeGate, parseSlot, slotFor } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
-import { IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
+import {
+  IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES, BROWSER_GATES, LY_DO_KHONG_DEVURL, PER_REPO_GATES,
+} from '../lib/gates.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 
@@ -29,20 +31,21 @@ function laBoQuaHopLe(record, slot) {
   return record.skipReason === LY_DO_KHONG_DEVURL;
 }
 
-// Mọi repo trong phạm vi của task đều có khe `<gate>@<repo>` là bản ghi bỏ qua hợp lệ không? Đọc config
-// chỉ để biết repo nào trong phạm vi — như `check` — không bao giờ để suy ra lý do bỏ qua: lý do phải
-// nằm trong bản ghi đã ký. Config hỏng, task một repo, hay phạm vi rỗng: false, tức là chưa chạy.
-function phamViBoQuaHet(root, spec, gates, gate) {
+// Repo nào nằm trong phạm vi của task. Đọc config chỉ để biết điều này — như `check` — không bao giờ để
+// suy ra một lần pass hay một lần bỏ qua: kết quả phải nằm trong bản ghi đã ký.
+//   `mot`     — dự án một repo: khe trần như cũ.
+//   `nhieu`   — `repos` liệt kê tên repo trong phạm vi (có thể rỗng).
+//   `khongRo` — config không đọc được. Không biết task đụng repo nào, nên ba gate theo repo là chưa chạy
+//               và khe trần không được dùng làm chỗ dựa. Task đóng được hôm nay không vì thế mà kẹt: config
+//               hỏng sau `check` thì `configHash` của bản ghi `test` đã chặn, hỏng trước thì `check` không chạy.
+function phamViRepo(root, spec) {
   const cfg = loadConfig(root);
-  if (!cfg.ok) return false;
+  if (!cfg.ok) return { cheDo: 'khongRo', repos: [] };
   const resolved = resolveRepos(root, cfg.config);
-  if (!resolved.ok) return false;
+  if (!resolved.ok) return { cheDo: 'khongRo', repos: [] };
   const repos = reposForScope(resolved.repos, spec.scope);
-  if (!repos.length || repos.some((r) => r.name === null)) return false;
-  return repos.every((r) => {
-    const slot = `${gate}@${r.name}`;
-    return laBoQuaHopLe(gates[slot], slot);
-  });
+  if (repos.some((r) => r.name === null)) return { cheDo: 'mot', repos: [] };
+  return { cheDo: 'nhieu', repos: repos.map((r) => r.name) };
 }
 
 // Lệnh chạy lại đúng cho một gate. `compass check` chỉ chạm gate bắt buộc của
@@ -119,13 +122,67 @@ export function doneCommand({ cwd, taskId }) {
   // một sự thật, giấu đi thì cổng cuối nói dối.
   const boQua = [];
 
+  // Ba gate đo từng repo (`convention`, `ui`, `visual`): ở dự án nhiều repo, mỗi repo trong phạm vi phải
+  // có khe `<gate>@<repo>` của riêng nó. Dự án một repo giữ khe trần như cũ.
+  const phamVi = phamViRepo(root, spec);
+  const theoRepo = (gate) => PER_REPO_GATES.includes(gate) && phamVi.cheDo !== 'mot';
+  // Khe repo bắt buộc: gate bắt buộc, đo theo repo, và repo nằm trong phạm vi. Vòng bắt buộc soi nó, nên
+  // vòng gate chạy thêm phải bỏ qua đúng những khe này — không hơn (CP-16).
+  const laKheBatBuoc = (slot) => {
+    const { gate, repo } = parseSlot(slot);
+    return repo !== null && theoRepo(gate) && required.includes(gate) && phamVi.repos.includes(repo);
+  };
+  // Bản ghi `verifyAllGates` đã từ chối không được đứng tên repo nào: một bản ghi của `be` chép sang khe
+  // `fe` vẫn mang `exitCode: 0`, và đọc nó ở đây là cho fe ké phép đo của be.
+  const khongTin = new Set([
+    ...integrity.tampered, ...(integrity.misslotted ?? []),
+    ...(integrity.wrongTask ?? []), ...(integrity.outdated ?? []),
+  ]);
+
+  // Khe trần của gate theo repo, ở dự án nhiều repo: không nói được đã đo repo nào — có thể là repo cuối
+  // của lần chạy cũ, có thể là cả gốc trước khi khai `repos`. Không bao giờ tính là pass, gate bắt buộc
+  // hay chạy thêm cũng vậy. Ghi bản ghi theo repo của cùng gate là khe này tự mất, nên chạy lại là đủ.
+  const kheTranMoc = new Set();
+  if (phamVi.cheDo === 'nhieu') {
+    for (const gate of PER_REPO_GATES) {
+      if (!Object.hasOwn(gates, gate)) continue;
+      kheTranMoc.add(gate);
+      const danhSach = phamVi.repos.length ? phamVi.repos.join(', ') : '(Phạm vi không khớp repo nào)';
+      themKemLoiKhuyen(
+        `Gate "${gate}" có bản ghi không mang tên repo — task chạy trên nhiều repo nên không biết bản ghi này đã đo repo nào, và nó không được tính. Phải tách thành bản ghi riêng cho từng repo: ${danhSach}.` +
+        `\n    ${cachChayLai(gate, taskId, required.includes(gate))}`,
+      );
+    }
+  }
+
   for (const name of required) {
+    if (theoRepo(name)) {
+      // Config không đọc được, hay phạm vi không khớp repo nào: không biết phải đòi khe nào, nên gate
+      // chưa chạy. Khe trần không được dùng thay.
+      if (phamVi.repos.length === 0) {
+        problems.push(`Gate "${name}" chưa chạy.`);
+        continue;
+      }
+      // Từng repo một: thiếu một khe là repo đó chưa chạy, không repo nào được ké bản ghi của repo khác.
+      // Khe bỏ qua chỉ hợp lệ cho `ui`/`visual` với đúng lý do `check` ghi (CP-33, CP-47).
+      for (const repo of phamVi.repos) {
+        const slot = slotFor(name, repo);
+        const record = khongTin.has(slot) ? null : gates[slot];
+        if (!record) {
+          problems.push(`Gate "${slot}" chưa chạy.`);
+        } else if (laBoQuaHopLe(record, slot)) {
+          boQua.push(slot);
+        } else if (typeof record.exitCode !== 'number') {
+          problems.push(`Gate "${slot}" có bản ghi không ghi exit code — bản ghi hỏng. ${cachChayLai(slot, taskId, true)}`);
+        } else if (record.exitCode !== 0) {
+          problems.push(`Gate "${slot}" chưa pass (exit code ${record.exitCode}).`);
+        }
+      }
+      continue;
+    }
+
     const record = gates[name];
     if (!record) {
-      // Đa repo: `check` ghi bỏ qua vào khe `ui@<repo>`, không vào khe trần (CP-33). Khe repo chỉ
-      // thay được khe trần khi MỌI repo trong phạm vi đều bỏ qua hợp lệ — repo nào còn phải đo thì
-      // vẫn là chưa chạy. Vòng khe phụ phía dưới nêu từng khe bỏ qua trong báo cáo (CP-47).
-      if (BROWSER_GATES.includes(name) && phamViBoQuaHet(root, spec, gates, name)) continue;
       problems.push(`Gate "${name}" chưa chạy.`);
       continue;
     }
@@ -162,6 +219,8 @@ export function doneCommand({ cwd, taskId }) {
     // vòng này thấy `test` nằm trong required rồi đi tiếp — và một gate bắt
     // buộc đỏ ở repo lọt thẳng qua cổng cuối.
     if (name === ten && required.includes(ten)) continue;
+    // Khe repo bắt buộc vòng trên đã soi; khe trần mốc đã được báo ở trên.
+    if (laKheBatBuoc(name) || kheTranMoc.has(name)) continue;
     if (!IMPLEMENTED_GATES.includes(ten)) continue;
     // Ba vòng còn lại đều có chốt này; thiếu ở đây thì một khoá `null` trong sổ
     // làm `done` ném TypeError thay vì báo bản ghi hỏng.
@@ -191,15 +250,22 @@ export function doneCommand({ cwd, taskId }) {
   // Mọi gate đã chạy đều phải soi hash, không riêng gate bắt buộc. Chỉ soi
   // `exitCode` thì một bản ghi xanh từ ba tuần trước vẫn đóng được task — "đỏ
   // thì tin, xanh thì tin luôn cả khi đã mốc".
+  //
+  // Gate theo repo ở dự án nhiều repo không có khe trần để soi: bản ghi của nó
+  // nằm ở các khe `<gate>@<repo>`, đi vào qua dòng lọc sổ bên dưới. Khe trần mốc
+  // đã bị báo ở trên; soi thêm hash của nó chỉ là báo hai lần một chuyện.
   const soi = [...new Set([
-    ...required,
+    ...required.filter((g) => !theoRepo(g)),
     // Giữ nguyên tên khe (kèm `@repo`) để đọc đúng bản ghi, nhưng lọc theo
     // phần gate — nếu không thì bản ghi đa repo không bao giờ được soi hash.
     // Lớp thứ hai: vòng CP-16 phía trên đã chặn bản ghi đỏ ở khe repo, nên
     // mutation riêng dòng này sẽ sống sót. Giữ vì nó đúng — bỏ đi thì bản ghi
     // đa repo không bao giờ được soi hash, và một bản ghi xanh mốc lọt qua.
-    ...Object.keys(gates).filter((g) => IMPLEMENTED_GATES.includes(parseSlot(g).gate)),
+    ...Object.keys(gates).filter((g) => IMPLEMENTED_GATES.includes(parseSlot(g).gate) && !kheTranMoc.has(g)),
   ])];
+  // Khe repo bắt buộc đỏ hash thì lời khuyên là `check`, như khe trần bắt buộc —
+  // không phải "xoá khoá này", vì xoá đi là repo đó thành chưa chạy.
+  const batBuocKhe = (name) => required.includes(name) || laKheBatBuoc(name);
 
   const currentSpecHash = hashFile(file);
   for (const name of soi) {
@@ -224,9 +290,9 @@ export function doneCommand({ cwd, taskId }) {
     // tên gate, nên so nguyên chuỗi thì mọi bản ghi đa repo thoát hết.
     if (!record || !SOURCE_DEPENDENT_GATES.includes(parseSlot(name).gate)) continue;
     if (!record.sourceHash) {
-      them(`Gate "${name}" không ghi lại mã nguồn đã kiểm tra — bản ghi từ phiên bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
+      them(`Gate "${name}" không ghi lại mã nguồn đã kiểm tra — bản ghi từ phiên bản cũ. ${cachChayLai(name, taskId, batBuocKhe(name))}`, batBuocKhe(name));
     } else if (record.sourceHash !== currentSourceHash) {
-      them(`Code đã thay đổi sau khi gate "${name}" chạy — bằng chứng nói về bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
+      them(`Code đã thay đổi sau khi gate "${name}" chạy — bằng chứng nói về bản cũ. ${cachChayLai(name, taskId, batBuocKhe(name))}`, batBuocKhe(name));
     }
   }
 

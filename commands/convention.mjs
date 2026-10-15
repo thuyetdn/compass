@@ -7,6 +7,8 @@ import { writeGate } from '../lib/gate-store.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
+import { parseSpec } from '../lib/spec-parser.mjs';
+import { reposForGate } from '../lib/gates.mjs';
 
 const CONVENTIONS = path.join('.knowledge', 'decided', 'conventions.md');
 
@@ -16,18 +18,42 @@ function formatViolation(v) {
   return `${where}  [${v.rule}]${why}\n      ${v.text}`;
 }
 
-export function conventionCommand({ cwd, taskId }) {
+// `repo` là tên repo cần quét (null nếu dự án một repo, hoặc gọi thẳng từ CLI).
+// `gateRoot` là gốc Compass — nơi có spec, luật và sổ gate. Luật thuộc về cả dự
+// án, nhưng file được quét và bản ghi thuộc về từng repo.
+export function conventionCommand({ cwd, taskId, repo = null, gateRoot = null }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass convention <id>' };
 
   const validation = validateTaskId(taskId);
   if (!validation.ok) return { exitCode: 2, output: validation.reason };
 
-  const root = findRoot(cwd);
+  const root = gateRoot ?? findRoot(cwd);
   if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
 
   const file = specPath(root, taskId);
   if (!existsSync(file)) return { exitCode: 2, output: `Không tìm thấy spec: ${file}` };
 
+  const chon = reposForGate(root, parseSpec(readFileSync(file, 'utf8')).scope, repo);
+  if (!chon.ok) return { exitCode: 2, output: chon.output };
+  if (chon.repos === null) return quet({ root, file, taskId, dir: root, repo: null });
+  if (repo !== null) return quet({ root, file, taskId, dir: chon.repos[0].dir, repo });
+
+  // Gọi thẳng mà không nêu repo, ở dự án nhiều repo: quét lần lượt từng repo trong
+  // phạm vi như `check` làm, và dừng ở repo đỏ đầu tiên. Quét gốc một lần rồi ghi
+  // khe trần là đè lên bằng chứng theo repo bằng một bản ghi không nói đã đo gì.
+  const lines = [];
+  for (const r of chon.repos) {
+    const result = quet({ root, file, taskId, dir: r.dir, repo: r.name });
+    lines.push(`[${r.name}] ${result.output}`);
+    if (result.exitCode !== 0) return { exitCode: result.exitCode, output: lines.join('\n') };
+  }
+  return { exitCode: 0, output: lines.join('\n') };
+}
+
+// Quét một thư mục — gốc khi dự án một repo, thư mục repo khi nhiều repo — và ghi
+// vào khe của repo đó. `sourceHash` vẫn băm cả gốc: `done` băm gốc, băm riêng repo
+// thì bản ghi nào cũng báo "Code đã thay đổi" ngay sau một lần chạy xanh.
+function quet({ root, file, taskId, dir, repo }) {
   const conventionsFile = path.join(root, CONVENTIONS);
 
   // No conventions file is a legitimate state, not a failure: a project that
@@ -44,7 +70,7 @@ export function conventionCommand({ cwd, taskId }) {
       errorCount: 0,
       warnCount: 0,
       scanned: 0,
-    });
+    }, repo);
     return {
       exitCode: 0,
       output: [
@@ -78,7 +104,7 @@ export function conventionCommand({ cwd, taskId }) {
       errorCount: parsed.errors.length,
       warnCount: 0,
       scanned: 0,
-    });
+    }, repo);
     return {
       exitCode: 1,
       output: [
@@ -89,7 +115,7 @@ export function conventionCommand({ cwd, taskId }) {
     };
   }
 
-  const result = runRules(root, parsed.rules);
+  const result = runRules(dir, parsed.rules, { prefix: path.relative(root, dir) });
 
   writeGate(root, taskId, {
     gate: 'convention',
@@ -102,7 +128,7 @@ export function conventionCommand({ cwd, taskId }) {
     errorCount: result.errorCount,
     warnCount: result.warnCount,
     scanned: result.scanned,
-  });
+  }, repo);
 
   const warnings = result.violations.filter((v) => v.severity === 'warn');
   const errors = result.violations.filter((v) => v.severity === 'error');

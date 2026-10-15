@@ -1,8 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { findRoot, specPath } from '../lib/paths.mjs';
-import { writeGate } from '../lib/gate-store.mjs';
-import { hashFile } from '../lib/hash.mjs';
-import { hashSource } from '../lib/source-hash.mjs';
+import { writeSkip } from '../lib/gate-store.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
 import { specCommand } from './spec.mjs';
@@ -122,24 +120,16 @@ export async function checkCommand({ cwd, taskId, only }) {
         //
         // Chỉ ghi cho gate BẮT BUỘC. Ghi cho mọi loại task thì `fix` cũng có bản
         // ghi skip, mà `done` không đòi nó — sổ mọc thêm dòng không ai đọc.
+        //
+        // Cùng một hàm ghi với lời gọi thẳng `compass ui <id>`, để hai đường vào
+        // để lại cùng một bản ghi.
         if (!rules.gates.includes(gate)) continue;
-        writeGate(root, taskId, {
-          gate,
-          // Không phải 0: đọc sổ phải phân biệt được "chưa chạy" với "đã đo và
-          // đúng". Một bản ghi `exitCode: 0` không có phép đo nào đằng sau là
-          // bằng chứng giả.
-          exitCode: null,
-          skipped: true,
-          skipReason: LY_DO_KHONG_DEVURL,
-          checkedAt: new Date().toISOString(),
-          specHash: hashFile(specPath(root, taskId)),
-          // `ui`/`visual` là gate đọc code, nên `done` soi `sourceHash` cả trên
-          // bản ghi skip. Thiếu trường thì nó bị coi là bản ghi phiên bản cũ.
-          sourceHash: hashSource(root),
-        }, repo.name);
+        writeSkip(root, taskId, gate, repo.name);
         continue;
       }
 
+      // Gate chung chạy ở gốc nhận `repo: null` như trước. Gate theo repo nhận tên
+      // repo và tự đo đúng thư mục, đúng config đã gộp của repo đó.
       const result = await run({ cwd: repo.dir, taskId, repo: repo.name, gateRoot: root });
       lines.push(repo.name === null ? result.output : `[${repo.name}] ${result.output}`);
       if (result.exitCode !== 0) {

@@ -339,7 +339,7 @@ Không có contract thì gate pass và nói rõ là chưa có gì để đối c
 
 `ui` chỉ đo những thuộc tính bạn nghĩ ra để khai. Nó **không thấy** chữ tràn, phần tử đè nhau, layout vỡ ở màn hẹp.
 
-Lần chạy đầu tạo baseline trong `.compass/<id>/baseline/` và nói rõ là **chưa so gì cả**. Xem ảnh, thấy đúng thì commit vào git. Từ lần sau nó so pixel.
+Lần chạy đầu tạo baseline trong `.compass/<id>/baseline/` (nhiều repo: `baseline/<repo>/`) và nói rõ là **chưa so gì cả**. Xem ảnh, thấy đúng thì commit vào git. Từ lần sau nó so pixel.
 
 Vượt ngưỡng (mặc định 0.1%, chỉnh bằng `visualThreshold`) thì fail và ghi ảnh diff vào evidence — đỏ là chỗ đổi, mờ là chỗ giữ nguyên.
 
@@ -617,6 +617,38 @@ Repo con đè lên phần chung theo từng trường — khai `test` mà không
 
 `Phạm vi` trong spec quyết định repo nào áp dụng, và `compass status` cho thấy Compass đọc ra gì.
 
+### Gate nào chạy theo repo
+
+`convention`, `ui`, `visual` chạy lần lượt ở từng repo trong `Phạm vi`, mỗi repo một bản ghi ở khe
+`<gate>@<repo>`: `convention@<repo>`, `ui@<repo>`, `visual@<repo>`. Gọi thẳng `compass convention <id>`
+cũng đi qua từng repo như `check`, không bao giờ ghi một khe chung.
+
+| Gate | Đo gì, ở đâu |
+|---|---|
+| `convention` | Chỉ file trong thư mục repo. Luật vẫn viết một lần ở `.knowledge/decided/conventions.md` của gốc; `scope` khớp cả đường dẫn tính từ repo (`src/**/*.jsx`) lẫn tính từ gốc (`fe/src/**/*.jsx`). Vi phạm in theo gốc để biết file nằm ở repo nào |
+| `ui`, `visual` | Config đã gộp của repo (`dev`, `devUrl`, `devTimeoutMs`, `visualThreshold`). Dev server chạy **trong thư mục repo**, Playwright tìm từ thư mục repo — cài ở repo có giao diện |
+
+Baseline của `visual` nằm ở `.compass/<id>/baseline/<repo>/<viewport>.png`, evidence ở
+`.compass/<id>/evidence/repos/<repo>/`. Key `sorm/frontend` thành thư mục lồng. Tên repo đi vào đường
+dẫn nên không được có đoạn rỗng, `.`, `..`, `\`, `:` hay `/` ở đầu — `ui`/`visual` từ chối trước khi ghi
+gì. Dự án một repo giữ nguyên đường cũ: khe trần, `baseline/<viewport>.png`, `evidence/ui.json`.
+
+`test` thì khác: nó chạy lệnh test từng repo, gộp output rồi đối chiếu ID **một lần**, nên vẫn ghi một khe
+`test`.
+
+Bốn điều cần biết:
+
+- **Dev server chạy trong thư mục repo**, không còn ở gốc. Lệnh `dev` chỉ chạy được từ gốc (`pnpm --filter
+  fe dev`) mà khai ở phần chung thì giờ sẽ không lên — khai `dev` riêng trong repo.
+- **Luật viết theo repo giờ có tác dụng.** `scope: src/**/*.jsx` trước đây không khớp file nào ở dự án
+  nhiều repo, giờ khớp `src/` của mọi repo trong phạm vi — gate có thể đỏ trên code cũ. Đó là lần xanh giả
+  biến mất.
+- **Một hợp đồng thiết kế cho cả task.** `.compass/<id>/design-contract.json` được đo ở mọi repo khai
+  `devUrl`. Hai frontend có DOM khác nhau trong một task thì chưa làm được — tách thành hai task.
+- **Khe trần là bản ghi mốc.** Khe `convention`, `ui`, `visual` không mang tên repo (ghi trước khi khai
+  `repos`, hay từ bản Compass cũ) không nói được đã đo repo nào. `done` báo nó và không tính, kể cả khi
+  loại task không bắt buộc gate đó. Chạy lại `compass check <id>`: bản ghi theo repo thay hẳn khe trần.
+
 ### Dựng config cho dự án nhiều repo
 
 `compass init` chỉ đẻ config một repo. Nhiều repo thì **đọc từng thư mục con rồi viết**, đừng hỏi
@@ -659,15 +691,14 @@ Tám gate: `spec`, `knowledge`, `secrets`, `convention`, `test`, `ui`, `visual`,
 Cộng knowledge base sinh tự động, lệnh `investigate`, config nhiều repo, và `check` chạy gate
 theo từng repo.
 
-Chưa xong ở chế độ nhiều repo: `convention`, `ui`, `visual` khi **chạy thật** vẫn quét đúng thư mục
-nhưng **ghi sổ không kèm tên repo**, nên hai repo đè lên nhau và chỉ repo cuối còn bằng chứng. Gate vẫn
-xanh — đây là dạng sai khó thấy nhất. Dự án nhiều repo chỉ nên tin `test` và `knowledge` cho tới khi vá
-xong.
+Ở chế độ nhiều repo, mọi gate đều có bằng chứng đúng chỗ: `convention`, `ui`, `visual` đo từng repo và
+ghi khe `<gate>@<repo>` (xem mục "Gate nào chạy theo repo"), `test` gộp mọi repo vào một khe `test`, còn
+`spec`, `knowledge`, `secrets`, `review` chạy một lần ở gốc.
 
-Bản ghi **bỏ qua** thì có tên repo: repo không khai `devUrl` được `check` ghi vào khe `ui@<repo>` và
-`visual@<repo>`. `done` chỉ coi `ui`/`visual` là xong khi **mọi** repo trong `Phạm vi` đều có khe bỏ qua
-hợp lệ. Thiếu một repo, hay config không đọc được, là "chưa chạy" — không có repo nào được ké bỏ qua của
-repo khác.
+`done` chỉ coi `convention`, `ui`, `visual` là xong khi **mọi** repo trong `Phạm vi` có khe riêng xanh —
+hoặc, với `ui`/`visual`, khe bỏ qua hợp lệ mà `check` ghi cho repo không khai `devUrl`. Thiếu một repo,
+hay config không đọc được, là "chưa chạy" — không có repo nào được ké bản ghi của repo khác, và khe trần
+không bao giờ được dùng thay.
 
 Chưa có: trang xem knowledge bằng trình duyệt, và lệnh dựng config nhiều repo (làm tay theo mục trên).
 

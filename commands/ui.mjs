@@ -1,15 +1,18 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { findRoot, specPath, taskDir, evidenceDir, validateTaskId } from '../lib/paths.mjs';
+import { findRoot, specPath, taskDir, validateTaskId } from '../lib/paths.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { parseContract } from '../lib/design-contract.mjs';
 import { compareValue } from '../lib/tolerance.mjs';
 import { findPlaywright, buildMeasureScript, pairResults } from '../lib/browser.mjs';
 import { startDevServer, waitForUrl, isLocalUrl } from '../lib/dev-server.mjs';
-import { writeGate } from '../lib/gate-store.mjs';
+import { writeGate, writeSkip, repoEvidenceDir } from '../lib/gate-store.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
+import { parseSpec } from '../lib/spec-parser.mjs';
+import { rulesFor } from '../lib/task-types.mjs';
+import { reposForGate, repoPathError, runBrowserGatePerRepo } from '../lib/gates.mjs';
 
 const CONTRACT_FILE = 'design-contract.json';
 // Mặc định 60 giây, đủ cho một dev server bình thường. Dự án nặng có thể
@@ -29,18 +32,47 @@ function formatDrift(d) {
   return `[${d.viewport}] ${where}\n      ${detail}   ${d.reason}`;
 }
 
-export async function uiCommand({ cwd, taskId }) {
+// `repo` là tên repo cần đo (null nếu dự án một repo, hoặc gọi thẳng từ CLI).
+// `gateRoot` là gốc Compass — nơi có spec, hợp đồng thiết kế và sổ gate. Một hợp
+// đồng cho cả task, nhưng dev server, Playwright và config là của từng repo.
+export async function uiCommand({ cwd, taskId, repo = null, gateRoot = null }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass ui <id>' };
 
   const validation = validateTaskId(taskId);
   if (!validation.ok) return { exitCode: 2, output: validation.reason };
 
-  const root = findRoot(cwd);
+  const root = gateRoot ?? findRoot(cwd);
   if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
 
   const file = specPath(root, taskId);
   if (!existsSync(file)) return { exitCode: 2, output: `Không tìm thấy spec: ${file}` };
 
+  // Tên repo đi vào đường dẫn evidence, nên soi nó trước khi ghi bất cứ thứ gì.
+  const tenHong = repo === null ? null : repoPathError(repo);
+  if (tenHong) return { exitCode: 2, output: fail('ui', [tenHong]) };
+
+  const spec = parseSpec(readFileSync(file, 'utf8'));
+  const chon = reposForGate(root, spec.scope, repo);
+  if (!chon.ok) return { exitCode: 2, output: chon.output };
+  if (chon.repos === null) return doUi({ root, file, taskId, repo: null, repoDir: root, repoConfig: null });
+  if (repo !== null) {
+    const [r] = chon.repos;
+    return doUi({ root, file, taskId, repo, repoDir: r.dir, repoConfig: r.config });
+  }
+
+  return runBrowserGatePerRepo({
+    gate: 'ui',
+    repos: chon.repos,
+    required: rulesFor(spec.type)?.gates.includes('ui') ?? false,
+    run: (r) => doUi({ root, file, taskId, repo: r.name, repoDir: r.dir, repoConfig: r.config }),
+    skip: (r) => writeSkip(root, taskId, 'ui', r.name),
+  });
+}
+
+// Đo một nơi: gốc khi dự án một repo (`repoConfig` null, đọc config như cũ), thư
+// mục repo với config đã gộp của repo đó khi nhiều repo. `sourceHash` vẫn băm cả
+// gốc, vì `done` băm gốc.
+async function doUi({ root, file, taskId, repo, repoDir, repoConfig }) {
   const contractFile = contractPath(root, taskId);
 
   // A task with no contract has nothing to measure against. That is a normal
@@ -55,7 +87,7 @@ export async function uiCommand({ cwd, taskId }) {
       contractHash: null,
       measured: 0,
       driftCount: 0,
-    });
+    }, repo);
     return {
       exitCode: 0,
       output: [
@@ -75,17 +107,23 @@ export async function uiCommand({ cwd, taskId }) {
     };
   }
 
-  const cfg = loadConfig(root);
-  if (!cfg.ok) return { exitCode: 2, output: cfg.errors.join('\n') };
+  // Một repo: config ở gốc, đọc như cũ. Nhiều repo: config đã gộp của repo đó —
+  // cùng config mà `check` dùng để quyết định có chạy gate này hay không.
+  let config = repoConfig;
+  if (config === null) {
+    const cfg = loadConfig(root);
+    if (!cfg.ok) return { exitCode: 2, output: cfg.errors.join('\n') };
+    config = cfg.config;
+  }
 
   const missing = [];
-  if (!cfg.config.dev) missing.push('"dev" (lệnh khởi động dev server)');
-  if (!cfg.config.devUrl) missing.push('"devUrl" (địa chỉ trang để đo)');
+  if (!config.dev) missing.push('"dev" (lệnh khởi động dev server)');
+  if (!config.devUrl) missing.push('"devUrl" (địa chỉ trang để đo)');
   if (missing.length && contract.elements.length > 0) {
     return {
       exitCode: 2,
       output: [
-        fail('ui', [`config.json thiếu ${missing.join(' và ')}`]),
+        fail('ui', [`config.json thiếu ${missing.join(' và ')}${repo === null ? '' : ` cho repo "${repo}"`}`]),
         '',
         hint('Thêm vào .compass/config.json: { "dev": "npm run dev", "devUrl": "http://localhost:5173/" }'),
       ].join('\n'),
@@ -102,33 +140,34 @@ export async function uiCommand({ cwd, taskId }) {
       contractHash: sha256(source),
       measured: 0,
       driftCount: 0,
-    });
+    }, repo);
     return { exitCode: 0, output: pass('ui', '0 thuộc tính để đo') };
   }
 
-  const playwright = await findPlaywright(root);
+  // Tìm từ thư mục repo: mỗi repo tự cài Playwright, không mượn của repo bên cạnh.
+  const playwright = await findPlaywright(repoDir);
   if (!playwright.ok) {
     return { exitCode: 2, output: [fail('ui', playwright.reason.split('\n'))].join('\n') };
   }
 
   const warnings = [];
-  if (!isLocalUrl(cfg.config.devUrl)) {
-    warnings.push(`devUrl trỏ ra ngoài localhost: ${cfg.config.devUrl} — đang đo trang thật, không phải bản dev.`);
+  if (!isLocalUrl(config.devUrl)) {
+    warnings.push(`devUrl trỏ ra ngoài localhost: ${config.devUrl} — đang đo trang thật, không phải bản dev.`);
   }
 
-  const server = startDevServer(cfg.config.dev, root);
+  const server = startDevServer(config.dev, repoDir);
   let browser;
 
   try {
-    const up = await waitForUrl(cfg.config.devUrl, { timeoutMs: cfg.config.devTimeoutMs ?? DEV_TIMEOUT_MS });
+    const up = await waitForUrl(config.devUrl, { timeoutMs: config.devTimeoutMs ?? DEV_TIMEOUT_MS });
     if (!up.ok) {
       return {
         exitCode: 2,
         output: [
           fail('ui', [
             `Dev server ${up.reason}.`,
-            `Lệnh: ${cfg.config.dev}`,
-            `Địa chỉ: ${cfg.config.devUrl}`,
+            `Lệnh: ${config.dev}`,
+            `Địa chỉ: ${config.devUrl}`,
             server.output.split('\n').slice(-5).join('\n'),
           ]),
           '',
@@ -146,7 +185,7 @@ export async function uiCommand({ cwd, taskId }) {
       const page = await browser.newPage({
         viewport: { width: viewport.width, height: viewport.height },
       });
-      await page.goto(cfg.config.devUrl, { waitUntil: 'load', timeout: PAGE_TIMEOUT_MS });
+      await page.goto(config.devUrl, { waitUntil: 'load', timeout: PAGE_TIMEOUT_MS });
 
       const results = await page.evaluate(script);
 
@@ -196,7 +235,7 @@ export async function uiCommand({ cwd, taskId }) {
       await page.close();
     }
 
-    const dir = evidenceDir(root, taskId);
+    const dir = repoEvidenceDir(root, taskId, repo);
     mkdirSync(dir, { recursive: true });
     writeFileSync(path.join(dir, 'ui.json'), JSON.stringify({ measured, drifts }, null, 2));
 
@@ -207,11 +246,11 @@ export async function uiCommand({ cwd, taskId }) {
       specHash: hashFile(file),
       sourceHash: hashSource(root),
       contractHash: sha256(source),
-      devUrl: cfg.config.devUrl,
+      devUrl: config.devUrl,
       measured,
       driftCount: drifts.length,
-      outputFile: 'evidence/ui.json',
-    });
+      outputFile: repo === null ? 'evidence/ui.json' : `evidence/repos/${repo}/ui.json`,
+    }, repo);
 
     if (drifts.length > 0) {
       return {

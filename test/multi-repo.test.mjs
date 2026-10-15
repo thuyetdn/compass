@@ -12,7 +12,7 @@ import { checkCommand } from '../commands/check.mjs';
 import { doneCommand } from '../commands/done.mjs';
 import { initRepo } from './helpers/git-repo.mjs';
 import { testCommand } from '../commands/test.mjs';
-import { readGates, slotFor, parseSlot } from '../lib/gate-store.mjs';
+import { readGates, readGate, slotFor, parseSlot } from '../lib/gate-store.mjs';
 import { getSalt, signRecord } from '../lib/signature.mjs';
 import { gatePath } from '../lib/paths.mjs';
 
@@ -163,21 +163,16 @@ test('CP-13-E2 a repo directory removed mid-run is reported, not crashed on', as
 test('CP-13-EC1 two repos writing the same gate do not overwrite each other', async () => {
   // Một khe cho mỗi gate thì repo sau đè lên repo trước, và `done` chỉ thấy repo
   // cuối — bằng chứng của repo kia biến mất mà không ai biết.
-  const root = makeRoot({ config: HAI_REPO });
-  const dir = path.join(root, '.compass', 'T-1', 'evidence');
-  const salt = getSalt(root);
-  const file = gatePath(root, 'T-1');
-  const gates = {};
-  for (const name of ['be', 'fe']) {
-    const rec = { gate: 'test', taskId: 'T-1', repo: name, exitCode: 0 };
-    gates[slotFor('test', name)] = { ...rec, sig: signRecord(rec, salt) };
-  }
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(file, JSON.stringify(gates, null, 2));
+  // Chạy gate thật qua `check`, không tự viết bản ghi rồi đọc lại — cách đó chỉ
+  // chứng minh được JSON.parse chạy đúng.
+  const root = makeRoot({ config: HAI_REPO, specText: spec().replace('Loại: fix', 'Loại: feature-s') });
+  const r = await checkCommand({ cwd: root, taskId: 'T-1', only: 'convention' });
+  assert.equal(r.exitCode, 0, r.output);
 
   const doc = readGates(root, 'T-1');
-  assert.ok(doc['test@be'], 'bản ghi repo be còn');
-  assert.ok(doc['test@fe'], 'bản ghi repo fe còn');
+  assert.ok(doc['convention@be'], 'bản ghi repo be còn');
+  assert.ok(doc['convention@fe'], 'bản ghi repo fe còn');
+  assert.equal(doc.convention, undefined, 'không có khe trần nào để repo sau đè lên');
 });
 
 test('CP-13-EC2 a single-repo record still reads back the old way', async () => {
@@ -235,21 +230,35 @@ test('CP-13-V3 the ui gate runs only in repos that declare a devUrl', async () =
         fe: { test: IN('ok 1 - T-1-H2 frontend'), dev: 'npm run dev', devUrl: 'http://127.0.0.1:59991/' },
       },
     },
-    specText: spec({ ids: ['H1', 'H2'] }).replace('Loại: fix', 'Loại: fix'),
+    specText: spec({ ids: ['H1', 'H2'] }).replace('Loại: fix', 'Loại: feature-s'),
   });
-  const r = await checkCommand({ cwd: root, taskId: 'T-1', only: 'test' });
+  // Chạy `ui` thật. Không có hợp đồng thiết kế nên fe đo xong mà không cần dev
+  // server — điều cần khẳng định là repo nào được đo, repo nào được bỏ qua.
+  const r = await checkCommand({ cwd: root, taskId: 'T-1', only: 'ui' });
   assert.equal(r.exitCode, 0, r.output);
-  // Loại `fix` không chạy ui; điều cần khẳng định là danh sách repo lọc được.
-  const cfg = JSON.parse(readFileSync(path.join(root, '.compass', 'config.json'), 'utf8'));
-  assert.equal(cfg.repos.be.devUrl, undefined, 'be không khai devUrl');
-  assert.ok(cfg.repos.fe.devUrl, 'fe có khai');
+  const be = readGate(root, 'T-1', 'ui', 'be');
+  assert.equal(be.skipped, true, 'be không khai devUrl nên bị bỏ qua');
+  const fe = readGate(root, 'T-1', 'ui', 'fe');
+  assert.notEqual(fe.skipped, true, 'fe khai devUrl nên được đo');
+  assert.equal(fe.exitCode, 0);
+  assert.equal(fe.measured, 0);
 });
 
 test('CP-13-EC3 no repo declaring devUrl means the browser gates are skipped, not failed', async () => {
-  const root = makeRoot({ config: HAI_REPO });
-  const r = await checkCommand({ cwd: root, taskId: 'T-1' });
-  assert.equal(r.exitCode, 0, 'thiếu devUrl không phải lỗi');
-  assert.doesNotMatch(r.output, /ui FAILED|visual FAILED/);
+  // Loại `fix` không bao giờ chạy ui/visual, nên "không FAILED" ở đó đúng sẵn.
+  // feature-s đòi cả hai: bỏ qua phải để lại bản ghi theo từng repo.
+  const root = makeRoot({ config: HAI_REPO, specText: spec().replace('Loại: fix', 'Loại: feature-s') });
+  for (const only of ['ui', 'visual']) {
+    const r = await checkCommand({ cwd: root, taskId: 'T-1', only });
+    assert.equal(r.exitCode, 0, 'thiếu devUrl không phải lỗi');
+    assert.doesNotMatch(r.output, /ui FAILED|visual FAILED/);
+  }
+  const doc = readGates(root, 'T-1');
+  for (const slot of ['ui@be', 'ui@fe', 'visual@be', 'visual@fe']) {
+    assert.equal(doc[slot]?.skipped, true, `${slot} phải có bản ghi bỏ qua`);
+  }
+  assert.equal(doc.ui, undefined, 'không có khe trần ui');
+  assert.equal(doc.visual, undefined, 'không có khe trần visual');
 });
 
 test('CP-13-EC4 two checks in a row both pass', async () => {
