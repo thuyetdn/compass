@@ -118,6 +118,7 @@ export function secretsCommand({ cwd, taskId }) {
 
   const diffText = collected.ok ? collected.diff : '';
   const diffFiles = collected.ok ? collected.files : [];
+  const deletedFiles = collected.ok ? collected.deleted : [];
 
   // `?? []` ở đây từng biến một lệnh git hỏng thành "index không có `.env` nào".
   // Dựng lại được: tràn `maxBuffer` làm 195 file theo dõi thành 0, và gate xanh.
@@ -146,6 +147,7 @@ export function secretsCommand({ cwd, taskId }) {
     trackedFiles: tracked,
     untrackedUnignored: untracked,
     declared,
+    deletedFiles,
   });
 
   const configFile = cfg.ok ? cfg.config : null;
@@ -172,7 +174,11 @@ export function secretsCommand({ cwd, taskId }) {
         for (const h of String(p.hint).split('\n')) lines.push(`      ${h}`);
       }
     }
-    const daKhai = declared && byReason[0].length
+    // Lý do 2 cũng in: nó chỉ cách lý do 1 một lần `git add -A`, và người đã khai
+    // `Dùng .env:` rồi thấy "not ignored" đúng là người tưởng lời khai che cả file.
+    // Lý do 3 thì cố ý không: lời khai đang tắt nó, và nếu có ngày hai thứ đứng
+    // cạnh nhau thì câu "cho phép ĐỌC" bên một lỗi đọc là câu sai.
+    const daKhai = declared && (byReason[0].length || byReason[1].length)
       ? ['', `Lời khai "Dùng .env: ${declared}" cho phép ĐỌC, không cho phép commit.`]
       : [];
     return {

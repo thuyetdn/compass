@@ -8,6 +8,7 @@ import { secretsCommand } from '../commands/secrets.mjs';
 import { checkCommand } from '../commands/check.mjs';
 import { doneCommand } from '../commands/done.mjs';
 import { readGate, verifyAllGates } from '../lib/gate-store.mjs';
+import { collectDiff } from '../lib/review-brief.mjs';
 import { initRepo } from './helpers/git-repo.mjs';
 
 const SPEC = `# T-S: Gate secrets
@@ -305,4 +306,206 @@ test('CP-40-S5 a Soi đến line cannot hide a read that sits at HEAD', () => {
   const result = secretsCommand({ cwd: root, taskId: 'T-S' });
   assert.equal(result.exitCode, 1, 'khai Soi đến không được làm gate mù: ' + result.output);
   assert.match(result.output, /leak\.mjs/);
+});
+
+// CP-50: một base commit đã có sẵn `files`, rồi spec khai `Gốc soi` vào đúng
+// commit đó. Gốc mặc định là commit rỗng đầu tiên, mà từ đó nhìn thì `.env` của
+// base là file task THÊM vào — tức không dựng được trạng thái "task gỡ file".
+function repoWithBase({ files = {}, spec = SPEC } = {}) {
+  const root = makeRepo();
+  for (const [rel, content] of Object.entries(files)) {
+    const full = path.join(root, rel);
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, content);
+  }
+  git(root, ['add', '-A', '--force']);
+  git(root, ['commit', '-q', '-m', 'base']);
+  const base = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  writeFileSync(
+    path.join(root, '.compass', 'T-S', 'spec.md'),
+    spec.replace('Phạm vi: src/', `Phạm vi: src/\nGốc soi: ${base}`),
+  );
+  return { root, base };
+}
+
+// Đúng lời khuyên gate đưa cho `.env` đã bị theo dõi: `git rm --cached`, thêm vào
+// `.gitignore`. `commit` quyết định việc gỡ đã vào lịch sử hay mới nằm ở index.
+function untrackAsAdvised(root, { commit }) {
+  git(root, ['rm', '-q', '--cached', '.env']);
+  writeFileSync(path.join(root, '.gitignore'), '.env\n');
+  git(root, ['add', '.gitignore']);
+  if (commit) git(root, ['commit', '-q', '-m', 'untrack .env']);
+}
+
+const DECLARED = SPEC.replace('Phạm vi: src/', 'Phạm vi: src/\nDùng .env: chạy local');
+const READ_ONLY = 'cho phép ĐỌC';
+
+test('CP-50-H1 removing a tracked .env as the gate advises, committed, turns the gate green', () => {
+  const { root } = repoWithBase({ files: { 'src/a.mjs': 'const a = 1;\n', '.env': 'TOKEN=abc\n' } });
+  untrackAsAdvised(root, { commit: true });
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.match(result.output, /PASSED/);
+  assert.equal(result.output.includes('secret file'), false, result.output);
+});
+
+test('CP-50-H2 the same removal staged but not committed is green too', () => {
+  const { root } = repoWithBase({ files: { 'src/a.mjs': 'const a = 1;\n', '.env': 'TOKEN=abc\n' } });
+  untrackAsAdvised(root, { commit: false });
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.match(result.output, /PASSED/);
+});
+
+test('CP-50-H3 a declared task sees the read-only warning for a new unignored .env file', () => {
+  // Đi qua lệnh thật, không qua `scanSecrets`: file mới chưa commit thì
+  // `ls-files --others` luôn liệt kê nó, nên nó là lý do 2 — trạng thái mà
+  // CP-40-E5 không dựng, và bug chỉ sống trong đó.
+  const root = makeRepo({ spec: DECLARED, files: { 'src/a.mjs': 'const a = 1;\n' } });
+  writeFileSync(path.join(root, '.env.local'), 'K=v\n');
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.ok(result.output.includes('secret file not ignored: .env.local'), result.output);
+  assert.ok(
+    result.output.includes('Lời khai "Dùng .env: chạy local" cho phép ĐỌC, không cho phép commit.'),
+    result.output,
+  );
+});
+
+test('CP-50-V1 without a declaration a reason 2 failure carries no read-only warning', () => {
+  const root = makeRepo({ files: { 'src/a.mjs': 'const a = 1;\n' } });
+  writeFileSync(path.join(root, '.env.local'), 'K=v\n');
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.ok(result.output.includes('not ignored: .env.local'), result.output);
+  assert.equal(result.output.includes(READ_ONLY), false, result.output);
+});
+
+test('CP-50-V2 a declared read with no .env file passes without the read-only warning', () => {
+  const root = makeRepo({ spec: DECLARED, files: { 'src/config.mjs': "import 'dotenv/config';\n" } });
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.equal(result.output.includes(READ_ONLY), false, result.output);
+});
+
+test('CP-50-E1 a .env the task adds and commits still fails as tracked', () => {
+  const { root } = repoWithBase({ files: { 'src/a.mjs': 'const a = 1;\n', '.gitignore': '' } });
+  writeFileSync(path.join(root, '.env'), 'TOKEN=abc\n');
+  git(root, ['add', '-A', '--force']);
+  git(root, ['commit', '-q', '-m', 'leak']);
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.ok(result.output.includes('secret file tracked by git: .env'), result.output);
+});
+
+test('CP-50-E2 a tracked .env the task edits and commits still fails as tracked', () => {
+  const { root } = repoWithBase({ files: { 'src/a.mjs': 'const a = 1;\n', '.env': 'TOKEN=abc\n' } });
+  writeFileSync(path.join(root, '.env'), 'TOKEN=abc\nOTHER=def\n');
+  git(root, ['add', '-A', '--force']);
+  git(root, ['commit', '-q', '-m', 'edit']);
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.match(result.output, /tracked by git: \.env$/m);
+});
+
+test('CP-50-E3 a declared task that stages a .env file keeps the read-only warning', () => {
+  const root = makeRepo({ spec: DECLARED, files: { 'src/a.mjs': 'const a = 1;\n' } });
+  writeFileSync(path.join(root, '.env.local'), 'K=v\n');
+  git(root, ['add', '.env.local']);
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.ok(result.output.includes('tracked by git: .env.local'), result.output);
+  assert.ok(result.output.includes(READ_ONLY), result.output);
+});
+
+test('CP-50-EC1 untracking without ignoring leaves a reason 2 file, not a deleted one', () => {
+  const { root } = repoWithBase({ files: { 'src/a.mjs': 'const a = 1;\n', '.env': 'TOKEN=abc\n' } });
+  git(root, ['rm', '-q', '--cached', '.env']);
+
+  // Cả hai trạng thái: gỡ mới nằm ở index, rồi gỡ đã commit. File vẫn trên đĩa
+  // và chưa ignore, nên lần `git add -A` sau là nó quay lại — bộ lọc file đã xoá
+  // không được nuốt nó ở trạng thái nào.
+  for (const lan of ['staged', 'committed']) {
+    if (lan === 'committed') git(root, ['commit', '-q', '-m', 'untrack only']);
+    const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+    assert.equal(result.exitCode, 1, `${lan}: ${result.output}`);
+    assert.ok(result.output.includes('secret file not ignored: .env'), `${lan}: ${result.output}`);
+    assert.ok(result.output.includes('.gitignore'), `${lan}: ${result.output}`);
+    assert.equal(result.output.includes('in the diff'), false, `${lan}: ${result.output}`);
+  }
+});
+
+test('CP-50-EC2 a .env.production removed with git rm and committed passes', () => {
+  const { root } = repoWithBase({
+    files: { 'src/a.mjs': 'const a = 1;\n', '.env.production': 'TOKEN=abc\n' },
+  });
+  git(root, ['rm', '-q', '.env.production']);
+  git(root, ['commit', '-q', '-m', 'remove']);
+  assert.equal(existsSync(path.join(root, '.env.production')), false, 'git rm phải xoá cả trên đĩa');
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 0, result.output);
+});
+
+test('CP-50-EC3 a .env moved with git mv still fails under its new path', () => {
+  const { root } = repoWithBase({ files: { 'src/a.mjs': 'const a = 1;\n', '.env': 'TOKEN=abc\n' } });
+  mkdirSync(path.join(root, 'config'));
+  git(root, ['mv', '.env', 'config/.env']);
+  git(root, ['commit', '-q', '-m', 'move']);
+
+  const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+  assert.equal(result.exitCode, 1, result.output);
+  assert.ok(result.output.includes('config/.env'), result.output);
+});
+
+test('CP-50-EC4 collectDiff still lists the removed .env in files, and only it in deleted', () => {
+  const { root, base } = repoWithBase({ files: { 'src/a.mjs': 'const a = 1;\n', '.env': 'TOKEN=abc\n' } });
+  untrackAsAdvised(root, { commit: true });
+
+  // Đúng bộ tham số `secrets` truyền vào.
+  const collected = collectDiff(root, {
+    baseRef: base,
+    baseFrom: 'spec',
+    endRef: null,
+    endFrom: 'spec',
+    scopePaths: [],
+  });
+  assert.equal(collected.ok, true, collected.reason);
+  assert.ok(collected.files.includes('.env'), collected.files.join(', '));
+  assert.ok(collected.files.includes('.gitignore'), collected.files.join(', '));
+  assert.deepEqual(collected.deleted, ['.env']);
+});
+
+test('CP-50-S1 neither the removal nor the declared warning prints a value from the .env file', () => {
+  const MARKER = 'zq7x9marker';
+
+  const { root: daGo } = repoWithBase({
+    files: { 'src/a.mjs': 'const a = 1;\n', '.env': `TOKEN=${MARKER}\n` },
+  });
+  untrackAsAdvised(daGo, { commit: true });
+
+  const daKhai = makeRepo({ spec: DECLARED, files: { 'src/a.mjs': 'const a = 1;\n' } });
+  writeFileSync(path.join(daKhai, '.env.local'), `TOKEN=${MARKER}\n`);
+
+  for (const [root, exit] of [[daGo, 0], [daKhai, 1]]) {
+    const result = secretsCommand({ cwd: root, taskId: 'T-S' });
+    assert.equal(result.exitCode, exit, result.output);
+    assert.equal(result.output.includes(MARKER), false, 'giá trị lọt ra output');
+    const ledger = readFileSync(path.join(root, '.compass', 'T-S', 'evidence', 'gate.json'), 'utf8');
+    assert.equal(ledger.includes(MARKER), false, 'giá trị lọt vào bản ghi gate');
+  }
+
+  // Cùng phép đo với CP-40-S3: danh sách `deleted` là đường dẫn từ git, nên
+  // module quét vẫn không cần import hàm đọc file nào.
+  const scan = readFileSync(path.join(process.cwd(), 'lib', 'secrets-scan.mjs'), 'utf8');
+  const imports = scan.match(/^import\s[\s\S]*?from\s+['"][^'"]+['"];/gm) ?? [];
+  assert.deepEqual(imports, [], 'lib/secrets-scan.mjs không được import gì');
 });

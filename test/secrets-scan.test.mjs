@@ -108,6 +108,17 @@ test('CP-40-E5 a declaration covers reading, not committing', () => {
   assert.ok(r.problems.some((p) => p.reason === 1));
 });
 
+test('CP-50-EC5 a secret file the task deleted is not a reason 1 problem', () => {
+  const daXoa = scanSecrets({ ...CLEAN, diffFiles: ['.env'], deletedFiles: ['.env'] });
+  assert.equal(daXoa.ok, true);
+  assert.deepEqual(daXoa.problems, []);
+
+  // Không truyền khoá thì hành vi y như trước CP-50: mọi caller cũ giữ nguyên.
+  const macDinh = scanSecrets({ ...CLEAN, diffFiles: ['.env'] });
+  assert.equal(macDinh.problems.length, 1);
+  assert.equal(macDinh.problems[0].reason, 1);
+});
+
 test('CP-40-EC1 process.env is not a file read', () => {
   assert.equal(readsEnv('const k = process.env.API_KEY'), null);
   assert.equal(readsEnv('const k = import.meta.env.VITE_X'), null);
