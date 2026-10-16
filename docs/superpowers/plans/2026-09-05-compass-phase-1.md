@@ -3427,7 +3427,7 @@ Gate record có chữ ký — sửa tay là lộ.
 GĐ 1: gate `spec` và `test`.
 GĐ 2-4: `convention`, `ui`, `visual`, `review`, knowledge base, điều tra, multi-repo.
 
-Thiết kế đầy đủ: [docs/superpowers/specs/2026-09-05-compass-design.md](docs/superpowers/specs/2026-09-05-compass-design.md)
+Thiết kế đầy đủ: [docs/superpowers/specs/2026-09-05-compass-design.md](../specs/2026-09-05-compass-design.md)
 ```
 
 - [x] **Step 3: Chạy toàn bộ test lần cuối**
