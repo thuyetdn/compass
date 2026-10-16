@@ -83,11 +83,11 @@ test('CP-66-H5 vite with no declared port falls back to 5173', () => {
 
 test('CP-66-H6 a repo nested two levels keys on its path', () => {
   const root = makeDir();
-  makeRepo(root, path.join('sorm', 'backend'), { scripts: { test: 'jest' } });
+  makeRepo(root, path.join('store', 'backend'), { scripts: { test: 'jest' } });
 
   assert.equal(initMultiCommand({ cwd: root }).exitCode, 0);
   const cfg = readConfig(root);
-  assert.ok(cfg.repos['sorm/backend'], 'keys: ' + Object.keys(cfg.repos).join(', '));
+  assert.ok(cfg.repos['store/backend'], 'keys: ' + Object.keys(cfg.repos).join(', '));
   assert.ok(!cfg.repos.backend);
 });
 

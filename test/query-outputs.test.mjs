@@ -512,10 +512,10 @@ test('CP-32-S12 keeps a commented-out statement from exempting the next query', 
   // outcome this gate exists to prevent.
   const sql = [
     '-- @out: -',
-    '/* select Status, count(*) from crmlaaspackages group by Status */;',
+    '/* select Status, count(*) from orders group by Status */;',
     '',
     '-- Q2 - the bounce list we must export',
-    'select Email from mastercontact where Bounced = 1;',
+    'select Email from customers where Bounced = 1;',
   ].join('\n');
 
   const { queries, errors } = parseQueryOutputs(sql, 'INV-4');
@@ -577,7 +577,7 @@ test('CP-32-S13 warns when a declaration sits a gap above a dash-disabled query'
     '-- select 3 from huge_table;',
     '',
     '-- Q4 the one we actually need to export',
-    'select Email from mastercontact where Bounced=1;',
+    'select Email from customers where Bounced=1;',
   ].join('\n');
 
   const { errors, warnings } = parseQueryOutputs(sql, 'INV-4');
@@ -596,7 +596,7 @@ test('CP-32-S14 warns when a declaration sits a gap above a block-disabled query
     '-- @out: INV-4-q3-work-0908.csv',
     '/* select 3 from huge_table; */',
     '',
-    'select Email from mastercontact;',
+    'select Email from customers;',
   ].join('\n');
 
   const { errors, warnings } = parseQueryOutputs(sql, 'INV-4');
@@ -669,16 +669,16 @@ test('CP-32-S16 warns however the query below the declaration was disabled', () 
   // wording missed every one of these: none begins with a SQL keyword, yet each
   // is a disabled query whose declaration must not travel.
   const shapes = [
-    ['parenthesised', ["-- (select * from mastercontact where Email = '<E>')"]],
+    ['parenthesised', ["-- (select * from customers where Email = '<E>')"]],
     ['union branch', ['-- union all select 1 from t']],
     ['values list', ['-- values (1,2)']],
     ['merge', ['-- merge into t using s on 1=1']],
-    ['continuation only', ['--   from mastercontact', '--   where Bounced = 1']],
+    ['continuation only', ['--   from customers', '--   where Bounced = 1']],
     ['block opening with a heading', ['/* Q1 disabled', 'select 1;', '*/']],
   ];
 
   for (const [label, disabled] of shapes) {
-    const sql = ['-- @out: -', ...disabled, '', 'select Email from mastercontact;'].join('\n');
+    const sql = ['-- @out: -', ...disabled, '', 'select Email from customers;'].join('\n');
     const { errors, warnings } = parseQueryOutputs(sql, 'INV-4');
 
     assert.deepEqual(errors, [], `${label}: a gap must not fail the gate`);
@@ -735,7 +735,7 @@ test('CP-32-S19 warns even with no blank line before the next query', () => {
   // slipped past silently — no warning at all, which is worse than the
   // documented hole.
   const shapes = [
-    ['dash-disabled', ['-- @out: -', '-- select * from huge_table;', 'select Email from mastercontact;']],
+    ['dash-disabled', ['-- @out: -', '-- select * from huge_table;', 'select Email from customers;']],
     ['block-disabled', ['-- @out: -', '/* select 1; */', 'select 2;']],
     ['paren-disabled', ['-- @out: -', '-- (select * from t)', 'select 1;']],
   ];
@@ -768,7 +768,7 @@ test('CP-32-S21 warns when disabled SQL shares a line with the real query', () =
   // reported at all — the same silent-hole class as the round-12 defect.
   const sql = [
     '-- @out: -',
-    '/* select 3 from huge_table; */ select Email from mastercontact where Bounced=1;',
+    '/* select 3 from huge_table; */ select Email from customers where Bounced=1;',
   ].join('\n');
 
   const { errors, warnings } = parseQueryOutputs(sql, 'INV-4');

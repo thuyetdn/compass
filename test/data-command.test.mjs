@@ -286,7 +286,7 @@ test('CP-32-EC23 prints a detached warning without failing the gate', () => {
     const sql = writeSql(
       root,
       'q.sql',
-      ['-- @out: -', '-- select * from mastercontact;', '', 'select Email from mastercontact;'].join('\n'),
+      ['-- @out: -', '-- select * from customers;', '', 'select Email from customers;'].join('\n'),
     );
 
     const { exitCode, output } = dataCommand({ cwd: root, taskId: 'INV-4', sqlPath: sql });
@@ -312,9 +312,9 @@ test('CP-32-EC24 keeps the detached warning visible when the file also has an er
       'q.sql',
       [
         '-- @out: INV-4-q3-work-0908.csv',
-        '-- select 3 from mastercontact;',
+        '-- select 3 from customers;',
         '',
-        'select Email from mastercontact;',
+        'select Email from customers;',
         '',
         'select 9;',
       ].join('\n'),
@@ -428,7 +428,7 @@ test('CP-32-EC22 catches the dangerous case as ambiguous, not by guessing', () =
       'q.sql',
       [
         '-- @out: -',
-        '-- (select * from mastercontact)',
+        '-- (select * from customers)',
         '',
         '-- @out: INV-4-real-work-0908.csv',
         'select 1;',

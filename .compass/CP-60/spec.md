@@ -31,8 +31,8 @@ Measured around the edges, because they decide the design:
   walkers never read `.gitignore`. Today the guide's only workaround is to delete the worktrees
   before running gates.
 - **Nested repos with a `.git` directory are scanned today.** A multi-repo layout like
-  `sorm/backend`, with its own `git init`: the knowledge scan finds its `Card` component, and
-  `runRules` reports `sorm\backend\src\api.js`. `lib/repos.mjs` only resolves directories from
+  `store/backend`, with its own `git init`: the knowledge scan finds its `Card` component, and
+  `runRules` reports `store\backend\src\api.js`. `lib/repos.mjs` only resolves directories from
   `config.repos`. It never looks at `.git`, and no walker skips a repo boundary.
 - **Submodules are scanned today too.** `vendor/lib` added with `git submodule add` has a `.git`
   file (`gitdir: ../../.git/modules/vendor/lib`), and the knowledge scan finds its `Widget`.
@@ -106,7 +106,7 @@ containing a file named `commondir`.
 ## Rủi ro hồi quy
 
 - **Multi-repo nested repos vanish from the gates.** A rule written too wide (any nested `.git`)
-  would drop `sorm/backend` from `convention@sorm/backend`, the knowledge scan, and `hashSource`. V2
+  would drop `store/backend` from `convention@store/backend`, the knowledge scan, and `hashSource`. V2
   measures all three.
 - **Submodules change behaviour.** Skipping every `.git` file would make `hashSource` blind to
   submodule edits and drop submodule components from the KB. V1 pins today's behaviour.
@@ -139,7 +139,7 @@ containing a file named `commondir`.
 | H3 | Happy | `hashSource` on the fixed fixture (`src/App.jsx`, `src/a.js` with the scratch contents), then after `git worktree add`, then after editing a worktree file, then after editing `src/a.js` | the first three equal `sha256:dceccdfb18c073cfb213b9dc8fffb003d92c2b539741d23254d676e653fde46c`; the fourth differs. At command level, the `sourceHash` in the `knowledge` record equals `hashSource(root)` after the worktree edit | P0 |
 | H4 | Happy | Untracked linked worktree plus an untracked `src/new.js`, then `collectDiff` | `files` contains `src/new.js` and not `.claude/worktrees/agent-x`; the diff has no `Subproject commit`; `.git/index` byte-identical before and after | P0 |
 | V1 | Validation | Submodule `vendor/lib` (`.git` file, admin dir without `commondir`) holding `Widget.jsx` | knowledge scan lists `vendor/lib/Widget.jsx`; editing it changes `hashSource` — as on HEAD | P0 |
-| V2 | Validation | Multi-repo project, nested repo `sorm/backend` with a `.git` directory, declared in `config.repos` | `convention@sorm/backend` reports `src/api.js`; the knowledge scan lists `sorm/backend/src/Card.jsx`; editing it changes `hashSource` | P0 |
+| V2 | Validation | Multi-repo project, nested repo `store/backend` with a `.git` directory, declared in `config.repos` | `convention@store/backend` reports `src/api.js`; the knowledge scan lists `store/backend/src/Card.jsx`; editing it changes `hashSource` | P0 |
 | V3 | Validation | Linked worktree at `.worktrees/feature`, created with `git worktree add` | skipped by the knowledge scan, `runRules` and `hashSource`, and absent from `collectDiff` `files` — the rule follows structure, not a name | P0 |
 | E1 | Error | A directory whose `.git` is a file containing `hello` (no `gitdir:` line) and a `.js` file with a `debugger;` line | the directory is scanned: `convention` reports the file; no throw | P1 |
 | E2 | Error | Orphaned worktree: its admin dir under `.git/worktrees/<name>` deleted; an untracked `.env` inside | all three walkers scan it; `compass secrets T-1` exits 1 with reason 2 naming that `.env` — git lists it, so the gate must too | P0 |

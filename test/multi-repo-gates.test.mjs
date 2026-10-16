@@ -525,19 +525,19 @@ test('CP-56-EC3 a shared dev command starts in fe when only fe declares devUrl',
 });
 
 test('CP-56-EC4 a nested repo key gets nested slots and a nested baseline', async () => {
-  const root = makeRoot({ scope: 'sorm/frontend/src', repos: { 'sorm/frontend': {} } });
-  const fe = await frontEnd(root, path.join('sorm', 'frontend'));
-  setConfig(root, (c) => ({ ...c, repos: { 'sorm/frontend': fe } }));
+  const root = makeRoot({ scope: 'store/frontend/src', repos: { 'store/frontend': {} } });
+  const fe = await frontEnd(root, path.join('store', 'frontend'));
+  setConfig(root, (c) => ({ ...c, repos: { 'store/frontend': fe } }));
   writeContract(root);
 
   const c = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(c.exitCode, 0, c.output);
 
   const gates = readGates(root, 'T-1');
-  assert.equal(gates['ui@sorm/frontend'].exitCode, 0);
-  assert.equal(gates['visual@sorm/frontend'].exitCode, 0);
-  assert.ok(existsSync(path.join(root, '.compass', 'T-1', 'baseline', 'sorm', 'frontend', 'desktop.png')));
-  assert.ok(existsSync(path.join(root, '.compass', 'T-1', 'evidence', 'repos', 'sorm', 'frontend', 'ui.json')));
+  assert.equal(gates['ui@store/frontend'].exitCode, 0);
+  assert.equal(gates['visual@store/frontend'].exitCode, 0);
+  assert.ok(existsSync(path.join(root, '.compass', 'T-1', 'baseline', 'store', 'frontend', 'desktop.png')));
+  assert.ok(existsSync(path.join(root, '.compass', 'T-1', 'evidence', 'repos', 'store', 'frontend', 'ui.json')));
 
   const r = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(r.exitCode, 0, r.output);

@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-09-05
 **Tác giả:** Thuyet Do (thiết kế cùng Claude)
-**Trạng thái:** Đã xây xong cả bốn giai đoạn (2026-09-06). Chưa chạy thử trên codebase Nexus thật.
+**Trạng thái:** Đã xây xong cả bốn giai đoạn (2026-09-06). Chưa chạy thử trên codebase Shop thật.
 
 ---
 
@@ -436,7 +436,7 @@ Bộ tài liệu cũ trộn hai loại vào một file — đó là lý do nó v
 ~50 dòng. AI đọc trước, rồi mới biết nạp mảnh nào. Đây là cơ chế chống tốn token.
 
 ```markdown
-# Knowledge Map — nexus-app-frontend
+# Knowledge Map — shop-web
 
 | Cần biết gì | Đọc |
 |---|---|
@@ -506,12 +506,12 @@ Không ép mọi thứ thành máy kiểm.
 **api.json** — quét NestJS decorator:
 ```json
 {
-  "POST /mastercontact/search": {
-    "module": "mastercontact",
-    "file": "src/modules/mastercontact/controller.ts:88",
+  "POST /customers/search": {
+    "module": "customers",
+    "file": "src/modules/customers/controller.ts:88",
     "auth": "JwtAuthGuard",
     "body": "SearchContactPayload",
-    "returns": "PaginatedResponse<MasterContactDto>"
+    "returns": "PaginatedResponse<CustomerDto>"
   }
 }
 ```
@@ -538,7 +538,7 @@ compass knowledge
 ```
 ✗ Knowledge lỗi thời — 3 file nguồn đã đổi sau lần sinh cuối
   src/components/shared/Button/index.tsx      (đổi 2 giờ trước)
-  src/modules/mastercontact/controller.ts     (đổi hôm qua)
+  src/modules/customers/controller.ts     (đổi hôm qua)
   → Chạy: compass knowledge --sync
 ```
 
@@ -629,12 +629,12 @@ MEI/                              ← đứng ở đây
 │   ├── config.json
 │   └── scripts/
 │
-├── nexus-app-backend/
+├── shop-api/
 │   └── .knowledge/               ← kiến thức RIÊNG (đè lên chung)
 │       ├── decided/conventions.md
 │       └── derived/api.json
 │
-└── nexus-app-frontend/
+└── shop-web/
     └── .knowledge/
         ├── decided/conventions.md
         └── derived/components.json
@@ -644,8 +644,8 @@ MEI/                              ← đứng ở đây
 ```json
 {
   "repos": {
-    "nexus-app-backend":  { "kind": "nestjs", "test": "yarn test", "lint": "yarn lint" },
-    "nexus-app-frontend": { "kind": "react",  "test": "pnpm test", "dev": "pnpm dev",
+    "shop-api":  { "kind": "nestjs", "test": "yarn test", "lint": "yarn lint" },
+    "shop-web": { "kind": "react",  "test": "pnpm test", "dev": "pnpm dev",
                             "devUrl": "http://localhost:5173" }
   }
 }
@@ -657,8 +657,8 @@ task cross-repo được hỗ trợ tự nhiên · vẫn đứng ở thư mục 
 `compass check` chạy gate ở đúng repo mà task đụng (đọc từ `Phạm vi` trong spec):
 ```
 compass check
-  → nexus-app-backend:  convention ✓  test ✓
-  → nexus-app-frontend: convention ✓  test ✓  ui ✓  visual ✓
+  → shop-api:  convention ✓  test ✓
+  → shop-web: convention ✓  test ✓  ui ✓  visual ✓
   → review (cross-repo, xem cả hai diff) ✓
 ```
 
@@ -714,7 +714,7 @@ Mỗi giai đoạn **dùng được ngay** — không phải xây hết mới ch
 > và [ghi chú GĐ 3-4](../notes/2026-09-06-phase-3-4-notes.md).
 >
 > Còn nợ: `check` chạy gate ở nhiều repo (GĐ 4 mới làm phần phân giải cấu hình),
-> `derived/api.json` và `entities.json`, trang `--view`, và chạy thử trên codebase Nexus thật.
+> `derived/api.json` và `entities.json`, trang `--view`, và chạy thử trên codebase Shop thật.
 
 ### GĐ 1 — Bộ xương
 - `SKILL.md` bản đầu
@@ -722,7 +722,7 @@ Mỗi giai đoạn **dùng được ngay** — không phải xây hết mới ch
 - `gate.json` + chữ ký
 - `config.json` một repo
 
-→ Có spec-first + gate cứng cho test. **Chạy thử trên một task thật ở Nexus.**
+→ Có spec-first + gate cứng cho test. **Chạy thử trên một task thật ở Shop.**
 
 ### GĐ 2 — Frontend
 - `compass convention` (parse ```rule``` → ESLint)
@@ -758,7 +758,7 @@ Thiết kế này **chưa được kiểm chứng thực tế**. Những chỗ �
 |---|---|---|
 | Gate quá chặt → cản trở hơn giúp đỡ | Bực mình, muốn bỏ qua compass | GĐ 1 chạy thử task thật; nới dung sai nếu cần |
 | AI tự phân loại task sai | feature-m bị làm như fix | Nguyên tắc một chiều + spec gate; theo dõi ở GĐ 1 |
-| Parser derived không đủ chính xác | props trích sai, AI dùng sai | GĐ 3 test trên codebase Nexus thật trước |
+| Parser derived không đủ chính xác | props trích sai, AI dùng sai | GĐ 3 test trên codebase Shop thật trước |
 | `compass ui` quá giòn (selector đổi là vỡ) | Gate fail liên tục vì lý do vặt | Cân nhắc gắn selector vào data-attribute ổn định |
 | Overhead cho task nhỏ | `fix` mà vẫn phải init/spec/check | Đo thời gian thật ở GĐ 1; rút gọn nếu quá nặng |
 

@@ -84,5 +84,5 @@ soi không đủ, mà SKILL.md hiện chưa nói gì về việc soi mấy vòng
 | Knowledge base sinh tự động | GĐ 3 |
 | `compass investigate` | GĐ 4 |
 | Phân giải config đa repo | GĐ 4 |
-| Chạy thử trên Nexus thật | Repo chưa clone về máy này |
+| Chạy thử trên Shop thật | Repo chưa clone về máy này |
 | Số vòng soi khuyến nghị | Tám vòng cho thấy một vòng là không đủ, nhưng chưa có cơ sở để nói con số nào là đủ |

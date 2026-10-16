@@ -211,22 +211,22 @@ test('CP-60-V1 a submodule is still scanned and hashed, as on HEAD', () => {
 
 test('CP-60-V2 a nested repo with a .git directory stays in every gate', () => {
   const root = initRepo(tempDir('compass-cp60mr-'));
-  write(root, '.compass/config.json', JSON.stringify({ test: 'node -e 0', repos: { 'sorm/backend': {} } }));
-  write(root, '.compass/T-1/spec.md', specText({ scope: 'sorm/backend' }));
+  write(root, '.compass/config.json', JSON.stringify({ test: 'node -e 0', repos: { 'store/backend': {} } }));
+  write(root, '.compass/T-1/spec.md', specText({ scope: 'store/backend' }));
   write(root, '.knowledge/decided/conventions.md', CONVENTIONS);
-  const backend = path.join(root, 'sorm', 'backend');
+  const backend = path.join(root, 'store', 'backend');
   mkdirSync(backend, { recursive: true });
   git(backend, 'init', '-q');
   assert.ok(statSync(path.join(backend, '.git')).isDirectory());
   write(backend, 'src/api.js', 'debugger;\n');
   write(backend, 'src/Card.jsx', 'export function Card({ a }) { return a; }\n');
 
-  const conv = conventionCommand({ cwd: root, taskId: 'T-1', repo: 'sorm/backend', gateRoot: root });
+  const conv = conventionCommand({ cwd: root, taskId: 'T-1', repo: 'store/backend', gateRoot: root });
   assert.equal(conv.exitCode, 1, conv.output);
-  assert.match(conv.output, /sorm[\\/]backend[\\/]src[\\/]api\.js:1/);
-  assert.equal(readGate(root, 'T-1', 'convention', 'sorm/backend').exitCode, 1);
+  assert.match(conv.output, /store[\\/]backend[\\/]src[\\/]api\.js:1/);
+  assert.equal(readGate(root, 'T-1', 'convention', 'store/backend').exitCode, 1);
 
-  assert.ok(scanComponents(root).files.includes('sorm/backend/src/Card.jsx'));
+  assert.ok(scanComponents(root).files.includes('store/backend/src/Card.jsx'));
   const before = hashSource(root);
   write(backend, 'src/Card.jsx', 'export function Card({ a, b }) { return a + b; }\n');
   assert.notEqual(hashSource(root), before);

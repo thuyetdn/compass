@@ -10,7 +10,7 @@ const dashed = [
   '-- select 3 from huge_table;',
   '',
   '-- Q4 the one we actually need to export',
-  'select Email from mastercontact where Bounced=1;',
+  'select Email from customers where Bounced=1;',
 ].join('\n');
 const r1 = parseQueryOutputs(dashed, 'INV-4');
 console.log('queries:', JSON.stringify(r1.queries));
@@ -22,7 +22,7 @@ const inside = [
   '-- @out: INV-4-q3-work-0908.csv',
   '/* select 3 from huge_table; */',
   '',
-  'select Email from mastercontact;',
+  'select Email from customers;',
 ].join('\n');
 const r1b = parseQueryOutputs(inside, 'INV-4');
 console.log('queries:', JSON.stringify(r1b.queries));

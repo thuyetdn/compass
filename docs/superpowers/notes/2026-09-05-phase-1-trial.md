@@ -8,7 +8,7 @@
 
 ## Về việc chọn codebase
 
-Kế hoạch nói chạy thử trên `nexus-app-backend`. Không làm được: repo đó trên máy này chỉ có `docs/`, code chưa clone về.
+Kế hoạch nói chạy thử trên `shop-api`. Không làm được: repo đó trên máy này chỉ có `docs/`, code chưa clone về.
 
 Thay bằng cách tự dùng Compass trên chính nó. Không phải phép thử lý tưởng — Compass là dự án Node nhỏ, không phải NestJS nhiều module — nhưng nó là **task thật, trên codebase thật, với 186 test thật**, không phải kịch bản dựng sẵn. Việc còn thiếu là kiểm nghiệm trên monorepo và trên frontend.
 
@@ -63,7 +63,7 @@ Mục này ban đầu thấy phiền. Nhưng nó là chỗ duy nhất trong quy 
 |---|---|
 | **Giữ nguyên số test tối thiểu** | Chưa có bằng chứng nào cho thấy chúng sai. Đợi thêm task thật. |
 | **Thêm một câu vào SKILL.md** về ranh giới "gate xanh ≠ mục tiêu đạt" | Phát hiện ở trên. Không nói ra thì người dùng sẽ tin quá mức. |
-| **Chạy thử trên Nexus thật khi có code** | Ba thứ chưa kiểm nghiệm: monorepo, frontend, task `feature-m` trở lên. |
+| **Chạy thử trên Shop thật khi có code** | Ba thứ chưa kiểm nghiệm: monorepo, frontend, task `feature-m` trở lên. |
 | **Chưa cần rút gọn quy trình cho `fix`** | Overhead đo được là 2.5 giây máy. Phần tốn thời gian là viết spec, mà đó là phần có giá trị. |
 
 ---

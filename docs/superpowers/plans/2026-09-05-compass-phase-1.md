@@ -20,7 +20,7 @@ Hai chỗ làm khác kế hoạch:
 
 | Kế hoạch | Thực tế | Lý do |
 |---|---|---|
-| Task 17 chạy thử trên `nexus-app-backend` | Chạy trên chính Compass (CP-1) | Repo Nexus trên máy này mới có `docs/`, code chưa clone |
+| Task 17 chạy thử trên `shop-api` | Chạy trên chính Compass (CP-1) | Repo Shop trên máy này mới có `docs/`, code chưa clone |
 | — | Chạy thử thêm trên frontend (TD-001, React + Vitest) | CP-1 không chạm tới FE và runner khác `node:test`; xem [ghi chú](../notes/2026-09-05-frontend-trial.md) |
 
 Lần chạy thử frontend lộ bốn lỗi, đã sửa ở task CP-2. Nặng nhất: parser không tháo mã màu
@@ -919,7 +919,7 @@ import { parseSpec } from '../lib/spec-parser.mjs';
 
 const SAMPLE = `# T-001: Thêm bộ lọc theo quốc gia
 Loại: feature-s
-Phạm vi: nexus-app-backend/src/modules/mastercontact
+Phạm vi: shop-api/src/modules/customers
 
 ## Mục tiêu
 Người dùng lọc contact theo quốc gia.
@@ -949,7 +949,7 @@ test('parseSpec reads the task type', () => {
 });
 
 test('parseSpec reads the scope', () => {
-  assert.equal(parseSpec(SAMPLE).scope, 'nexus-app-backend/src/modules/mastercontact');
+  assert.equal(parseSpec(SAMPLE).scope, 'shop-api/src/modules/customers');
 });
 
 test('parseSpec collects named sections', () => {
@@ -3455,14 +3455,14 @@ git commit -m "docs: add SKILL.md and README"
 
 Spec §14 nêu 5 rủi ro chưa kiểm chứng. Task này đo chúng trên một task thật.
 
-- [x] **Step 1: Chọn một task nhỏ có thật ở dự án Nexus**
+- [x] **Step 1: Chọn một task nhỏ có thật ở dự án Shop**
 
-Chọn một `fix` hoặc `bug` nhỏ ở `nexus-app-backend`. Ghi lại: task là gì, ước lượng bao lâu nếu làm tay không có Compass.
+Chọn một `fix` hoặc `bug` nhỏ ở `shop-api`. Ghi lại: task là gì, ước lượng bao lâu nếu làm tay không có Compass.
 
 - [x] **Step 2: Cài Compass vào repo đó**
 
 ```bash
-cd <đường-dẫn-tới-nexus-app-backend>
+cd <đường-dẫn-tới-shop-api>
 node <đường-dẫn-compass>/cli.mjs init NX-001 --type=bug
 ```
 

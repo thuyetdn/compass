@@ -12,14 +12,14 @@ console.log('=== MAJOR 1: disabled SQL that does not start with a listed keyword
 console.log('  (expected: stranded — the exemption must not travel)');
 run('(select ...) wrapped in parens', [
   '-- @out: -',
-  "-- (select * from mastercontact where Email = '<EMAIL>')",
+  "-- (select * from customers where Email = '<EMAIL>')",
   '',
-  'select clp.Status, count(*) from crmlaaspackages clp group by clp.Status;',
+  'select o.Status, count(*) from orders o group by o.Status;',
 ]);
 run('union all continuation', ['-- @out: -', '-- union all select 1', '', 'select 2;']);
 run('values list', ['-- @out: -', '-- values (1,2)', '', 'select 2;']);
 run('merge into', ['-- @out: -', '-- merge into t using s on 1=1', '', 'select 2;']);
-run('continuation lines only', ['-- @out: -', '--   from mastercontact', '--   where Bounced = 1', '', 'select 2;']);
+run('continuation lines only', ['-- @out: -', '--   from customers', '--   where Bounced = 1', '', 'select 2;']);
 run('block opening with a heading line', ['-- @out: -', '/* Q1 disabled', 'select 1;', '*/', '', 'select 2;']);
 
 console.log('\n=== MAJOR 3: prose that begins with a SQL keyword ===');

@@ -44,7 +44,7 @@ repo nested one level deep keys on its path.
 | H3 | Happy | Subfolder with pnpm-lock.yaml | that repo's test is "pnpm test" | P0 |
 | H4 | Happy | Frontend has scripts.dev and vite.config.js with server.port 4000 | repo gets dev + devUrl "http://localhost:4000/" | P0 |
 | H5 | Happy | Frontend has scripts.dev, vite.config.js with no port declared | devUrl falls back to "http://localhost:5173/" | P0 |
-| H6 | Happy | Repo nested two levels: sorm/backend/package.json | the key is "sorm/backend", not "backend" | P0 |
+| H6 | Happy | Repo nested two levels: store/backend/package.json | the key is "store/backend", not "backend" | P0 |
 | V1 | Validation | Subfolder package.json has no scripts.test | entry written with test = "echo 'chưa có test' && exit 1", exit 0 | P0 |
 | V2 | Validation | Subfolder has no package.json at all | that folder produces no entry and is not mentioned as a repo | P0 |
 | V3 | Validation | Backend has scripts.test but no scripts.dev | entry has test, has neither dev nor devUrl | P0 |

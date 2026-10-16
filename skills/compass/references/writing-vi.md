@@ -92,12 +92,12 @@ mặc định. Chọn theo **quan hệ giữa các ý**, không theo số ý: li
 > ❌ Ba chỗ cần sửa:
 > | # | Chỗ | Vấn đề |
 > |---|---|---|
-> | 1 | club-app-frontend | cổng sai (1306, không phải 5173) |
-> | 2 | sorm/frontend | thiếu devUrl (có giao diện) |
-> | 3 | nexus + sale-tool | trùng cổng 5173 (đều không khai) |
+> | 1 | web-app | cổng sai (3100, không phải 5173) |
+> | 2 | store/frontend | thiếu devUrl (có giao diện) |
+> | 3 | shop + admin-tool | trùng cổng 5173 (đều không khai) |
 >
-> ✅ Ba chỗ sai. `club-app-frontend` phải là cổng 1306 chứ không phải 5173. `sorm/frontend` có giao
-> diện nhưng thiếu `devUrl`. Còn `nexus` với `sale-tool` cùng nhận 5173 vì cả hai đều không khai.
+> ✅ Ba chỗ sai. `web-app` phải là cổng 3100 chứ không phải 5173. `store/frontend` có giao
+> diện nhưng thiếu `devUrl`. Còn `shop` với `admin-tool` cùng nhận 5173 vì cả hai đều không khai.
 
 ### Bảng chỉ hợp khi so nhiều thứ theo nhiều chiều
 

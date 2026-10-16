@@ -19,13 +19,13 @@ console.log('  (want a detached warning — the exemption must not travel silent
 run('block-disabled, no blank line', [
   '-- Q1 - THAY <EMAIL> roi chay tay.',
   '-- @out: -',
-  '/* select * from mastercontact where Email = 1; */',
-  'select clp.Status, count(*) from crmlaaspackages clp group by clp.Status;',
+  '/* select * from customers where Email = 1; */',
+  'select o.Status, count(*) from orders o group by o.Status;',
 ], 'stranded');
 run('dash-disabled, no blank line', [
   '-- @out: -',
-  '-- select * from mastercontact;',
-  'select clp.Status from crmlaaspackages clp;',
+  '-- select * from customers;',
+  'select o.Status from orders o;',
 ], 'stranded');
 run('paren-disabled, no blank line', [
   '-- @out: -',
@@ -38,12 +38,12 @@ console.log('  (want no error — the declaration is correct and its file exists
 run('blank line inside the query', [
   '-- Q2 - status gap',
   '-- @out: INV-4-q2-status-gap-0908.csv',
-  'select clp.Id, clp.Status',
-  '  from crmlaaspackages clp',
-  '  join mastercontact mc on mc.Id = clp.ContactId',
+  'select o.Id, o.Status',
+  '  from orders o',
+  '  join customers c on c.Id = o.CustomerId',
   '',
-  ' where clp.Status is null',
-  ' group by clp.Id;',
+  ' where o.Status is null',
+  ' group by o.Id;',
 ], 'clean');
 run('blank line between decl and query', [
   '-- @out: INV-4-status-gap-0908.csv',

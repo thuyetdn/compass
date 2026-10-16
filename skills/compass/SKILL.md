@@ -559,13 +559,13 @@ Khuôn trên tính theo một script một kết quả. File `.sql` mười quer
 nên khai tên ngay trên từng query — lúc bạn còn biết nó trả về cái gì:
 
 ```sql
--- Q0 — mỗi status có bao nhiêu package?
+-- Q0 — mỗi status có bao nhiêu đơn hàng?
 -- @out: INV-4-q0-status-dist-0908.csv
-select clp.Status, count(*) from crmlaaspackages clp group by clp.Status;
+select o.Status, count(*) from orders o group by o.Status;
 
--- Q1 — một contact cụ thể. THAY <EMAIL> rồi chạy tay.
+-- Q1 — một khách hàng cụ thể. THAY <EMAIL> rồi chạy tay.
 -- @out: -
-select * from mastercontact where Email = '<EMAIL>';
+select * from customers where Email = '<EMAIL>';
 ```
 
 `-- @out: -` nghĩa là "case chạy tay, đừng đợi file" — dùng cho query có placeholder phải thay.
@@ -653,7 +653,7 @@ cũng đi qua từng repo như `check`, không bao giờ ghi một khe chung.
 | `ui`, `visual` | Config đã gộp của repo (`dev`, `devUrl`, `devTimeoutMs`, `visualThreshold`). Dev server chạy **trong thư mục repo**, Playwright tìm từ thư mục repo — cài ở repo có giao diện |
 
 Baseline của `visual` nằm ở `.compass/<id>/baseline/<repo>/<viewport>.png`, evidence ở
-`.compass/<id>/evidence/repos/<repo>/`. Key `sorm/frontend` thành thư mục lồng. Tên repo đi vào đường
+`.compass/<id>/evidence/repos/<repo>/`. Key `store/frontend` thành thư mục lồng. Tên repo đi vào đường
 dẫn nên không được có đoạn rỗng, `.`, `..`, `\`, `:` hay `/` ở đầu — `ui`/`visual` từ chối trước khi ghi
 gì. Dự án một repo giữ nguyên đường cũ: khe trần, `baseline/<viewport>.png`, `evidence/ui.json`.
 
@@ -717,7 +717,7 @@ Năm luật khi viết:
    nó chỉ cần một lệnh và một mã thoát.
 3. **Backend đừng khai `devUrl`** — khai vào thì `ui`/`visual` chạy oan rồi đỏ vì không có trang nào.
 4. **Config đã có thì không ghi đè.** In ra cái vừa dò được, để người tự gộp.
-5. **Repo lồng trong thư mục con** → key là đường dẫn: `"sorm/backend"`, `"sorm/frontend"`. Một thư
+5. **Repo lồng trong thư mục con** → key là đường dẫn: `"store/backend"`, `"store/frontend"`. Một thư
    mục cha chứa hai repo là chuyện thường; khai thành một entry thì lệnh test của một nửa sẽ sai.
 
 Viết xong chạy `compass status` và **đọc kết quả cùng người dùng**. Đó là lúc bắt được lockfile đoán sai

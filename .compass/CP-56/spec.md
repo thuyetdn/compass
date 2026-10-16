@@ -79,7 +79,7 @@ Done means:
   evidence at `.compass/<id>/evidence/repos/<repo>/ui.json` and
   `.compass/<id>/evidence/repos/<repo>/visual-<viewport>-{actual,diff}.png`. The `repos/` level keeps a
   repo name from colliding with `gate.json`, `test.log` or `findings.json`. A repo name containing `/`
-  (`sorm/frontend`, documented in SKILL.md) nests directories. A name with an empty, `.` or `..`
+  (`store/frontend`, documented in SKILL.md) nests directories. A name with an empty, `.` or `..`
   segment, a `\`, a `:`, or a leading `/` makes `ui`/`visual` exit 2 naming the repo before anything is
   written.
 - **Sequential, as today.** Repos run one after another and each dev server is stopped before the next
@@ -162,7 +162,7 @@ lệch" in 444 ms, and the server's `process.cwd()` shows where it was started.
 | EC1 | Edge | Rule written root-relative, `scope: fe/src/**/*.jsx`, violation in `fe/src/App.jsx` | the violation lands in `convention@fe`; `convention@be` is green (f94ebdd: printed under `[be]`) | P0 |
 | EC2 | Edge | `Phạm vi: be/src` only, fe declared in config | only `convention@be` is written; `done` does not ask for `convention@fe` | P1 |
 | EC3 | Edge | `dev` declared at the shared level, `devUrl` only in fe | fe's merged config is used: the shared `dev` starts in `fe/` and `ui@fe` is measured | P1 |
-| EC4 | Edge | Repo key `sorm/frontend` with `devUrl`, a contract, stub Playwright | slot `ui@sorm/frontend` and `visual@sorm/frontend`; baseline at `baseline/sorm/frontend/desktop.png`; `done` accepts them | P1 |
+| EC4 | Edge | Repo key `store/frontend` with `devUrl`, a contract, stub Playwright | slot `ui@store/frontend` and `visual@store/frontend`; baseline at `baseline/store/frontend/desktop.png`; `done` accepts them | P1 |
 | EC5 | Edge | Bare `conventionCommand({ cwd: root, taskId })` and `uiCommand` the same way, in a two-repo project | per-repo slots for every repo in scope, never a bare slot; a repo without `devUrl` gets the same skip record `check` writes | P0 |
 | EC6 | Edge | Two repos both with `devUrl` and no contract | `ui@be`, `ui@fe`, `visual@be`, `visual@fe` all present with `exitCode: 0`; no bare slot (f94ebdd: one `ui`, one `visual`) | P1 |
 | EC7 | Edge | `skills/compass/SKILL.md` after the change | no longer contains "chỉ nên tin `test` và `knowledge`" nor "vẫn quét đúng thư mục"; names the slot `<gate>@<repo>` for `convention`, `ui`, `visual` and the per-repo baseline path | P2 |

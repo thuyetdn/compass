@@ -8,9 +8,9 @@ Kiểm bằng: mắt
 Mục "Dựng config cho dự án nhiều repo" trong `SKILL.md` bổ sung ba thứ agent vấp khi dựng config cho
 `MEI/multi-repo`, cộng bảng cờ reporter:
 
-1. **Key repo là đường dẫn nhiều tầng.** `sorm/` chứa `backend/` (PHP) và `frontend/` — hai repo, một
-   thư mục cha. `repos.mjs` `path.resolve` key rồi kiểm `isInside`, nên `"sorm/backend"` hợp lệ. Skill
-   không nói, nên agent hoặc bỏ sót cả `sorm` hoặc khai một entry rồi đặt lệnh test sai.
+1. **Key repo là đường dẫn nhiều tầng.** `store/` chứa `backend/` (PHP) và `frontend/` — hai repo, một
+   thư mục cha. `repos.mjs` `path.resolve` key rồi kiểm `isInside`, nên `"store/backend"` hợp lệ. Skill
+   không nói, nên agent hoặc bỏ sót cả `store` hoặc khai một entry rồi đặt lệnh test sai.
 2. **Cổng dev mặc định.** Skill bảo đọc cổng từ `vite.config`/`next.config`, nhưng 3 trên 5 frontend
    không khai — chúng dùng mặc định framework. Không nói lấy mặc định nào thì agent đoán, và hai repo
    Vite cùng nhận 5173 rồi tranh cổng.

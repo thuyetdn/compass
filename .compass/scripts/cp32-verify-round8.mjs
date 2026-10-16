@@ -4,10 +4,10 @@ import { parseQueryOutputs } from '../../lib/query-outputs.mjs';
 console.log('=== MAJOR 1: declaration of a commented-out query lands on the next query ===');
 const commentedOut = [
   '-- @out: -',
-  '/* select Status, count(*) from crmlaaspackages group by Status */;',
+  '/* select Status, count(*) from orders group by Status */;',
   '',
   '-- Q2 - the bounce list we must export',
-  'select Email from mastercontact where Bounced = 1;',
+  'select Email from customers where Bounced = 1;',
 ].join('\n');
 const r1 = parseQueryOutputs(commentedOut, 'INV-4');
 console.log('queries:', JSON.stringify(r1.queries));

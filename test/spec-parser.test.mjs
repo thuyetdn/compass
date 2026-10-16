@@ -6,7 +6,7 @@ import { withinBudget } from './helpers/timing.mjs';
 
 const SAMPLE = `# T-001: Thêm bộ lọc theo quốc gia
 Loại: feature-s
-Phạm vi: nexus-app-backend/src/modules/mastercontact
+Phạm vi: shop-api/src/modules/customers
 
 ## Mục tiêu
 Người dùng lọc contact theo quốc gia.
@@ -51,7 +51,7 @@ test('parseSpec reads the task type', () => {
 });
 
 test('parseSpec reads the scope', () => {
-  assert.equal(parseSpec(SAMPLE).scope, 'nexus-app-backend/src/modules/mastercontact');
+  assert.equal(parseSpec(SAMPLE).scope, 'shop-api/src/modules/customers');
 });
 
 test('parseSpec collects named sections', () => {
