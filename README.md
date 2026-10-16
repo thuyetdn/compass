@@ -40,17 +40,28 @@ thêm gì vào dự án.
 
 ## Dùng với Codex
 
-Codex không nạp được plugin của Claude Code, nhưng phần công cụ của Compass không phụ thuộc vào
-AI nào. Cần hai bước.
+Compass cũng là một plugin Codex, cài giống `superpowers`. Cần Codex CLI
+(`npm install -g @openai/codex`), rồi gõ hai dòng:
 
-Cài lệnh `compass` (Node 20 trở lên):
+```bash
+codex plugin marketplace add thuyetdn/compass
+codex plugin add compass@compass
+```
+
+Mở phiên Codex mới là có skill `compass`, kèm sẵn công cụ. Giao việc như bình thường; Codex viết
+spec, dừng chờ bạn duyệt, rồi chạy gate. Gate `review` cần một người soi khác: mở một phiên Codex mới
+và đưa nó file brief.
+
+### Agent không nạp được skill
+
+Agent nào chỉ đọc `AGENTS.md` thì cài lệnh `compass` (Node 20 trở lên):
 
 ```bash
 npm install -g github:thuyetdn/compass
 ```
 
-Dán quy trình vào `AGENTS.md` của dự án, file Codex đọc mỗi lần làm việc. Đoạn mẫu nằm ở
-`templates/AGENTS.md` trong gói vừa cài, viết để nối vào cuối `AGENTS.md` có sẵn chứ không ghi đè:
+rồi nối đoạn quy trình mẫu vào cuối `AGENTS.md` của dự án. Đoạn mẫu nằm ở `templates/AGENTS.md`
+trong gói vừa cài, viết để nối thêm chứ không ghi đè:
 
 ```bash
 cat "$(npm root -g)/compass/templates/AGENTS.md" >> AGENTS.md
@@ -62,11 +73,8 @@ Trên PowerShell:
 Get-Content -Encoding utf8 "$(npm root -g)\compass\templates\AGENTS.md" | Add-Content -Encoding utf8 AGENTS.md
 ```
 
-Từ đó giao việc cho Codex như bình thường; nó viết spec, dừng chờ bạn duyệt, rồi chạy gate.
-Gate `review` cần một người soi khác: mở một phiên Codex mới và đưa nó file brief.
-
-Chưa kiểm chứng trên một phiên Codex thật. Lệnh cài và đoạn mẫu đã chạy thử; cách Codex làm theo
-đoạn mẫu thì chưa đo.
+Hai lệnh cài plugin đã chạy thử với Codex CLI 0.162 trên một thư mục Codex trống. Một task trọn vẹn
+trong phiên Codex thật thì chưa chạy.
 
 ## Dùng
 
@@ -244,7 +252,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1377 test, ~75 giây
+npm test           # suite chính, 1390 test, ~75 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 

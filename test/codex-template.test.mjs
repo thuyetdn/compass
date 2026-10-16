@@ -66,6 +66,8 @@ test('CP-75-H5 the README tells a Codex team how to start', () => {
   const ps = section[1].match(/Get-Content[^\n]*Add-Content[^\n]*/);
   assert.ok(ps, 'mục Codex phải có lệnh PowerShell');
   assert.equal((ps[0].match(/-Encoding utf8/g) ?? []).length, 2, 'cả Get-Content lẫn Add-Content phải khai -Encoding utf8');
+  // Một lần ghi file qua Python đã biến `\t` của `\templates` thành ký tự tab.
+  assert.ok(ps[0].includes('\\compass\\templates\\AGENTS.md'), `đường dẫn PowerShell hỏng: ${JSON.stringify(ps[0])}`);
 });
 
 test('CP-75-V1 the template carries no Claude-only instruction', () => {

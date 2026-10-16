@@ -1,0 +1,27 @@
+{
+  "name": "compass",
+  "version": "3.0.0",
+  "description": "Evidence-based development workflow: spec before code, gates that run real commands instead of letting the AI declare its own results.",
+  "author": {
+    "name": "Do Ngoc Thuyet",
+    "url": "https://github.com/thuyetdn"
+  },
+  "homepage": "https://thuyetdn.github.io/compass/",
+  "repository": "https://github.com/thuyetdn/compass",
+  "license": "MIT",
+  "keywords": ["vietnamese", "spec-first", "verification", "workflow"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Compass",
+    "shortDescription": "Spec before code, and gates that decide when the work is done",
+    "longDescription": "Compass makes every claim of done carry evidence. The agent writes the spec, the code and the tests; Compass runs them, checks every spec case actually ran, signs the record and decides pass or fail.",
+    "developerName": "Do Ngoc Thuyet",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Add a feature to this project with Compass.",
+      "Fix this bug and prove it with Compass gates."
+    ],
+    "websiteURL": "https://thuyetdn.github.io/compass/"
+  }
+}

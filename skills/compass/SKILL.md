@@ -9,20 +9,29 @@ Quy trình làm việc có bằng chứng kiểm chứng được. La bàn khôn
 
 ## Gõ lệnh thế nào
 
-Skill này đi kèm chính công cụ nó nói tới, nên không phải cài gì thêm:
+Skill này đi kèm chính công cụ nó nói tới, nên không phải cài gì thêm. Cách gọi tùy nơi chạy.
+
+Trong Claude Code:
 
 ```
 node "${CLAUDE_PLUGIN_ROOT}/cli.mjs" <lệnh>
 ```
 
-Mọi lệnh bên dưới viết tắt là `compass <lệnh>` cho gọn. Gõ thì thay bằng dòng trên.
+Trong Codex: Codex liệt kê skill kèm đường dẫn tới file `SKILL.md` này. `cli.mjs` nằm ở gốc plugin,
+hai cấp trên thư mục chứa file này:
+
+```
+node "<thư mục chứa SKILL.md này>/../../cli.mjs" <lệnh>
+```
+
+Mọi lệnh bên dưới viết tắt là `compass <lệnh>` cho gọn. Gõ thì thay bằng dòng hợp với nơi bạn chạy.
+
+Không tìm thấy `cli.mjs` theo hai đường trên (skill được chép lẻ, không đi kèm plugin) thì cài lệnh
+một lần: `npm install -g github:thuyetdn/compass`, rồi gõ thẳng `compass <lệnh>`. Agent không nạp
+được skill thì dùng đoạn quy trình rút gọn ở `templates/AGENTS.md`.
 
 Muốn gõ `compass` trực tiếp trong terminal thì cài một lần từ repo — `npm install -g .` — nhưng
 skill không cần bước đó.
-
-Đọc file này ngoài Claude Code (Codex chẳng hạn) thì biến `CLAUDE_PLUGIN_ROOT` không có. Cài
-`npm install -g github:thuyetdn/compass` rồi gõ `compass <lệnh>`. Đoạn quy trình rút gọn cho
-`AGENTS.md` nằm ở `templates/AGENTS.md`.
 
 Lệnh ném `MODULE_NOT_FOUND` mà bạn đã cài `-g`: symlink đứt vì repo đổi tên hoặc chuyển chỗ. Chạy
 lại `npm install -g .` từ repo, đừng đi chẩn đoán từng bước.
