@@ -63,7 +63,7 @@ async function main() {
     switch (command) {
       case 'init':
         result = flags.multi === true
-          ? initMultiCommand({ cwd })
+          ? initMultiCommand({ cwd, taskId })
           : initCommand({ cwd, taskId, type: flags.type });
         break;
       case 'spec':

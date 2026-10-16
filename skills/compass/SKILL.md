@@ -682,9 +682,11 @@ compass init --multi
 Lệnh này đọc các thư mục con và viết `repos` giúp bạn. Nó không nhận task id: nó dựng **config**,
 không mở task. Chạy một lần lúc bắt đầu dự án, rồi `init <id> --type=` như thường.
 
-Ba lúc nó từ chối ghi, cả ba cùng một lý do — một config sai tệ hơn không có config, vì người dùng
-tin là nó đúng: config đã tồn tại (in cái dò được, để người tự gộp), không thấy repo con nào, và
-hai repo cùng tranh một `devUrl` (phải người chọn cổng, đoán thì `visual` chụp nhầm trang).
+Bốn lúc nó từ chối ghi, cả bốn cùng một lý do — một config sai tệ hơn không có config, vì người
+dùng tin là nó đúng: config đã tồn tại (in cái dò được, để người tự gộp), không thấy repo con nào,
+hai repo cùng tranh một `devUrl` (phải người chọn cổng, đoán thì `visual` chụp nhầm trang), và có
+thư mục con nó đọc không ra — `package.json` hỏng, hay một dự án Go, Java, PHP cần bạn tự khai lệnh
+test.
 
 Lệnh đọc file chứ không chạy gì của dự án đích: một `scripts.test` chứa `&& rm -rf` đi vào config
 nguyên văn như một chuỗi, không được thực thi lúc dò. Symlink bị bỏ qua hẳn, không đi theo.
@@ -707,7 +709,7 @@ tự chọn cổng.
 Cờ reporter ghép vào chính lệnh `test`, không có trường config nào cho nó: `"test": "vitest run
 --reporter=tap"`. Xem mục "Cách Compass đếm test ID" để biết runner nào cần cờ gì.
 
-Bốn luật khi viết:
+Năm luật khi viết:
 
 1. **Không có `scripts.test`** → khai `"test": "echo 'chưa có test' && exit 1"`. Gate đỏ khi đụng tới,
    đúng như vậy — chưa có test thì chưa có bằng chứng. Đừng bỏ repo ra khỏi config.

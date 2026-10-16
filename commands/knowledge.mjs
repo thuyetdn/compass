@@ -73,7 +73,11 @@ function pageMode(root) {
   }
 
   const count = Object.keys(components).length;
-  const lines = [pass('knowledge', `đã ghi trang xem: ${count} component`)];
+  // Không dùng `pass()` ở đây: nó in "✓ Gate knowledge PASSED", mà `--page`
+  // không phán gì và không ghi bản ghi gate nào. Với một công cụ mà cả giá trị
+  // nằm ở chỗ "gate xanh là bằng chứng thật", in chữ PASSED cho một thao tác
+  // chỉ ghi file đúng là kiểu nhầm lẫn Compass sinh ra để chặn.
+  const lines = [`✓ Đã ghi trang xem: ${count} component`];
   if (!scanned) lines.push('', 'Máy quét chưa chạy — trang chỉ có phần tài liệu người viết.');
   lines.push('', hint(`Mở bằng trình duyệt: ${path.join(root, PAGE)}`));
   return { exitCode: 0, output: lines.join('\n') };
@@ -121,7 +125,7 @@ export function knowledgeCommand({ cwd, taskId, sync, page }) {
       return {
         exitCode: 0,
         output: [
-          pass('knowledge', 'dự án chưa dùng .knowledge — không có gì để xem'),
+          'Dự án chưa dùng .knowledge — không có gì để xem.',
           '',
           hint('Tạo .knowledge/ rồi chạy: compass knowledge --sync'),
         ].join('\n'),

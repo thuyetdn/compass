@@ -257,3 +257,182 @@ test('CP-66-S2 a shell metacharacter in scripts.test is never executed', () => {
   assert.ok(!existsSync(marker), 'detection không được chạy lệnh của repo');
   assert.equal(readConfig(root).repos.frontend.test, 'npm test');
 });
+
+// CP-70 — hai lỗi ăn khớp nhau quanh devUrl, do một lần soi mù tìm ra.
+//
+// Lỗi thứ nhất: phép kiểm trùng devUrl bỏ qua repo đã khai cổng, nên nó chỉ
+// bắt được khi *cả hai* repo cùng im lặng. Một repo khai thẳng 5173 đứng cạnh
+// một repo im lặng (Vite mặc định 5173) lọt qua, và `visual` chụp app repo này
+// rồi lưu làm baseline của repo kia — gate vẫn xanh.
+//
+// Lỗi thứ hai: regex đọc cổng quét phẳng cả file nên lấy `port:` đầu tiên gặp
+// được. Một khối `proxy` hay `preview` đứng trên `server.port` thì thắng, và
+// con số sai đó lại được đánh dấu "đã khai" — tắt luôn lưới an toàn của lỗi một.
+
+const viteRepo = (root, name, config) =>
+  makeRepo(root, name, {
+    scripts: { test: 'vitest run', dev: 'vite' },
+    extra: { 'vite.config.js': config },
+  });
+
+test('CP-70-H1 an ordinary server.port is still read', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', 'export default { server: { port: 4000 } }');
+
+  assert.equal(detectRepos(root).repos[0].entry.devUrl, 'http://localhost:4000/');
+});
+
+test('CP-70-H2 a proxy port before server.port does not win', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', [
+    'export default {',
+    '  server: {',
+    "    proxy: { '/api': { target: 'http://localhost:8080', port: 8080 } },",
+    '    port: 3100',
+    '  }',
+    '}',
+  ].join('\n'));
+
+  assert.equal(detectRepos(root).repos[0].entry.devUrl, 'http://localhost:3100/');
+});
+
+test('CP-70-H3 a preview port before server.port does not win', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', 'export default { preview: { port: 4173 }, server: { port: 3300 } }');
+
+  assert.equal(detectRepos(root).repos[0].entry.devUrl, 'http://localhost:3300/');
+});
+
+test('CP-70-H4 server.port after a nested object inside server is still read', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', [
+    'export default {',
+    '  server: {',
+    '    hmr: { overlay: false },',
+    '    watch: { usePolling: true },',
+    '    port: 3400',
+    '  }',
+    '}',
+  ].join('\n'));
+
+  assert.equal(detectRepos(root).repos[0].entry.devUrl, 'http://localhost:3400/');
+});
+
+test('CP-70-V1 a declared port colliding with another repo default is refused', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', 'export default { server: { port: 5173 } }');
+  viteRepo(root, 'admin', 'export default {}');
+
+  const result = initMultiCommand({ cwd: root });
+  assert.equal(result.exitCode, 2, result.output);
+  assert.match(result.output, /web/);
+  assert.match(result.output, /admin/);
+  assert.ok(!existsSync(configFile(root)), 'không được ghi config khi hai repo trùng devUrl');
+});
+
+test('CP-70-V2 two repos declaring the same port are refused', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', 'export default { server: { port: 4000 } }');
+  viteRepo(root, 'admin', 'export default { server: { port: 4000 } }');
+
+  const result = initMultiCommand({ cwd: root });
+  assert.equal(result.exitCode, 2, result.output);
+  assert.ok(!existsSync(configFile(root)));
+});
+
+test('CP-70-V3 two repos on different ports are written', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', 'export default { server: { port: 4000 } }');
+  viteRepo(root, 'admin', 'export default { server: { port: 4100 } }');
+
+  assert.equal(initMultiCommand({ cwd: root }).exitCode, 0);
+  const cfg = readConfig(root);
+  assert.equal(cfg.repos.web.devUrl, 'http://localhost:4000/');
+  assert.equal(cfg.repos.admin.devUrl, 'http://localhost:4100/');
+});
+
+test('CP-70-E1 init --multi refuses a task id instead of dropping it', () => {
+  const root = makeDir();
+  makeRepo(root, 'frontend', { scripts: { test: 'vitest run' } });
+
+  const result = initMultiCommand({ cwd: root, taskId: 'TD-1' });
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /--multi/);
+  assert.ok(!existsSync(configFile(root)), 'không được ghi khi lệnh gõ sai');
+  assert.ok(!existsSync(path.join(root, '.compass', 'TD-1')), 'không được tạo task');
+});
+
+test('CP-70-E2 a port outside any server block reads as not declared', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', 'export default { preview: { port: 4173 } }');
+
+  // Không đặt được cổng vào trong `server` thì coi như chưa khai: rơi về mặc
+  // định của framework, và phép kiểm trùng vẫn nhìn thấy nó.
+  assert.equal(detectRepos(root).repos[0].entry.devUrl, 'http://localhost:5173/');
+});
+
+test('CP-70-EC1 a Next repo and a Vite repo do not collide on their defaults', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', 'export default {}');
+  makeRepo(root, 'site', {
+    scripts: { test: 'jest', dev: 'next dev' },
+    extra: { 'next.config.js': 'module.exports = {}' },
+  });
+
+  const result = initMultiCommand({ cwd: root });
+  assert.equal(result.exitCode, 0, result.output);
+  const cfg = readConfig(root);
+  assert.equal(cfg.repos.web.devUrl, 'http://localhost:5173/');
+  assert.equal(cfg.repos.site.devUrl, 'http://localhost:3000/');
+});
+
+test('CP-70-EC2 the word server in a comment does not produce a wrong port', () => {
+  const root = makeDir();
+  viteRepo(root, 'web', [
+    '// server: the dev server, see docs; the old port: 9999 is gone',
+    'export default { server: { port: 3500 } }',
+  ].join('\n'));
+
+  const url = detectRepos(root).repos[0].entry.devUrl;
+  assert.notEqual(url, 'http://localhost:9999/', 'không được lấy số trong chú thích');
+  assert.equal(url, 'http://localhost:3500/');
+});
+
+test('CP-70-EC3 an angular.json port is still read through JSON', () => {
+  const root = makeDir();
+  makeRepo(root, 'app', {
+    scripts: { test: 'ng test', dev: 'ng serve' },
+    extra: {
+      'angular.json': JSON.stringify({
+        projects: { app: { architect: { serve: { options: { port: 4300 } } } } },
+      }),
+    },
+  });
+
+  assert.equal(detectRepos(root).repos[0].entry.devUrl, 'http://localhost:4300/');
+});
+
+test('CP-70-S1 a config file holding a payload is read, never executed', () => {
+  const root = makeDir();
+  const marker = path.join(root, 'executed.txt');
+  viteRepo(root, 'web', [
+    `require('fs').writeFileSync(${JSON.stringify(marker)}, 'pwned');`,
+    'export default { server: { port: 3600 } }',
+  ].join('\n'));
+
+  assert.equal(detectRepos(root).repos[0].entry.devUrl, 'http://localhost:3600/');
+  assert.ok(!existsSync(marker), 'không được chạy code trong config của dự án đích');
+});
+
+test('CP-70-V4 two silent Vite repos are still refused after the widening', () => {
+  // CP-66-V4 đã phủ ca này, nhưng sửa lưới chắn thì phải tự kiểm lại chính nó:
+  // mở rộng để bắt thêm trường hợp mới mà đánh rơi trường hợp cũ là hỏng.
+  const root = makeDir();
+  viteRepo(root, 'web', 'export default {}');
+  viteRepo(root, 'admin', 'export default {}');
+
+  const result = initMultiCommand({ cwd: root });
+  assert.equal(result.exitCode, 2, result.output);
+  assert.match(result.output, /5173/);
+  assert.ok(!existsSync(configFile(root)));
+});

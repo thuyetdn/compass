@@ -262,3 +262,30 @@ test('CP-67-R1 --page does not change what the plain gate returns', () => {
   const afterPage = (knowledgeCommand({ cwd: root, page: true }), knowledgeCommand({ cwd: root }));
   assert.equal(afterPage.exitCode, plain.exitCode);
 });
+
+// CP-70 — `--page` chỉ ghi một file, nó không chạy gate và không ghi bản ghi
+// nào. In "Gate knowledge PASSED" cho thao tác đó là nói sai đúng cái điều
+// Compass tồn tại để canh.
+test('CP-70-EC4 --page does not claim a gate passed', () => {
+  const root = makeProject({
+    components: { Button: { path: 'src/Button.jsx', props: {}, confident: true, usedIn: 1 } },
+  });
+
+  const result = knowledgeCommand({ cwd: root, page: true });
+  assert.equal(result.exitCode, 0);
+  assert.ok(!/Gate knowledge PASSED/.test(result.output), `output vẫn khai gate: ${result.output}`);
+  assert.match(result.output, /trang xem/);
+});
+
+test('CP-70-EC5 --page keeps its exit codes', () => {
+  const ok = makeProject({ components: {} });
+  assert.equal(knowledgeCommand({ cwd: ok, page: true }).exitCode, 0);
+
+  const broken = makeProject({ components: '{ not json' });
+  assert.equal(knowledgeCommand({ cwd: broken, page: true }).exitCode, 2);
+
+  const none = makeProject({ knowledge: false });
+  const r = knowledgeCommand({ cwd: none, page: true });
+  assert.equal(r.exitCode, 0);
+  assert.ok(!/Gate knowledge PASSED/.test(r.output), 'nhánh không có .knowledge cũng không được khai gate');
+});

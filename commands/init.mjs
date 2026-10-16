@@ -129,7 +129,21 @@ export function initCommand({ cwd, taskId, type }) {
 //   - config đã có     → in cái dò được, để người tự gộp
 //   - không thấy repo  → dự án một repo, `init <id>` lo được
 //   - devUrl trùng nhau → phải người chọn cổng, đoán thì `visual` chụp nhầm trang
-export function initMultiCommand({ cwd }) {
+export function initMultiCommand({ cwd, taskId }) {
+  // `compass init TD-1 --multi` từng ghi config rồi exit 0, im lặng bỏ task id
+  // — người gõ tin là TD-1 đã được tạo, mà không có task nào cả. Lệnh này dựng
+  // config, không mở task; hai việc đó không gộp được.
+  if (taskId) {
+    return {
+      exitCode: 2,
+      output: [
+        `--multi không nhận task id, nhưng nhận được "${taskId}".`,
+        '',
+        hint('Dựng config: compass init --multi · Mở task: compass init <id> --type=<loại>'),
+      ].join('\n'),
+    };
+  }
+
   const root = findRoot(cwd) ?? cwd;
   const found = detectRepos(root);
   const lines = [];

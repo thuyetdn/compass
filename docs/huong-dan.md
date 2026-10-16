@@ -18,7 +18,7 @@ Trong Claude Code, cài plugin. AI sẽ có cả quy trình (skill `compass`) l�
 /plugin install compass@compass
 ```
 
-Repo đang để private, nên máy cài phải có quyền đọc repo trên GitHub.
+Repo công khai, giấy phép MIT — không cần quyền gì thêm.
 
 Muốn gõ `compass` trong terminal thì cài thêm từ thư mục repo:
 
