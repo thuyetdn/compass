@@ -73,9 +73,6 @@ Trên PowerShell:
 Get-Content -Encoding utf8 "$(npm root -g)\compass\templates\AGENTS.md" | Add-Content -Encoding utf8 AGENTS.md
 ```
 
-Hai lệnh cài plugin đã chạy thử với Codex CLI 0.162 trên một thư mục Codex trống. Một task trọn vẹn
-trong phiên Codex thật thì chưa chạy.
-
 ## Dùng
 
 Bạn **không gõ lệnh**. Bạn giao việc như bình thường:
