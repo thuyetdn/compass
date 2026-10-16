@@ -590,3 +590,16 @@ test('CP-72-EC2 an absolute README link does not break the relative-link check',
   assert.ok(pages.some((u) => /github\.io/.test(u)), 'README phải có link Pages tuyệt đối');
   for (const url of pages) assert.match(url, /^https:\/\//, `link ngoài phải đầy đủ scheme: ${url}`);
 });
+
+// CP-73 — GitHub chạy Jekyll trên `docs/` nếu không được bảo khác, và file kế
+// hoạch phase 1 chứa `{{taskId}}` cùng một `'{{'` không đóng: Liquid đọc chúng
+// là template rồi vỡ, nên Pages trả 404. Trang demo là HTML thuần, không cần
+// Jekyll. `.nojekyll` bảo GitHub phục vụ file nguyên trạng.
+test('CP-73-H1 docs/ tells GitHub Pages to skip Jekyll', () => {
+  assert.ok(existsSync(path.join(ROOT, 'docs', '.nojekyll')), 'thiếu docs/.nojekyll — Jekyll sẽ vỡ vì {{ trong tài liệu');
+});
+
+test('CP-73-H2 the page sits where GitHub Pages looks for it', () => {
+  // Pages với nguồn `/docs` phục vụ `docs/index.html` tại gốc trang dự án.
+  assert.ok(existsSync(path.join(ROOT, 'docs', 'index.html')), 'thiếu docs/index.html');
+});
