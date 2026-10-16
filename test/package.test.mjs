@@ -164,3 +164,75 @@ test('CP-17-E2 extra stdout before the JSON is reported, not parsed as garbage',
   // chẳng liên quan gì tới đóng gói.
   assert.doesNotThrow(() => npmGoiGi(), 'đọc được output npm hiện tại');
 });
+
+// CP-69 — ba nơi khai giấy phép và tác giả phải nói cùng một điều. README nói
+// MIT từ lâu, nhưng repo không có file LICENSE thì mặc định là giữ toàn quyền:
+// lời trong README không cấp phép cho ai cả.
+const LICENSE_FILE = path.join(ROOT, 'LICENSE');
+const pluginManifest = () =>
+  JSON.parse(readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+
+test('CP-69-H1 the repo ships a LICENSE file', () => {
+  assert.ok(existsSync(LICENSE_FILE), 'thiếu LICENSE ở gốc repo');
+  assert.ok(readFileSync(LICENSE_FILE, 'utf8').trim().length > 400, 'LICENSE rỗng hay quá ngắn');
+});
+
+test('CP-69-H2 LICENSE carries the MIT text, not a summary of it', () => {
+  const text = readFileSync(LICENSE_FILE, 'utf8');
+  assert.match(text, /MIT License/);
+  // Hai đoạn làm nên giấy phép: quyền được cấp, và phần từ chối bảo hành. Thiếu
+  // một trong hai thì đó là lời nhắc tới MIT, không phải MIT.
+  assert.match(text, /Permission is hereby granted, free of charge/);
+  assert.match(text, /WITHOUT WARRANTY OF ANY KIND/);
+  assert.match(text, /THE SOFTWARE IS PROVIDED "AS IS"/);
+});
+
+test('CP-69-H3 the copyright line names the year and the author', () => {
+  const text = readFileSync(LICENSE_FILE, 'utf8');
+  const line = text.split('\n').find((l) => /^Copyright/.test(l.trim()));
+  assert.ok(line, 'LICENSE không có dòng Copyright');
+  assert.match(line, /\b2026\b/);
+  assert.match(line, /Do Ngoc Thuyet/);
+});
+
+test('CP-69-H4 package.json declares the licence', () => {
+  const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.equal(pkg.license, 'MIT');
+});
+
+test('CP-69-H5 package.json declares the author', () => {
+  const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const name = typeof pkg.author === 'string' ? pkg.author : pkg.author?.name;
+  assert.ok(name, 'package.json chưa khai author');
+  assert.match(name, /Do Ngoc Thuyet/);
+});
+
+test('CP-69-V1 every manifest names the same licence', () => {
+  const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.equal(pkg.license, pluginManifest().license, 'package.json và plugin.json khai khác nhau');
+  assert.match(readFileSync(LICENSE_FILE, 'utf8'), new RegExp(pkg.license));
+});
+
+test('CP-69-V2 every manifest names the same author', () => {
+  const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const inPkg = typeof pkg.author === 'string' ? pkg.author : pkg.author?.name;
+  const inPlugin = pluginManifest().author?.name;
+  assert.ok(inPlugin, 'plugin.json chưa khai author');
+  assert.ok(inPkg.includes(inPlugin), `package.json "${inPkg}" không khớp plugin.json "${inPlugin}"`);
+});
+
+test('CP-69-E1 package.json still parses and keeps files as an array', () => {
+  const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.ok(Array.isArray(pkg.files), 'files phải là mảng');
+  assert.ok(pkg.files.length > 0);
+});
+
+test('CP-69-EC1 npm packs the LICENSE', () => {
+  assert.ok(npmGoiGi().some((f) => /^LICENSE$/i.test(f)), 'LICENSE không đi theo bản cài');
+});
+
+test('CP-69-EC2 the README licence claim agrees with the file', () => {
+  const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.ok(readme.includes(pkg.license), `README không nhắc ${pkg.license}`);
+});
