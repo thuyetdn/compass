@@ -38,6 +38,36 @@ Trong Claude Code, gõ hai dòng:
 Xong. Claude có cả quy trình lẫn công cụ — không phải cài Node package, không phải
 thêm gì vào dự án.
 
+## Dùng với Codex
+
+Codex không nạp được plugin của Claude Code, nhưng phần công cụ của Compass không phụ thuộc vào
+AI nào. Cần hai bước.
+
+Cài lệnh `compass` (Node 20 trở lên):
+
+```bash
+npm install -g github:thuyetdn/compass
+```
+
+Dán quy trình vào `AGENTS.md` của dự án, file Codex đọc mỗi lần làm việc. Đoạn mẫu nằm ở
+`templates/AGENTS.md` trong gói vừa cài, viết để nối vào cuối `AGENTS.md` có sẵn chứ không ghi đè:
+
+```bash
+cat "$(npm root -g)/compass/templates/AGENTS.md" >> AGENTS.md
+```
+
+Trên PowerShell:
+
+```powershell
+Get-Content -Encoding utf8 "$(npm root -g)\compass\templates\AGENTS.md" | Add-Content -Encoding utf8 AGENTS.md
+```
+
+Từ đó giao việc cho Codex như bình thường; nó viết spec, dừng chờ bạn duyệt, rồi chạy gate.
+Gate `review` cần một người soi khác: mở một phiên Codex mới và đưa nó file brief.
+
+Chưa kiểm chứng trên một phiên Codex thật. Lệnh cài và đoạn mẫu đã chạy thử; cách Codex làm theo
+đoạn mẫu thì chưa đo.
+
 ## Dùng
 
 Bạn **không gõ lệnh**. Bạn giao việc như bình thường:
@@ -214,7 +244,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1364 test, ~75 giây
+npm test           # suite chính, 1377 test, ~75 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 

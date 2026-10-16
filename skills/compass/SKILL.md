@@ -20,6 +20,10 @@ Mọi lệnh bên dưới viết tắt là `compass <lệnh>` cho gọn. Gõ th�
 Muốn gõ `compass` trực tiếp trong terminal thì cài một lần từ repo — `npm install -g .` — nhưng
 skill không cần bước đó.
 
+Đọc file này ngoài Claude Code (Codex chẳng hạn) thì biến `CLAUDE_PLUGIN_ROOT` không có. Cài
+`npm install -g github:thuyetdn/compass` rồi gõ `compass <lệnh>`. Đoạn quy trình rút gọn cho
+`AGENTS.md` nằm ở `templates/AGENTS.md`.
+
 Lệnh ném `MODULE_NOT_FOUND` mà bạn đã cài `-g`: symlink đứt vì repo đổi tên hoặc chuyển chỗ. Chạy
 lại `npm install -g .` từ repo, đừng đi chẩn đoán từng bước.
 
