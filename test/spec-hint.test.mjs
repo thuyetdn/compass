@@ -106,7 +106,12 @@ test('CP-64-H5 the re-recorded demo shows the hint on spec only', () => {
   const spec = runs.find((s) => s.command === 'compass spec TD-002');
   assert.ok(spec, 'transcript không có bước compass spec TD-002');
   assert.ok(spec.stdout.includes('Duyệt xong mới bắt đầu code'), spec.stdout);
-  assert.notEqual(t.compassCommit, 'c50b51b', 'transcript chưa được ghi lại');
+  // Bản cũ so `compassCommit` với hash của commit trước bản sửa. Hash thì dọn
+  // lịch sử là mất, và phép so hoá vô nghĩa mà không ai biết. Ba khẳng định
+  // trên đã đo đúng thứ cần đo — lời nhắc duyệt có trong `spec`, không có
+  // trong `check` — nên ở đây chỉ cần transcript khai nó được quay từ commit
+  // nào, để người đọc đối chiếu được.
+  assert.match(t.compassCommit ?? '', /^[0-9a-f]{7,40}$/, 'transcript phải khai commit đã quay');
 });
 
 test('CP-64-H6 spec and check write the same spec record', () => {

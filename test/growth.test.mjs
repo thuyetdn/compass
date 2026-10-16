@@ -207,7 +207,9 @@ test('CP-55-EC4 load on one small sample lowers the verdict but cannot hide a 35
 // giữ nguyên từng byte so với gốc soi.
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PITFALLS = '.knowledge/decided/pitfalls.md';
-const BASE = 'f94ebdd';
+// Tìm gốc soi theo tiêu đề commit, không ghim hash: dọn lịch sử đổi mọi SHA,
+// và test đỏ vì hash cũ thì chẳng nói gì về thứ nó đo.
+const BASE_SUBJECT = 'docs: describe repo skip slots and declared .compass review paths in SKILL.md (CP-49)';
 const TARGET = '## CP-10: Ngưỡng thời gian tuyệt đối không canh được hiệu năng';
 
 // So theo nội dung, không theo kiểu xuống dòng: checkout Windows có thể là CRLF.
@@ -227,7 +229,14 @@ function entries(text) {
 }
 
 test('CP-55-H3 the CP-10 pitfall no longer promises a ratio cannot flake; nothing else moved', () => {
-  const before = entries(execFileSync('git', ['show', `${BASE}:${PITFALLS}`], { cwd: ROOT, encoding: 'utf8' }));
+  const base = execFileSync(
+    'git',
+    ['log', '--all', '--format=%H', '--fixed-strings', `--grep=${BASE_SUBJECT}`],
+    { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+  ).trim().split('\n')[0];
+  assert.ok(base, `không tìm thấy commit "${BASE_SUBJECT}" — clone thiếu lịch sử?`);
+
+  const before = entries(execFileSync('git', ['show', `${base}:${PITFALLS}`], { cwd: ROOT, encoding: 'utf8' }));
   const after = entries(readFileSync(path.join(ROOT, PITFALLS), 'utf8'));
 
   assert.ok(before.has(TARGET) && after.has(TARGET), 'không thấy mục pitfall CP-10 cần sửa');

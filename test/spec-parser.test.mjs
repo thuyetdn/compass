@@ -192,8 +192,8 @@ function withLine(line) {
 }
 
 test('CP-34-H1 parseSpec reads a declared review base', () => {
-  const s = parseSpec(withLine('Gốc soi: a509f50'));
-  assert.equal(s.reviewBase, 'a509f50');
+  const s = parseSpec(withLine('Gốc soi: abcdef0'));
+  assert.equal(s.reviewBase, 'abcdef0');
 });
 
 test('CP-34-V1 an empty declaration is ignored, like an empty Lệnh test', () => {
@@ -207,13 +207,13 @@ test('CP-34-V2 the first declaration wins when the line appears twice', () => {
 });
 
 test('CP-34-V3 surrounding whitespace is trimmed', () => {
-  const s = parseSpec(withLine('Gốc soi:    a509f50   '));
-  assert.equal(s.reviewBase, 'a509f50');
+  const s = parseSpec(withLine('Gốc soi:    abcdef0   '));
+  assert.equal(s.reviewBase, 'abcdef0');
 });
 
 test('CP-34-EC2 a CRLF spec yields a ref with no trailing CR', () => {
-  const s = parseSpec(withLine('Gốc soi: a509f50').replace(/\n/g, '\r\n'));
-  assert.equal(s.reviewBase, 'a509f50', 'CR lọt vào ref thì git không phân giải được');
+  const s = parseSpec(withLine('Gốc soi: abcdef0').replace(/\n/g, '\r\n'));
+  assert.equal(s.reviewBase, 'abcdef0', 'CR lọt vào ref thì git không phân giải được');
 });
 
 
@@ -353,8 +353,8 @@ test('CP-54-EC1 the keyword comes from the same line as the value, in either ord
 // ---- CP-36: task khai cả commit kết thúc ----
 
 test('CP-36-H1 parseSpec reads a declared review end', () => {
-  const s = parseSpec(withLine('Soi đến: 8dce192'));
-  assert.equal(s.reviewEnd, '8dce192');
+  const s = parseSpec(withLine('Soi đến: 1234567'));
+  assert.equal(s.reviewEnd, '1234567');
 });
 
 test('CP-36-V1 an empty Soi đến is ignored and the end stays HEAD', () => {
@@ -368,8 +368,8 @@ test('CP-36-V2 the first Soi đến wins when the line appears twice', () => {
 });
 
 test('CP-36-EC3 a CRLF spec yields an end ref with no trailing CR', () => {
-  const s = parseSpec(withLine('Soi đến: 8dce192').replace(/\n/g, '\r\n'));
-  assert.equal(s.reviewEnd, '8dce192');
+  const s = parseSpec(withLine('Soi đến: 1234567').replace(/\n/g, '\r\n'));
+  assert.equal(s.reviewEnd, '1234567');
   assert.equal(s.reviewBase, null, 'trường mới không được đè trường cũ');
 });
 

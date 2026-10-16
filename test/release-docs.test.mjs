@@ -16,7 +16,21 @@ const GUIDE = 'docs/huong-dan.md';
 const TODO_README = 'examples/todo/README.md';
 const TRANSCRIPT = 'docs/demo/transcript.json';
 const RECORDER = path.join(ROOT, 'docs', 'demo', 'record.mjs');
-const SPEC_BASE = 'f94ebdd';
+// Gốc soi của CP-58, tìm theo **tiêu đề commit** chứ không ghim hash: dọn lịch
+// sử — bỏ file nặng đã xóa, gộp danh tính tác giả — đổi mọi SHA, và một test đỏ
+// vì hash cũ không nói gì về thứ nó đo. Tiêu đề thì rewrite không đụng tới.
+const SPEC_BASE_SUBJECT = 'docs: describe repo skip slots and declared .compass review paths in SKILL.md (CP-49)';
+
+function specBase(root) {
+  const sha = execFileSync(
+    'git',
+    ['log', '--all', '--format=%H', '--fixed-strings', `--grep=${SPEC_BASE_SUBJECT}`],
+    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+  ).trim().split('\n')[0];
+  // Không tìm thấy thì để người gọi `assert.fail` — im lặng bỏ qua là cách một
+  // lá chắn biến mất mà suite vẫn xanh.
+  return sha || null;
+}
 
 const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8').normalize('NFC');
 const lower = (s) => s.normalize('NFC').toLocaleLowerCase('vi');
@@ -210,15 +224,18 @@ test('CP-58-H5 the guide has the sections a first-time developer needs', () => {
 });
 
 test('CP-58-H6 package.json keeps bin, files and scripts exactly as at the spec base', () => {
+  const base = specBase(ROOT);
+  assert.ok(base, `không tìm thấy commit "${SPEC_BASE_SUBJECT}" — clone thiếu lịch sử?`);
+
   let before;
   try {
-    before = JSON.parse(execFileSync('git', ['show', `${SPEC_BASE}:package.json`], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
+    before = JSON.parse(execFileSync('git', ['show', `${base}:package.json`], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
   } catch {
-    assert.fail(`không đọc được package.json ở ${SPEC_BASE} — clone thiếu lịch sử?`);
+    assert.fail(`không đọc được package.json ở ${base.slice(0, 7)}`);
   }
   const now = JSON.parse(read('package.json'));
   for (const key of ['bin', 'files', 'scripts']) {
-    assert.equal(JSON.stringify(now[key]), JSON.stringify(before[key]), `"${key}" đã đổi so với ${SPEC_BASE}`);
+    assert.equal(JSON.stringify(now[key]), JSON.stringify(before[key]), `"${key}" đã đổi so với ${base.slice(0, 7)}`);
   }
   assert.ok(now.files.includes('cli.mjs'), 'files phải có cli.mjs');
   assert.ok(now.files.includes('skills/'), 'files phải có skills/');
@@ -347,5 +364,141 @@ test('CP-58-S2 a recorder run leaves the repo copy of examples/todo untouched', 
   } finally {
     rmSync(dir, { recursive: true, force: true });
     rmSync(out, { recursive: true, force: true });
+  }
+});
+
+// CP-71 — một test ghim hash commit sẽ đỏ sau mọi lần dọn lịch sử, trên clone
+// nông, và trên fork đã ghép lịch sử — mà lời báo đỏ chẳng nói gì về thứ test
+// đo. Tiêu đề commit thì rewrite không đụng tới.
+test('CP-71-V1 no test pins a real commit SHA', () => {
+  const dir = path.join(ROOT, 'test');
+  const suspects = [];
+
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith('.mjs')) continue;
+    const text = readFileSync(path.join(dir, name), 'utf8');
+
+    for (const m of text.matchAll(/['"]([0-9a-f]{7,40})['"]/g)) {
+      const sha = m[1];
+      // Chuỗi mẫu trong fixture không phải commit thật — git tra ra mới tính.
+      let exists = false;
+      try {
+        execFileSync('git', ['cat-file', '-e', `${sha}^{commit}`], {
+          cwd: ROOT,
+          stdio: ['ignore', 'ignore', 'ignore'],
+        });
+        exists = true;
+      } catch { /* không phải commit: fixture, cứ để yên */ }
+      if (exists) suspects.push(`${name}: ${sha}`);
+    }
+  }
+
+  assert.deepEqual(suspects, [], `ghim hash thật thì dọn lịch sử là đỏ:\n${suspects.join('\n')}`);
+});
+
+test('CP-71-H3 the spec base resolves to the commit it names', () => {
+  const base = specBase(ROOT);
+  assert.ok(base, 'không tra được gốc soi');
+
+  const subject = execFileSync('git', ['log', '-1', '--format=%s', base], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  }).trim();
+  assert.equal(subject, SPEC_BASE_SUBJECT);
+});
+
+// Hai case còn lại của CP-71 đo chính thứ sinh ra task này: suite phải xanh
+// trên cả lịch sử hiện tại lẫn lịch sử đã dọn. Chạy cả suite trong một test thì
+// quá đắt, nên ở đây dựng một repo nhỏ rồi viết lại lịch sử của nó — đủ để
+// chứng minh cách tra commit theo tiêu đề sống sót qua rewrite, còn hash thì không.
+function tinyRepo(subject) {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'compass-sha-'));
+  const run = (args) => execFileSync('git', args, { cwd: root, stdio: ['ignore', 'ignore', 'ignore'] });
+  run(['init', '-q']);
+  run(['config', 'user.email', 'test@example.com']);
+  run(['config', 'user.name', 'Test']);
+  run(['config', 'commit.gpgsign', 'false']);
+  writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'x', bin: { x: './x.mjs' } }, null, 2));
+  run(['add', '-A']);
+  run(['commit', '-q', '-m', subject]);
+  return root;
+}
+
+const subjectLookup = (root, subject) =>
+  execFileSync('git', ['log', '--all', '--format=%H', '--fixed-strings', `--grep=${subject}`], {
+    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim().split('\n')[0];
+
+test('CP-71-H1 a subject lookup finds its commit on the current history', () => {
+  const subject = 'docs: a base other commits are measured against';
+  const root = tinyRepo(subject);
+
+  const sha = subjectLookup(root, subject);
+  assert.match(sha, /^[0-9a-f]{40}$/);
+  const found = execFileSync('git', ['show', `${sha}:package.json`], { cwd: root, encoding: 'utf8' });
+  assert.match(found, /"bin"/);
+});
+
+test('CP-71-H2 the same lookup still finds it after the history is rewritten', () => {
+  const subject = 'docs: a base other commits are measured against';
+  const root = tinyRepo(subject);
+  const before = subjectLookup(root, subject);
+
+  // Viết lại lịch sử bằng chính cách `filter-repo` làm: commit mới, cùng cây,
+  // cùng tiêu đề, khác SHA. Hash cũ chết; tiêu đề thì không.
+  execFileSync('git', ['commit', '-q', '--amend', '--no-edit', '--date', 'Mon Jan 1 00:00:00 2020 +0000'], {
+    cwd: root, stdio: ['ignore', 'ignore', 'ignore'],
+  });
+
+  const after = subjectLookup(root, subject);
+  assert.match(after, /^[0-9a-f]{40}$/, 'tra theo tiêu đề phải vẫn thấy');
+  assert.notEqual(after, before, 'rewrite phải đổi SHA, nếu không thì test này không đo gì');
+
+  // Không nhánh nào còn trỏ tới hash cũ — đó là thứ làm một test ghim hash đỏ
+  // sau khi dọn lịch sử. (Object vẫn nằm trong reflog của repo tạm này cho tới
+  // lần gom rác; trên bản clone mà người ta tải về thì nó không tồn tại.)
+  const reachable = execFileSync('git', ['branch', '--all', '--contains', before], {
+    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
+  assert.equal(reachable, '', 'hash cũ phải không còn nhánh nào trỏ tới sau rewrite');
+});
+
+test('CP-71-H4 the resolved base is the commit the subject names', () => {
+  const base = specBase(ROOT);
+  assert.ok(base, 'không tra được gốc soi');
+  const body = execFileSync('git', ['show', `${base}:package.json`], { cwd: ROOT, encoding: 'utf8' });
+  assert.doesNotThrow(() => JSON.parse(body), 'gốc soi phải đọc được package.json');
+});
+
+test('CP-71-E1 a subject that matches nothing is reported, never silently skipped', () => {
+  const root = tinyRepo('docs: the only commit here');
+  assert.equal(subjectLookup(root, 'docs: a subject no commit carries'), '');
+});
+
+test('CP-71-EC1 fixture strings that look like hashes still work', () => {
+  // `abcdef0` và `1234567` là chuỗi mẫu, không phải commit. CP-71-V1 chỉ đỏ với
+  // hash tra ra được, nên fixture được yên.
+  for (const fake of ['abcdef0', '1234567']) {
+    let real = false;
+    try {
+      execFileSync('git', ['cat-file', '-e', `${fake}^{commit}`], { cwd: ROOT, stdio: ['ignore', 'ignore', 'ignore'] });
+      real = true;
+    } catch { /* đúng: không phải commit */ }
+    assert.ok(!real, `${fake} đã thành commit thật — đổi fixture khác`);
+  }
+});
+
+test('CP-71-EC2 this repo still scans clean for secrets against its own history', () => {
+  // CP-40-H7 đo điều này trên lịch sử hiện tại. Ở đây chỉ khẳng định phép quét
+  // không phụ thuộc vào một hash ghim sẵn nào.
+  const pinned = readFileSync(path.join(ROOT, 'test', 'secrets-command.test.mjs'), 'utf8');
+  const hashes = [...pinned.matchAll(/['"]([0-9a-f]{7,40})['"]/g)].map((m) => m[1]);
+  for (const sha of hashes) {
+    let real = false;
+    try {
+      execFileSync('git', ['cat-file', '-e', `${sha}^{commit}`], { cwd: ROOT, stdio: ['ignore', 'ignore', 'ignore'] });
+      real = true;
+    } catch { /* fixture */ }
+    assert.ok(!real, `secrets-command.test.mjs ghim commit thật ${sha}`);
   }
 });
