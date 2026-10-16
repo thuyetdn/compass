@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Compass buộc AI chứng minh việc đã xong bằng lệnh chạy thật, thay vì tự báo xong.">
+<title>Compass</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<style>
+/* Layout: một cột hội thoại hẹp, chạy dọc. Gate đỏ là nhịp nghỉ, không phải lỗi. */
+:root {
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --ink: #1b1a17;
+  --ink-soft: #6a665e;
+  --line: #e4e1da;
+  --rule: #d6d2c9;
+  --term-bg: #1e1d1a;
+  --term-ink: #e6e3dc;
+  --term-dim: #8f8a80;
+  --green: #2f7a4f;
+  --red: #b2422f;
+  --amber: #9a6b16;
+  --human: #2b4c7e;
+
+  --display: "Newsreader", Georgia, "Times New Roman", serif;
+  --body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14130f;
+    --surface: #1c1b17;
+    --ink: #eceae4;
+    --ink-soft: #9b968c;
+    --line: #2e2c26;
+    --rule: #3a372f;
+    --term-bg: #0e0d0b;
+    --term-ink: #e6e3dc;
+    --term-dim: #817c72;
+    --green: #6ab883;
+    --red: #e08268;
+    --amber: #d6a441;
+    --human: #8fb0dd;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14130f;
+  --surface: #1c1b17;
+  --ink: #eceae4;
+  --ink-soft: #9b968c;
+  --line: #2e2c26;
+  --rule: #3a372f;
+  --term-bg: #0e0d0b;
+  --term-ink: #e6e3dc;
+  --term-dim: #817c72;
+  --green: #6ab883;
+  --red: #e08268;
+  --amber: #d6a441;
+  --human: #8fb0dd;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  padding-block: 56px 96px;
+}
+
+/* ── Mở đầu ───────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 18px;
+}
+h1 {
+  font-family: var(--display);
+  font-size: clamp(32px, 7vw, 46px);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  margin: 0 0 20px;
+  text-wrap: balance;
+}
+.lede {
+  font-size: 17px;
+  color: var(--ink-soft);
+  max-width: 54ch;
+  margin: 0 0 14px;
+}
+.lede strong { color: var(--ink); font-weight: 600; }
+
+.divide {
+  height: 1px;
+  background: var(--rule);
+  border: 0;
+  margin: 44px 0;
+}
+
+h2 {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+.section-note {
+  color: var(--ink-soft);
+  font-size: 15px;
+  margin: 0 0 28px;
+  max-width: 56ch;
+}
+
+/* ── Hội thoại ────────────────────────────────────────── */
+.thread { display: flex; flex-direction: column; gap: 22px; }
+
+.turn { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+
+.who {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.who::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  flex: none;
+}
+.turn.human .who::before { background: var(--human); }
+.turn.human .who { color: var(--human); }
+
+.says {
+  font-size: 16px;
+  margin: 0;
+  min-width: 0;
+}
+.turn.human .says {
+  font-family: var(--display);
+  font-size: 19px;
+  line-height: 1.45;
+  padding-left: 14px;
+  border-left: 2px solid var(--human);
+}
+
+.aside {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+/* ── Terminal ─────────────────────────────────────────── */
+.term {
+  background: var(--term-bg);
+  color: var(--term-ink);
+  border-radius: 7px;
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  overflow-x: auto;
+  min-width: 0;
+  white-space: pre;
+  tab-size: 2;
+}
+.term .cmd { color: var(--term-dim); }
+.term .cmd b { color: var(--term-ink); font-weight: 500; }
+.term .ok { color: var(--green); }
+.term .no { color: var(--red); }
+.term .warn { color: var(--amber); }
+.term .dim { color: var(--term-dim); }
+
+/* ── Khoảnh khắc gate bắt lỗi ─────────────────────────── */
+.beat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--red);
+  border-radius: 0 7px 7px 0;
+  padding: 16px 18px;
+}
+.beat h3 {
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0 0 6px;
+  color: var(--red);
+}
+.beat p { margin: 0; font-size: 15px; color: var(--ink); }
+.beat p + p { margin-top: 8px; }
+
+/* ── Bảng ─────────────────────────────────────────────── */
+.table-scroll { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  min-width: 420px;
+}
+th, td {
+  text-align: left;
+  padding: 9px 12px 9px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+th {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 500;
+  white-space: nowrap;
+}
+td code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+td.who-col { white-space: nowrap; font-family: var(--mono); font-size: 13px; }
+.yes { color: var(--green); font-weight: 600; }
+.no-mark { color: var(--ink-soft); }
+
+/* ── Cài ──────────────────────────────────────────────── */
+.install {
+  background: var(--term-bg);
+  color: var(--term-ink);
+  border-radius: 7px;
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.9;
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.install .p { color: var(--term-dim); }
+
+.closing {
+  font-size: 15px;
+  color: var(--ink-soft);
+  max-width: 58ch;
+}
+.closing strong { color: var(--ink); font-weight: 600; }
+
+footer {
+  margin-top: 56px;
+  padding-top: 22px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+@media (max-width: 480px) {
+  .wrap { padding-block: 40px 72px; }
+  .term { font-size: 11.5px; }
+  .turn.human .says { font-size: 17px; }
+}
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">Compass 3.0.0</p>
+  <h1>AI báo “xong” khi chưa xong</h1>
+  <p class="lede">
+    Nó không nói dối. Nó thật sự tin là đã xong — vì không có gì bắt nó chứng minh.
+  </p>
+  <p class="lede">
+    Compass là lớp bắt chứng minh đó. Bạn vẫn giao việc như bình thường;
+    <strong>Claude tự chạy gate</strong>, và chỉ exit code mới được phán pass hay fail.
+    Dưới đây là một task thật, chạy từ đầu đến cuối.
+  </p>
+
+  <hr class="divide">
+
+  <h2>Một task, từ lời nhờ đến bằng chứng</h2>
+  <p class="section-note">
+    Output trong các khối đen là những gì Compass thật sự in ra khi chạy task này trên
+    <code>examples/todo</code>. Không có dòng nào viết lại cho đẹp.
+  </p>
+
+  <div class="thread">
+
+    <div class="turn human">
+      <div class="who">Bạn</div>
+      <p class="says">Thêm nút “Xóa việc đã xong” vào danh sách todo.</p>
+    </div>
+
+    <div class="turn">
+      <div class="who">Claude</div>
+      <p class="says">
+        Đọc <code>src/App.jsx</code> trước, rồi phân loại: một module, có giao diện —
+        <code>feature-s</code>, tối thiểu 13 test case.
+      </p>
+      <div class="term"><span class="cmd">$ <b>compass init TD-002 --type=feature-s</b></span>
+
+Đã tạo task TD-002 (loại feature-s)
+  spec: .compass/TD-002/spec.md
+
+<span class="dim">→ Điền spec, rồi chạy: compass spec TD-002</span></div>
+    </div>
+
+    <div class="turn">
+      <div class="who">Claude viết spec</div>
+      <p class="aside">
+        Mục tiêu, ràng buộc, và phần khó nhất — <strong>rủi ro hồi quy</strong>: nút đặt trong form
+        thì bấm xóa sẽ gửi luôn chữ đang gõ dở; xóa theo tiêu đề thay vì theo id sẽ xóa nhầm khi hai
+        việc trùng tên. Rồi 13 test case, mỗi case một kỳ vọng đo được.
+      </p>
+      <div class="term"><span class="cmd">$ <b>compass spec TD-002</b></span>
+
+<span class="ok">✓ Gate spec PASSED</span>
+
+<span class="dim">→ Đưa spec cho người duyệt. Duyệt xong mới bắt đầu code.</span></div>
+    </div>
+
+    <div class="turn human">
+      <div class="who">Bạn duyệt</div>
+      <p class="says">Ổn, làm đi.</p>
+    </div>
+
+    <div class="turn">
+      <div class="who">Claude viết code và test</div>
+      <p class="aside">
+        Test trước, thấy đỏ, rồi mới implement. Xong, chạy gate.
+      </p>
+      <div class="term"><span class="cmd">$ <b>compass check TD-002</b></span>
+
+<span class="ok">✓ Gate spec PASSED</span>
+<span class="ok">✓ Gate knowledge PASSED</span> <span class="dim">— 6 file nguồn còn khớp tài liệu</span>
+<span class="ok">✓ Gate secrets PASSED</span> <span class="dim">— không thấy file .env nào trong diff</span>
+<span class="ok">✓ Gate convention PASSED</span> <span class="dim">— 4 luật, 4 file, không vi phạm</span>
+<span class="no">✗ Gate test FAILED</span>
+<span class="no">  Spec khai báo 13 test cases, chỉ tìm thấy 12 đã chạy.</span>
+<span class="no">  Không tìm thấy dấu vết: EC3</span>
+
+<span class="dim">→ Viết test cho các case còn thiếu, hoặc sửa spec nếu chúng
+  không còn cần thiết (sửa spec cần duyệt lại).</span></div>
+    </div>
+
+    <div class="beat">
+      <h3>Đây là chỗ Compass đáng tiền</h3>
+      <p>
+        Suite xanh. Mọi test viết ra đều pass. Không có gì trên màn hình nói rằng việc chưa xong —
+        trừ Compass, vì nó đối chiếu từng ID trong spec với output thật và thấy <code>EC3</code>
+        chưa từng chạy.
+      </p>
+      <p>
+        Không có gate này, Claude báo “xong, 12 test pass”, và bạn tin. Case EC3 — đánh dấu rồi bỏ
+        đánh dấu, bấm nút, việc đó vẫn phải còn — không ai viết, cho tới lúc nó vỡ trên production.
+      </p>
+    </div>
+
+    <div class="turn">
+      <div class="who">Claude viết nốt test còn thiếu</div>
+      <p class="aside">
+        Gate chỉ đúng ID thiếu, nên không phải đoán. Thêm test EC3, chạy lại.
+      </p>
+      <div class="term"><span class="cmd">$ <b>compass check TD-002</b></span>
+
+<span class="ok">✓ Gate spec PASSED</span>
+<span class="ok">✓ Gate knowledge PASSED</span> <span class="dim">— 7 file nguồn còn khớp tài liệu</span>
+<span class="ok">✓ Gate secrets PASSED</span> <span class="dim">— không thấy file .env nào trong diff</span>
+<span class="ok">✓ Gate convention PASSED</span> <span class="dim">— 4 luật, 5 file, không vi phạm</span>
+<span class="ok">✓ Gate test PASSED</span> <span class="dim">— 13/13 test cases đã chạy</span>
+<span class="ok">✓ Gate ui PASSED</span> <span class="dim">— 16 thuộc tính, 2 viewport, không lệch</span>
+<span class="ok">✓ Gate visual PASSED</span> <span class="dim">— đã tạo baseline cho 2 viewport</span>
+
+<span class="warn">Baseline: .compass/TD-002/baseline/</span>
+<span class="dim">→ Lần này chưa so gì cả — xem ảnh, thấy đúng thì commit baseline vào git.</span></div>
+    </div>
+
+    <div class="turn">
+      <div class="who">Claude đóng task</div>
+      <div class="term"><span class="cmd">$ <b>compass done TD-002</b></span>
+
+<span class="ok">✓ Gate done PASSED — 7 gate đã pass</span>
+
+Task TD-002 hoàn thành. Bằng chứng: .compass/TD-002/evidence/</div>
+      <p class="aside">
+        Giờ “xong” mới là xong — và có thư mục bằng chứng để đối chiếu.
+      </p>
+    </div>
+
+  </div>
+
+  <hr class="divide">
+
+  <h2>Ai làm gì</h2>
+  <p class="section-note">
+    Ranh giới này là toàn bộ ý tưởng. AI giỏi viết; nó dở ở chỗ tự chấm bài mình.
+  </p>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Việc</th><th>AI</th><th>Compass</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Viết spec, code, test</td><td class="who-col"><span class="yes">✓</span></td><td class="who-col"><span class="no-mark">—</span></td></tr>
+        <tr><td>Chạy test, đo, kiểm tra</td><td class="who-col"><span class="no-mark">—</span></td><td class="who-col"><span class="yes">✓</span></td></tr>
+        <tr><td>Ghi bằng chứng</td><td class="who-col"><span class="no-mark">—</span></td><td class="who-col"><span class="yes">✓</span></td></tr>
+        <tr><td>Phán pass / fail</td><td class="who-col"><span class="no-mark">—</span></td><td class="who-col"><span class="yes">✓</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="closing" style="margin-top:18px">
+    Bản ghi gate có chữ ký. Sửa tay là lộ — sửa giá trị, chuyển khe, hay chép từ task khác đều bị bắt.
+  </p>
+
+  <hr class="divide">
+
+  <h2>Tám gate</h2>
+  <p class="section-note">
+    Chạy theo thứ tự rẻ trước đắt sau, dừng ngay khi có cái đỏ.
+  </p>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Gate</th><th>Đo gì</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>spec</code></td><td>Spec đủ mục, test case có ID và kỳ vọng đo được</td></tr>
+        <tr><td><code>knowledge</code></td><td>Tài liệu máy sinh còn khớp code</td></tr>
+        <tr><td><code>secrets</code></td><td>File <code>.env</code> không lọt vào commit</td></tr>
+        <tr><td><code>convention</code></td><td>Quy ước dự án, viết một lần chạy mãi</td></tr>
+        <tr><td><code>test</code></td><td>Suite xanh <em>và</em> mọi test ID trong spec đã thực sự chạy</td></tr>
+        <tr><td><code>ui</code></td><td>Số đo CSS thật khớp design contract (±2px)</td></tr>
+        <tr><td><code>visual</code></td><td>So pixel với baseline đã duyệt</td></tr>
+        <tr><td><code>review</code></td><td>Agent khác soi diff, chỉ thấy spec và code</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="divide">
+
+  <h2>Cài</h2>
+  <p class="section-note">Hai dòng trong Claude Code. Không phải cài Node package, không phải thêm gì vào dự án.</p>
+
+  <div class="install"><div><span class="p">/</span>plugin marketplace add thuyetdn/compass</div><div><span class="p">/</span>plugin install compass@compass</div></div>
+
+  <p class="closing" style="margin-top:20px">
+    Xong. Từ lúc này bạn chỉ cần giao việc — Claude biết phải chạy gate nào, và biết nó không được
+    tự khai kết quả.
+  </p>
+
+  <footer>
+    <span>github.com/thuyetdn/compass</span>
+    <span>v3.0.0</span>
+    <span>1355 test</span>
+    <span>zero dependency</span>
+    <span>MIT</span>
+  </footer>
+
+</div>
+</body>
+</html>

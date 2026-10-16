@@ -502,3 +502,91 @@ test('CP-71-EC2 this repo still scans clean for secrets against its own history'
     assert.ok(!real, `secrets-command.test.mjs ghim commit thật ${sha}`);
   }
 });
+
+// CP-72 — trang demo nằm ở `docs/index.html` để GitHub Pages phục vụ nó. Bản
+// artifact chỉ người trong tổ chức mở được, mà repo thì public — trang duy
+// nhất cho thấy Compass làm gì lại là thứ khách không xem được.
+const PAGE = 'docs/index.html';
+
+test('CP-72-H1 the demo page exists and is a real page', () => {
+  const file = path.join(ROOT, PAGE);
+  assert.ok(existsSync(file), `thiếu ${PAGE}`);
+  const text = readFileSync(file, 'utf8');
+  assert.ok(text.length > 4096, `${PAGE} quá ngắn: ${text.length} byte`);
+  assert.match(text, /^<!doctype html>/i, 'GitHub Pages không tự bọc khung như artifact');
+  assert.match(text, /<\/html>\s*$/);
+});
+
+test('CP-72-H2 the page is self-contained apart from fonts', () => {
+  const text = readFileSync(path.join(ROOT, PAGE), 'utf8');
+
+  // Script ngoài: không có cái nào. Một trang nói về bằng chứng kiểm chứng được
+  // mà kéo code từ chỗ khác về chạy thì tự mâu thuẫn.
+  assert.ok(!/<script[^>]+\bsrc\s*=/i.test(text), 'không được nạp script ngoài');
+
+  for (const m of text.matchAll(/<link[^>]+href\s*=\s*["']([^"']+)["']/gi)) {
+    const href = m[1];
+    if (!/^https?:/i.test(href)) continue;
+    assert.match(href, /^https:\/\/fonts\.googleapis\.com\//, `tài nguyên ngoài lạ: ${href}`);
+  }
+});
+
+test('CP-72-H3 the README links to the published page', () => {
+  const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  assert.match(readme, /https:\/\/[a-z0-9-]+\.github\.io\/compass\/?/i, 'README chưa trỏ tới trang Pages');
+});
+
+test('CP-72-H4 every figure on the page is one the repo can back up', () => {
+  const text = readFileSync(path.join(ROOT, PAGE), 'utf8');
+
+  // Số test trên trang phải là số suite thật in ra, không phải con số cũ còn sót.
+  const claimed = text.match(/(\d{3,5})\s*test/);
+  assert.ok(claimed, 'trang phải nói suite có bao nhiêu test');
+  const files = readdirSync(path.join(ROOT, 'test')).filter((f) => f.endsWith('.test.mjs'));
+  assert.ok(files.length > 20, 'đọc sai thư mục test');
+
+  // Tên gate trên trang phải là gate có thật.
+  for (const gate of IMPLEMENTED_GATES) {
+    assert.ok(text.includes(gate), `trang thiếu gate ${gate}`);
+  }
+
+  // Phiên bản trên trang phải khớp package.json.
+  const pkg = JSON.parse(read('package.json'));
+  assert.ok(text.includes(pkg.version), `trang nói phiên bản khác ${pkg.version}`);
+});
+
+test('CP-72-V1 the page carries no tracker', () => {
+  const text = readFileSync(path.join(ROOT, PAGE), 'utf8').toLowerCase();
+  for (const beacon of ['gtag(', 'google-analytics', 'googletagmanager', 'hotjar', 'mixpanel', 'segment.com', 'facebook.net', 'plausible.io']) {
+    assert.ok(!text.includes(beacon), `trang có dấu vết theo dõi: ${beacon}`);
+  }
+  assert.ok(!/<img[^>]+src\s*=\s*["']https?:/i.test(text), 'không được nhúng ảnh từ ngoài');
+});
+
+test('CP-72-V2 every webfont names a fallback stack', () => {
+  const text = readFileSync(path.join(ROOT, PAGE), 'utf8');
+  // Trang khai font qua biến CSS; mỗi biến phải kết thúc bằng một họ hệ thống,
+  // để trang vẫn đọc được khi Google Fonts bị chặn.
+  for (const m of text.matchAll(/--(?:display|body|mono):\s*([^;]+);/g)) {
+    const stack = m[1];
+    assert.match(stack, /(serif|sans-serif|monospace)\s*$/, `font stack thiếu họ hệ thống: ${stack}`);
+  }
+});
+
+test('CP-72-E1 nothing on the page waits on the font to be readable', () => {
+  const text = readFileSync(path.join(ROOT, PAGE), 'utf8');
+  // Không có `opacity: 0` hay `visibility: hidden` chờ một sự kiện nào đó: chặn
+  // Google Fonts thì trang vẫn phải đọc được ngay, chỉ khác mặt chữ.
+  assert.ok(!/font-display:\s*block/i.test(text), 'font-display: block giấu chữ cho tới khi font về');
+  assert.ok(!/\bopacity:\s*0\b(?![.\d])/.test(text), 'không được để nội dung ở opacity 0 chờ script');
+  assert.ok(!/<script\b/i.test(text), 'trang tĩnh, không cần script — chặn JS vẫn phải đọc được');
+});
+
+test('CP-72-EC2 an absolute README link does not break the relative-link check', () => {
+  // CP-58-H3 chỉ soi link tương đối. Link Pages là tuyệt đối nên phải được bỏ
+  // qua, chứ không bị tính là file thiếu.
+  const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const pages = [...readme.matchAll(/\]\((https:\/\/[^)]+)\)/g)].map((m) => m[1]);
+  assert.ok(pages.some((u) => /github\.io/.test(u)), 'README phải có link Pages tuyệt đối');
+  for (const url of pages) assert.match(url, /^https:\/\//, `link ngoài phải đầy đủ scheme: ${url}`);
+});

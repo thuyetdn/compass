@@ -236,3 +236,9 @@ test('CP-69-EC2 the README licence claim agrees with the file', () => {
   const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.ok(readme.includes(pkg.license), `README không nhắc ${pkg.license}`);
 });
+
+test('CP-72-EC1 npm still does not ship docs after the demo page lands there', () => {
+  // `docs/index.html` là trang GitHub Pages phục vụ, không phải thứ đi theo bản
+  // cài. CP-17-H4 đã khai `docs/` nằm ngoài gói; đây là lá chắn cho đúng file mới.
+  assert.ok(!npmGoiGi().some((f) => f.startsWith('docs/')), 'docs/ không được đóng gói');
+});

@@ -2,6 +2,9 @@
 
 AI báo "xong" khi chưa xong. Compass làm cho lời đó phải có bằng chứng.
 
+[**Xem một task chạy thật →**](https://thuyetdn.github.io/compass/) — từ lời nhờ tới lúc gate bắt
+được một test còn thiếu, trong khi suite vẫn xanh.
+
 ## Vấn đề
 
 Bạn giao việc cho AI. Nó sửa code, chạy vài thứ, rồi nói "đã xong, test pass hết".
@@ -211,7 +214,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1346 test, ~75 giây
+npm test           # suite chính, 1355 test, ~75 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 
