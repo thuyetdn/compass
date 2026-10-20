@@ -172,7 +172,7 @@ test('CP-30-E1 .gitignore có sẵn thì không thêm dòng data/', () => {
   // `init` cũ viết, không phải người dùng sửa — nên được nâng lên mặc định.
   // Tên test giữ nguyên để lịch sử thấy quyết định đổi ở đâu. File có thêm bất
   // cứ gì khác vẫn là của người dùng: CP-28-V1 và CP-28-EC1 canh chuyện đó.
-  assert.equal(noiDung, '.salt\ndata/\n');
+  assert.equal(noiDung, '.salt\ndata/\nreview-brief.md\n');
 });
 
 test('CP-30-EC2 .gitignore do getSalt viết ra chạy đúng với git thật', () => {

@@ -252,7 +252,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1438 test, ~75 giây
+npm test           # suite chính, 1445 test, ~75 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 

@@ -57,7 +57,7 @@ test('CP-59-H1 init ở repo mới che cả data/ lẫn .salt', () => {
   rmSync(root, { recursive: true, force: true });
 
   assert.equal(r.exitCode, 0, r.output);
-  assert.equal(noiDung, '.salt\ndata/\n');
+  assert.equal(noiDung, '.salt\ndata/\nreview-brief.md\n');
   assert.ok(data, 'kết quả query phải bị git bỏ qua — nó có email khách hàng');
   assert.ok(salt, '.salt phải bị git bỏ qua');
 });
@@ -72,7 +72,7 @@ test('CP-59-H2 dự án mở bằng init và dự án mở bằng getSalt có c�
   rmSync(a, { recursive: true, force: true });
   rmSync(b, { recursive: true, force: true });
 
-  assert.equal(noiDungA, '.salt\ndata/\n');
+  assert.equal(noiDungA, '.salt\ndata/\nreview-brief.md\n');
   assert.equal(noiDungA, noiDungB, 'hai lệnh viết hai nội dung khác nhau — lệnh chạy trước thắng');
 });
 
@@ -84,7 +84,7 @@ test('CP-59-H3 .gitignore một dòng .salt của bản cũ được init nâng 
   rmSync(root, { recursive: true, force: true });
 
   assert.equal(r.exitCode, 0, r.output);
-  assert.equal(noiDung, '.salt\ndata/\n');
+  assert.equal(noiDung, '.salt\ndata/\nreview-brief.md\n');
   const dong = dongGitignore(r.output);
   assert.equal(dong.length, 1, `phải đúng một dòng báo nâng cấp: ${JSON.stringify(r.output)}`);
   assert.match(dong[0], /\.compass\/\.gitignore/);
@@ -100,7 +100,7 @@ test('CP-59-V1 .salt kèm CRLF hoặc không xuống dòng cũng được nâng'
     rmSync(root, { recursive: true, force: true });
 
     assert.equal(r.exitCode, 0, r.output);
-    assert.equal(noiDung, '.salt\ndata/\n', `không nâng file ${JSON.stringify(cu)}`);
+    assert.equal(noiDung, '.salt\ndata/\nreview-brief.md\n', `không nâng file ${JSON.stringify(cu)}`);
     assert.equal(dongGitignore(r.output).length, 1, r.output);
   }
 });
@@ -157,7 +157,7 @@ test('CP-59-E2 init ngoài repo git vẫn viết đủ .gitignore, không lời 
   rmSync(root, { recursive: true, force: true });
 
   assert.equal(r.exitCode, 0, r.output);
-  assert.equal(noiDung, '.salt\ndata/\n');
+  assert.equal(noiDung, '.salt\ndata/\nreview-brief.md\n');
   assert.deepEqual(dongGitignore(r.output), []);
   assert.doesNotMatch(r.output, /fatal|not a git repository|Cảnh báo/i);
 });
@@ -190,7 +190,7 @@ test('CP-59-EC1 init, getSalt, init, getSalt không nhân đôi dòng nào', () 
   const noiDung = readFileSync(ignorePath(root), 'utf8');
   rmSync(root, { recursive: true, force: true });
 
-  assert.equal(noiDung, '.salt\ndata/\n');
+  assert.equal(noiDung, '.salt\ndata/\nreview-brief.md\n');
 });
 
 test('CP-59-EC2 file init viết ra chạy đúng với git thật', () => {
@@ -217,7 +217,7 @@ test('CP-59-EC2 file init viết ra chạy đúng với git thật', () => {
 });
 
 test('CP-59-EC3 .gitignore đã đúng mặc định thì init không đụng, không nói gì', () => {
-  const root = duAnCu('.salt\ndata/\n');
+  const root = duAnCu('.salt\ndata/\nreview-brief.md\n');
   const truoc = readFileSync(ignorePath(root));
   const r = initCommand({ cwd: root, taskId: 'T-2', type: 'bug' });
   const sau = readFileSync(ignorePath(root));
@@ -240,6 +240,6 @@ test('CP-59-EC4 dự án Compass lồng trong repo ngoài được nâng, git ng
   rmSync(ngoai, { recursive: true, force: true });
 
   assert.equal(r.exitCode, 0, r.output);
-  assert.equal(noiDung, '.salt\ndata/\n');
+  assert.equal(noiDung, '.salt\ndata/\nreview-brief.md\n');
   assert.ok(data, 'từ gốc repo ngoài, data/ của dự án lồng phải bị bỏ qua');
 });

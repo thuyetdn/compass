@@ -590,9 +590,10 @@ bằng chứng. Tên file theo khuôn `<task-id>-<việc>-<ngày>.<đuôi>`, kh�
 `queries/inv1-prod-queries.sql` → `INV-1-prod-queries-0907.csv`. Không phải nghĩ tên, chỉ điền vào khuôn.
 
 `data/` được che sẵn vì query production trả về email và tên khách hàng. Compass viết
-`.compass/.gitignore` gồm hai dòng `.salt` và `data/`, dù `init` hay gate đầu tiên chạm `.compass/`
-trước. File chỉ có đúng một dòng `.salt` là file `init` bản cũ viết: `init` nâng nó lên và báo một
-dòng. File có nội dung khác là của bạn, Compass không sửa byte nào; nếu git nói `data/` chưa bị bỏ
+`.compass/.gitignore` gồm ba dòng `.salt`, `data/` và `review-brief.md`, dù `init` hay gate đầu tiên
+chạm `.compass/` trước. `review-brief.md` là brief `compass review` sinh lại mỗi lần code đổi, đồ dùng
+một lần; `findings.json` mới là bằng chứng và vẫn lên git. File chỉ có `.salt`, hoặc `.salt` và
+`data/`, là file `init` bản cũ viết: `init` nâng nó lên và báo một dòng nói đúng dòng vừa thêm. File có nội dung khác là của bạn, Compass không sửa byte nào; nếu git nói `data/` chưa bị bỏ
 qua, `init` cảnh báo và đưa dòng cần thêm — `data/`.
 
 ```

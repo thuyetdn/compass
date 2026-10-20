@@ -30,9 +30,17 @@ function dataIgnored(root, taskId) {
 }
 
 // Một dòng, chỉ khi có chuyện để nói — dự án mới thì output giữ nguyên.
-function gitignoreLine(root, taskId, state) {
+// Bản nâng nói đúng các dòng vừa thêm: file đã che `data/` mà nghe "thêm data/"
+// thì người đọc tưởng trước đó dữ liệu khách đã hở (CP-80).
+const VI_SAO = {
+  'data/': 'kết quả query, log, dump',
+  'review-brief.md': 'brief soi code sinh lại mỗi lần chạy review',
+};
+
+function gitignoreLine(root, taskId, { state, added = [] }) {
   if (state === 'upgraded') {
-    return 'Đã nâng .compass/.gitignore: thêm data/ — kết quả query, log, dump không lên git.';
+    const what = added.map((l) => `${l} (${VI_SAO[l] ?? 'mặc định mới'})`).join(' và ');
+    return `Đã nâng .compass/.gitignore: thêm ${what} — không lên git.`;
   }
   const warn = 'Cảnh báo: .compass/.gitignore chưa che data/ — kết quả query production có thể ' +
     'lên git. Thêm dòng `data/` vào .compass/.gitignore.';
