@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { findRoot, specPath, taskDir, evidenceDir, validateTaskId } from '../lib/paths.mjs';
-import { collectDiff, buildBrief, parseScopePaths } from '../lib/review-brief.mjs';
+import { collectDiff, buildBrief, briefSubject, parseScopePaths } from '../lib/review-brief.mjs';
 import { parseFindings, formatFinding, checkCoverage, BLOCKING } from '../lib/findings.mjs';
 import { collectContext } from '../lib/review-context.mjs';
 import { writeGate, readGate } from '../lib/gate-store.mjs';
@@ -35,6 +35,14 @@ function briefId(findingsSource) {
   } catch {
     return null;
   }
+}
+
+// Brief cũ nói về đúng spec và diff này không. Không đọc được hai phần đó (brief
+// sửa tay, hay mẫu brief đã khác) thì coi như không — báo "code hoặc spec đã đổi"
+// an toàn hơn đoán là ngữ cảnh.
+function sameSubject(oldBrief, spec, diff) {
+  const old = briefSubject(oldBrief);
+  return old !== null && old.spec === spec && old.diff === diff;
 }
 
 export function reviewCommand({ cwd, taskId }) {
@@ -236,12 +244,12 @@ export function reviewCommand({ cwd, taskId }) {
     const answersThisBrief = briefId(source) === idOf(current);
 
     if (!briefIsCurrent) {
-      // Sổ ghi băm spec và diff của lần chạy trước. Cả hai còn khớp mà brief vẫn
-      // khác thì thứ đổi là ngữ cảnh repo — convention, nơi gọi, tài liệu — chứ
-      // không phải việc của task. Nói "code đã đổi" lúc đó là bảo người đọc đi tìm
-      // một thay đổi không có (CP-38).
-      const before = readGate(root, taskId, 'review');
-      const onlyContext = before?.diffHash === sha256(current.diff) && before?.specHash === hashFile(file);
+      // Brief cũ ghi nguyên spec và diff nó được viết cho. Cả hai còn y nguyên mà
+      // brief vẫn khác thì thứ đổi là ngữ cảnh repo — convention, nơi gọi, tài liệu
+      // — chứ không phải việc của task. Nói "code đã đổi" lúc đó là bảo người đọc đi
+      // tìm một thay đổi không có (CP-38). Đọc từ brief chứ không từ sổ: nhánh
+      // findings-hỏng ghi đè sổ, và lần chạy sau báo nhầm (CP-79).
+      const onlyContext = sameSubject(readFileSync(briefFile, 'utf8'), readFileSync(file, 'utf8'), current.diff);
       writeFileSync(briefFile, wanted);
       writeGate(root, taskId, {
         gate: 'review',
@@ -396,11 +404,9 @@ export function reviewCommand({ cwd, taskId }) {
   // old one sends them to read the wrong promise.
   const stale = hadBrief && readFileSync(briefFile, 'utf8') !== fresh;
 
-  // Cùng luật với pha hai, đọc trước khi recordPending ghi đè sổ: spec và diff
-  // còn khớp sổ mà brief khác thì thứ đổi là ngữ cảnh repo. Lần soi đầu của chính
-  // CP-78 bắt được pha một vẫn báo "code hoặc spec đã đổi" ở đây (CP-38).
-  const before = readGate(root, taskId, 'review');
-  const onlyContext = stale && before?.diffHash === diffHash && before?.specHash === hashFile(file);
+  // Cùng luật với pha hai, đọc từ brief cũ trước khi nó bị ghi đè: spec và diff
+  // trong đó còn y nguyên mà brief khác thì thứ đổi là ngữ cảnh repo (CP-38, CP-79).
+  const onlyContext = stale && sameSubject(readFileSync(briefFile, 'utf8'), readFileSync(file, 'utf8'), collected.diff);
 
   if (!hadBrief || stale) {
     mkdirSync(taskDir(root, taskId), { recursive: true });

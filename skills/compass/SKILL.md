@@ -427,7 +427,7 @@ luật trong `conventions.md`, `inferred` khi suy ra từ code. Repo chưa khai 
 
 `Critical` và `Major` chặn gate. `Minor` và `Info` hiện ra nhưng không chặn. Không tìm thấy gì thì vẫn nộp đủ `coverage` với `"findings": []` — đừng bịa cho có.
 
-Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ, Compass sinh brief mới và bắt soi lại. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code. Id băm cả spec, diff lẫn ngữ cảnh, nên khi chỉ ngữ cảnh đổi (ai đó sửa `conventions.md` sau khi soi) gate cũng mở lại, và nói rõ là ngữ cảnh đổi chứ không phải code đổi.
+Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ, Compass sinh brief mới và bắt soi lại. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code. Id băm cả spec, diff lẫn ngữ cảnh, nên khi chỉ ngữ cảnh đổi gate cũng mở lại, và nói rõ là ngữ cảnh đổi chứ không phải code đổi. Ngữ cảnh đổi riêng theo hai đường. Một là nâng cấp Compass: mẫu brief và cách dò ngữ cảnh nằm trong Compass, nên bản mới có thể ra brief khác cho đúng spec và diff cũ. Hai là task khai `Soi đến:`, tức là diff bị chốt ở một commit: ai đó sửa `conventions.md` sau commit đó thì gate báo ngữ cảnh đổi. Không khai `Soi đến:` thì diff đi tới cây làm việc, nên sửa `conventions.md` cũng là một phần của diff, và gate báo đúng là code hoặc spec đã đổi.
 
 **Phạm vi soi.** Mặc định Compass so với điểm rẽ khỏi nhánh chính, hoặc commit đầu tiên nếu không có. Repo chỉ có đúng một commit thì Compass so với cây rỗng của git, nên chính commit đó cũng được soi, và gate `secrets` quét nó. Nhánh sống lâu thì phạm vi đó là cả dự án chứ không phải một task.
 
