@@ -177,6 +177,7 @@ npm install -g .
 ```
 
 ```bash
+compass --version                     # in phiên bản đang cài
 compass status                        # đọc config, kiểm tra trước khi bắt đầu
 compass init T-001 --type=feature-s   # tạo spec skeleton
 compass spec T-001                    # gate: spec hợp lệ?
@@ -251,7 +252,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1412 test, ~75 giây
+npm test           # suite chính, 1425 test, ~75 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 

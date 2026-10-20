@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 import { initCommand, initMultiCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
 import { testCommand } from './commands/test.mjs';
@@ -35,7 +36,21 @@ Dùng:
   compass investigate <id> [--close]
   compass scripts --list
   compass data <id> <file.sql>  đối chiếu tên file khai trong .sql với data/
+
+  compass --version             in phiên bản của bản Compass đang chạy
 `;
+
+// Phiên bản đọc từ package.json nằm cạnh chính file này, không từ thư mục đang
+// đứng hay biến môi trường của npm: đứng trong dự án khác thì `npm_package_version`
+// và package.json ở cwd là của dự án đó. Chỉ đọc khi được hỏi, để file này thiếu
+// hay hỏng không làm hỏng các lệnh khác (CP-77).
+function version() {
+  const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+  if (typeof pkg.version !== 'string' || pkg.version === '') {
+    throw new Error('package.json của Compass không khai "version"');
+  }
+  return pkg.version;
+}
 
 function parseFlags(argv) {
   const flags = {};
@@ -61,6 +76,11 @@ async function main() {
 
     let result;
     switch (command) {
+      // Chỉ khi `--version` đứng đầu, như mọi lệnh khác ở đây: đứng sau một lệnh
+      // thì lệnh đó chạy như cũ, và không đọc cấu hình, không ghi file nào.
+      case '--version':
+        result = { exitCode: 0, output: version() };
+        break;
       case 'init':
         result = flags.multi === true
           ? initMultiCommand({ cwd, taskId })
