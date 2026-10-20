@@ -28,6 +28,7 @@ import { gatePath, specPath } from '../lib/paths.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { initRepo } from './helpers/git-repo.mjs';
+import { playReviewer } from './helpers/review.mjs';
 import { withinBudget, withDeadline, readMarker } from './helpers/timing.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -280,6 +281,8 @@ test('CP-56-H5 a full check then done closes a two-repo task and names be\'s ski
   setConfig(root, (c) => ({ ...c, repos: { ...c.repos, fe: { ...c.repos.fe, ...fe } } }));
   writeContract(root);
 
+  // feature-s cần review từ CP-78; test này đo khe ghi, nên cho qua review sạch.
+  assert.equal(playReviewer(root, 'T-1').exitCode, 0);
   const c = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(c.exitCode, 0, c.output);
 
@@ -296,6 +299,8 @@ test('CP-56-H6 a single-repo project keeps bare slots and the old paths', async 
   setConfig(root, (c) => ({ ...c, ...own }));
   writeContract(root);
 
+  // feature-s cần review từ CP-78; test này đo khe ghi, nên cho qua review sạch.
+  assert.equal(playReviewer(root, 'T-1').exitCode, 0);
   const c = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(c.exitCode, 0, c.output);
 
@@ -530,6 +535,8 @@ test('CP-56-EC4 a nested repo key gets nested slots and a nested baseline', asyn
   setConfig(root, (c) => ({ ...c, repos: { 'store/frontend': fe } }));
   writeContract(root);
 
+  // feature-s cần review từ CP-78; test này đo khe ghi, nên cho qua review sạch.
+  assert.equal(playReviewer(root, 'T-1').exitCode, 0);
   const c = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(c.exitCode, 0, c.output);
 
@@ -658,6 +665,8 @@ test('CP-56-S4 an edit in be invalidates fe\'s records too', async () => {
     repos: { be: {}, fe: { dev: 'true', devUrl: 'http://127.0.0.1:9/' } },
     files: { 'be/src/a.jsx': CLEAN, 'fe/src/a.jsx': CLEAN },
   });
+  // feature-s cần review từ CP-78; test này đo khe ghi, nên cho qua review sạch.
+  assert.equal(playReviewer(root, 'T-1').exitCode, 0);
   const c = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(c.exitCode, 0, c.output);
   assert.equal(doneCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
@@ -745,6 +754,8 @@ test('CP-56-P3 done reads six per-repo slots over 500 files quickly', async () =
     },
     files: { ...manyFiles(500, 'fe'), ...manyFiles(3, 'be') },
   });
+  // feature-s cần review từ CP-78; test này đo khe ghi, nên cho qua review sạch.
+  assert.equal(playReviewer(root, 'T-1').exitCode, 0);
   const c = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(c.exitCode, 0, c.output);
   const slots = Object.keys(readGates(root, 'T-1')).filter((k) => /^(convention|ui|visual)@/.test(k));

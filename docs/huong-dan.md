@@ -46,12 +46,19 @@ Thử trên dự án mẫu trước khi đem vào dự án thật:
 cd examples/todo
 npm install
 npx playwright install chromium     # gate ui và visual cần
-node ../../cli.mjs check TD-001
+node ../../cli.mjs check TD-001     # dừng ở gate review và sinh brief
+# đưa .compass/TD-001/review-brief.md cho một phiên AI mới soi
+node ../../cli.mjs check TD-001     # chạy lại sau khi có findings.json
 node ../../cli.mjs done TD-001
 ```
 
 `TD-001` là task `feature-s` đã viết sẵn spec, code và 13 test. Đọc
 [spec của nó](../examples/todo/.compass/TD-001/spec.md) để thấy một spec đạt chuẩn trông thế nào.
+
+Lần `check` đầu dừng ở gate `review`, vì từ `feature-s` mọi task phải có một người soi khác: Compass
+sinh brief rồi chờ. Mở một phiên AI mới, không mang lịch sử chat, bảo nó đọc brief và làm theo; nó
+ghi kết quả vào `.compass/TD-001/evidence/findings.json`. Chạy lại `check` thì gate đọc kết quả, và
+`done` đóng được task khi mọi gate xanh.
 
 Trên dự án thật, mỗi task đi qua bốn lệnh:
 
@@ -72,9 +79,9 @@ Loại task quyết định số test tối thiểu và gate nào chạy:
 |---|---|---|---|
 | `fix` | typo, 1–2 dòng, không đổi hành vi | 2 | spec, knowledge, secrets, test |
 | `bug` | sửa lỗi có nguyên nhân rõ | 6 | như `fix` |
-| `feature-s` | tính năng nhỏ, 1 module | 13 | + convention, ui, visual |
-| `feature-m` | tính năng vừa, nhiều module | 21 | + review |
-| `feature-l` | tính năng lớn, nhiều repo | 30 | như `feature-m` |
+| `feature-s` | tính năng nhỏ, 1 module | 13 | + convention, ui, visual, review |
+| `feature-m` | tính năng vừa, nhiều module | 21 | như `feature-s` |
+| `feature-l` | tính năng lớn, nhiều repo | 30 | như `feature-s` |
 
 Phân vân giữa hai loại thì chọn loại nặng hơn.
 
@@ -114,9 +121,10 @@ hợp nào để bạn biết phải làm gì.
 **`visual`** chụp màn hình và so pixel với baseline. Lần đầu nó chỉ tạo baseline và nói rõ là chưa
 so gì; xem ảnh, thấy đúng thì commit.
 
-**`review`** sinh một brief chỉ gồm spec và diff, đưa cho một agent **khác** soi. Agent đó ghi
-`findings.json`; finding mức `Critical` hay `Major` chặn gate. Sửa code sau khi soi thì gate tự mở
-lại.
+**`review`** sinh một brief gồm spec, diff và phần ngữ cảnh máy dò từ repo (convention đã khai,
+nơi gọi code vừa đổi, tài liệu nhắc tới nó), đưa cho một agent **khác** soi. Agent đó xét mười tiêu
+chí và ghi `findings.json` với một kết luận cho **từng** tiêu chí; thiếu một tiêu chí là gate đỏ.
+Finding mức `Critical` hay `Major` chặn gate. Sửa code sau khi soi thì gate tự mở lại.
 
 Hai gate `ui` và `visual` cần `dev` và `devUrl` trong config. Repo không khai `devUrl` (backend
 chẳng hạn) thì `check` ghi bản ghi bỏ qua thay vì chạy.

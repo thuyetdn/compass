@@ -82,10 +82,9 @@ test('C4: checkCommand --only with an unknown gate exits non-zero and names vali
 });
 
 test('C4: checkCommand --only with a gate the task does not use exits non-zero', async () => {
-  // review starts at feature-m, so asking for it on a feature-s task is a
+  // review starts at feature-s (CP-78), so asking for it on a fix task is a
   // usage error — never a quiet exit 0 that reads like the gate ran.
-  const featureSSpec = SPEC.replace('Loại: fix', 'Loại: feature-s');
-  const root = makeTask(GREEN, featureSSpec);
+  const root = makeTask(GREEN);
   const result = await checkCommand({ cwd: root, taskId: 'T-1', only: 'review' });
   assert.notEqual(result.exitCode, 0);
   assert.match(result.output, /không áp dụng/);

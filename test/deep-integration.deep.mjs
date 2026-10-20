@@ -8,7 +8,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { playReviewer } from './helpers/review.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -92,8 +93,25 @@ export function thieuGiDe(demo) {
 const missing = thieuGiDe(DEMO);
 const skip = missing.length ? missing.join(' · ') : false;
 
-before(() => { if (!skip) snapshot(); });
-after(() => { if (!skip) restore(); });
+// TD-001 là feature-s, nên từ CP-78 `check` và `done` đòi gate review. Suite
+// này đo check và done trên một app thật, không đo review, nên một người soi giả
+// lập nộp kết quả sạch một lần. Các test sửa file rồi khôi phục nguyên văn, nên
+// diff quay lại như cũ và brief vẫn hiện hành.
+const BRIEF = path.join(DEMO, '.compass', TASK, 'review-brief.md');
+const FINDINGS = path.join(DEMO, '.compass', TASK, 'evidence', 'findings.json');
+
+before(() => {
+  if (skip) return;
+  snapshot();
+  const reviewed = playReviewer(DEMO, TASK);
+  assert.equal(reviewed.exitCode, 0, reviewed.output);
+});
+after(() => {
+  if (skip) return;
+  restore();
+  rmSync(BRIEF, { force: true });
+  rmSync(FINDINGS, { force: true });
+});
 
 test('CP-9-H1 check runs all six gates and passes', { skip }, () => {
   const result = compass(['check', TASK]);

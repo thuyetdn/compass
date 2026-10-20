@@ -86,7 +86,9 @@ Claude tự chạy quy trình:
 3. Chạy gate `spec`, rồi **dừng lại hỏi bạn duyệt**. Đây là điểm dừng duy nhất.
 4. Bạn duyệt → Claude viết test trước, thấy đỏ, rồi implement.
 5. Chạy `check`: 8 gate, dừng ngay khi có cái đỏ.
-6. `done` — chỉ exit 0 mới được báo hoàn thành.
+6. Gate `review` sinh brief, và Claude giao brief cho một agent khác, không mang lịch sử chat. Agent
+   đó soi theo 10 tiêu chí; finding mức Critical hay Major thì Claude sửa rồi đưa soi lại.
+7. `done` — chỉ exit 0 mới được báo hoàn thành.
 
 Khi gate đỏ, Claude không được bỏ qua. Nó sửa rồi chạy lại.
 
@@ -120,7 +122,7 @@ không ai sập lại.
 | `test` | Suite xanh **và** mọi test ID trong spec đã thực sự chạy |
 | `ui` | Số đo CSS thật khớp design contract (±2px) |
 | `visual` | So pixel với baseline đã duyệt |
-| `review` | Agent khác soi diff, chỉ thấy spec và code |
+| `review` | Agent khác soi theo 10 tiêu chí (convention, ảnh hưởng chỗ khác, hiệu năng, bảo mật…), phải kết luận cho từng tiêu chí |
 
 Gate `test` không chỉ xem suite xanh. Nó đối chiếu từng ID trong spec với output thật,
 nên "13 test case" trong spec mà chỉ viết 11 thì không qua được.
@@ -249,7 +251,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1390 test, ~75 giây
+npm test           # suite chính, 1412 test, ~75 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 

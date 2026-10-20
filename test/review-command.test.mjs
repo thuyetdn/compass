@@ -7,6 +7,7 @@ import path from 'node:path';
 import { reviewCommand } from '../commands/review.mjs';
 import { readGate } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
+import { CRITERIA } from '../lib/findings.mjs';
 
 const SPEC = `# T-1: Thêm bộ lọc quốc gia
 Loại: fix
@@ -64,10 +65,19 @@ function briefIdFrom(root) {
   return brief.match(/"brief":\s*"([^"]+)"/)?.[1] ?? null;
 }
 
+// Từ CP-78 findings.json phải có kết luận cho từng tiêu chí, và mỗi finding mang
+// một tiêu chí. Các test ở file này đo chuyện khác — gắn brief, mức chặn, sổ ghi
+// — nên hàm này điền phần đó cho khớp với danh sách finding được truyền vào.
+// Luật coverage có test riêng ở review-coverage.test.mjs.
 function writeFindings(root, findings, brief = briefIdFrom(root)) {
+  const filed = Array.isArray(findings)
+    ? findings.map((f) => (f && typeof f === 'object' && !('criterion' in f) ? { ...f, criterion: 'spec' } : f))
+    : findings;
+  const used = new Set(Array.isArray(filed) ? filed.map((f) => f?.criterion).filter(Boolean) : []);
+  const coverage = Object.fromEntries(CRITERIA.map(({ key }) => [key, { verdict: used.has(key) ? 'findings' : 'clean' }]));
   writeFileSync(
     path.join(root, '.compass', 'T-1', 'evidence', 'findings.json'),
-    JSON.stringify({ brief, findings }),
+    JSON.stringify({ brief, coverage, findings: filed }),
   );
 }
 
@@ -1125,7 +1135,8 @@ test('CP-38-V1 findings copied from another task are reported with both ids', ()
 
   // T-2's honest, green findings — then copied wholesale into T-1.
   const t2Findings = path.join(root, '.compass', 'T-2', 'evidence', 'findings.json');
-  writeFileSync(t2Findings, JSON.stringify({ brief: idT2, findings: [] }));
+  const clean = Object.fromEntries(CRITERIA.map(({ key }) => [key, { verdict: 'clean' }]));
+  writeFileSync(t2Findings, JSON.stringify({ brief: idT2, coverage: clean, findings: [] }));
   assert.equal(reviewCommand({ cwd: root, taskId: 'T-2' }).exitCode, 0);
   writeFileSync(path.join(root, '.compass', 'T-1', 'evidence', 'findings.json'), readFileSync(t2Findings));
 

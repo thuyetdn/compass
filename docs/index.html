@@ -418,6 +418,11 @@ Task TD-002 hoàn thành. Bằng chứng: .compass/TD-002/evidence/</div>
       <p class="aside">
         Giờ “xong” mới là xong — và có thư mục bằng chứng để đối chiếu.
       </p>
+      <p class="aside">
+        Lần chạy này quay trước khi gate <code>review</code> áp cho task cỡ <code>feature-s</code>. Giờ
+        task cỡ này còn qua thêm một bước: một phiên AI khác soi theo mười tiêu chí, rồi <code>done</code>
+        mới đóng được.
+      </p>
     </div>
 
   </div>
@@ -467,7 +472,7 @@ Task TD-002 hoàn thành. Bằng chứng: .compass/TD-002/evidence/</div>
         <tr><td><code>test</code></td><td>Suite xanh <em>và</em> mọi test ID trong spec đã thực sự chạy</td></tr>
         <tr><td><code>ui</code></td><td>Số đo CSS thật khớp design contract (±2px)</td></tr>
         <tr><td><code>visual</code></td><td>So pixel với baseline đã duyệt</td></tr>
-        <tr><td><code>review</code></td><td>Agent khác soi diff, chỉ thấy spec và code</td></tr>
+        <tr><td><code>review</code></td><td>Agent khác soi theo 10 tiêu chí, phải kết luận cho từng tiêu chí</td></tr>
       </tbody>
     </table>
   </div>
@@ -487,7 +492,7 @@ Task TD-002 hoàn thành. Bằng chứng: .compass/TD-002/evidence/</div>
   <footer>
     <span>github.com/thuyetdn/compass</span>
     <span>v3.0.0</span>
-    <span>1390 test</span>
+    <span>1412 test</span>
     <span>zero dependency</span>
     <span>MIT</span>
   </footer>

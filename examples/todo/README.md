@@ -20,6 +20,10 @@ node ../../cli.mjs check TD-001
 
 Spec nằm ở [.compass/TD-001/spec.md](.compass/TD-001/spec.md).
 
+`TD-001` là `feature-s`, nên `check` dừng ở gate `review` và sinh `.compass/TD-001/review-brief.md`.
+Đưa brief đó cho một phiên AI mới, không mang lịch sử chat; nó ghi kết quả vào
+`.compass/TD-001/evidence/findings.json`. Chạy lại `check`, rồi `done` để đóng task.
+
 ## Lưu ý về reporter
 
 `.compass/config.json` gọi `npx vitest run --reporter=tap`, **không** phải `npm test`.

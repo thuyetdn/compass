@@ -61,12 +61,13 @@ Một tên test chỉ mang một ID. Reporter phải in tên từng test: `node 
 
 ### Gate review
 
-Từ `feature-m`, gate `review` cần một người soi khác bạn:
+Từ `feature-s`, gate `review` cần một người soi khác bạn:
 
 1. `compass review <id>` sinh `.compass/<id>/review-brief.md`, rồi thoát với mã 1.
-2. Mở một phiên Codex mới, không mang lịch sử chat của phiên này, đưa nó file brief. Brief chỉ có
-   spec và diff; người soi không cần biết lý do bạn viết như vậy.
-3. Phiên đó ghi kết quả vào `.compass/<id>/evidence/findings.json`.
+2. Mở một phiên Codex mới, không mang lịch sử chat của phiên này, đưa nó file brief. Brief có
+   spec, diff và ngữ cảnh máy dò từ repo; người soi không cần biết lý do bạn viết như vậy.
+3. Phiên đó xét mười tiêu chí ghi trong brief và ghi kết quả vào
+   `.compass/<id>/evidence/findings.json`, với một kết luận cho từng tiêu chí.
 4. Chạy lại `compass review <id>` để gate đọc kết quả.
 
 ### Khi chưa biết lỗi ở đâu

@@ -375,7 +375,7 @@ Thay đổi là cố ý thì xóa baseline cũ, chạy lại để chốt baseli
 
 ### Gate `review` — agent khác soi diff
 
-Chỉ từ `feature-m`. Chạy hai pha.
+Từ `feature-s` trở lên. Chạy hai pha.
 
 ```
 compass review <id>          → sinh review-brief.md, exit 1
@@ -384,17 +384,50 @@ compass review <id>          → sinh review-brief.md, exit 1
 compass review <id>          → đọc findings, phán
 ```
 
-Brief **chỉ có** spec và diff. Không lịch sử chat, không lời giải thích của người viết — reviewer biết lý do sẽ cân nhắc lý do đó thay vì đọc code.
+Brief có spec, diff, và phần ngữ cảnh máy dò từ repo. Không lịch sử chat, không lời giải thích của người viết — reviewer biết lý do sẽ cân nhắc lý do đó thay vì đọc code.
+
+Người soi xét mười tiêu chí, mỗi cái một khóa:
+
+| Khóa | Xét gì | Brief đưa thêm |
+|---|---|---|
+| `spec` | đúng từng case, không làm ngoài phạm vi | — |
+| `convention` | theo convention của repo | `conventions.md` nguyên file; không có thì tối đa 2 file cùng thư mục để so |
+| `impact` | chỗ khác đang dùng code vừa đổi | nơi gọi các tên export trong file bị sửa (chỉ JS và TS) |
+| `tests` | test kiểm tra kết quả thật | — |
+| `regression` | mỗi rủi ro hồi quy trong spec đã có test | — |
+| `performance` | IO hay truy vấn trong vòng lặp, đọc cả file lớn | — |
+| `security` | input không escape, đường dẫn thoát repo, lộ secret | — |
+| `errors` | input rỗng, file hỏng, đường dẫn Windows | — |
+| `reuse` | repo đã có helper làm việc này | export của module cùng thư mục |
+| `docs` | tài liệu còn tả đúng hành vi | file Markdown nhắc tới file hay tên vừa đổi |
+
+Ngữ cảnh dò bằng regex nên sót được và thừa được; brief nói thẳng điều đó, và rào nó như dữ liệu
+bị soi, giống diff. Nội dung file `.env` không bao giờ vào brief. Mỗi mục có giới hạn (20 tên
+export, 8 nơi gọi mỗi tên, 15 tài liệu, tổng 200 KB) và cắt chỗ nào thì nói cắt bao nhiêu.
 
 Findings theo format cứng:
 
 ```json
-{ "findings": [{ "severity": "Major", "title": "...", "detail": "...", "file": "a.js", "line": 42 }] }
+{
+  "brief": "<id trong brief>",
+  "coverage": { "spec": { "verdict": "clean" }, "performance": { "verdict": "insufficient", "note": "spec không nói cỡ dữ liệu" } },
+  "findings": [{ "severity": "Major", "criterion": "impact", "title": "...", "detail": "...", "file": "a.js", "line": 42 }]
+}
 ```
 
-`Critical` và `Major` chặn gate. `Minor` và `Info` hiện ra nhưng không chặn. Không tìm thấy gì thì nộp `{"findings": []}` — đừng bịa cho có.
+`coverage` phải có kết luận cho **cả mười** khóa, thiếu một khóa là gate đỏ. Kết luận là `clean`
+(đã xét, không thấy gì), `findings` (có ít nhất một finding mang khóa đó) hoặc `insufficient`
+(brief không đủ dữ liệu, phải kèm `note`). Kết luận phải khớp với finding: `clean` mà có finding của
+khóa đó, hay `findings` mà không có, đều đỏ. `insufficient` không chặn gate nhưng gate in ra; riêng
+`spec` và `tests` không được `insufficient`, vì brief luôn có đủ spec và diff.
 
-Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ, Compass sinh brief mới và bắt soi lại. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code.
+Mỗi finding mang `criterion`. Finding thuộc `convention` mang thêm `basis`: `declared` khi dựa vào
+luật trong `conventions.md`, `inferred` khi suy ra từ code. Repo chưa khai convention mà ghi
+`declared` là đỏ.
+
+`Critical` và `Major` chặn gate. `Minor` và `Info` hiện ra nhưng không chặn. Không tìm thấy gì thì vẫn nộp đủ `coverage` với `"findings": []` — đừng bịa cho có.
+
+Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ, Compass sinh brief mới và bắt soi lại. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code. Id băm cả spec, diff lẫn ngữ cảnh, nên khi chỉ ngữ cảnh đổi (ai đó sửa `conventions.md` sau khi soi) gate cũng mở lại, và nói rõ là ngữ cảnh đổi chứ không phải code đổi.
 
 **Phạm vi soi.** Mặc định Compass so với điểm rẽ khỏi nhánh chính, hoặc commit đầu tiên nếu không có. Repo chỉ có đúng một commit thì Compass so với cây rỗng của git, nên chính commit đó cũng được soi, và gate `secrets` quét nó. Nhánh sống lâu thì phạm vi đó là cả dự án chứ không phải một task.
 

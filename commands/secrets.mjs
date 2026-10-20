@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import { findRoot, specPath, validateTaskId } from '../lib/paths.mjs';
 import { collectDiff } from '../lib/review-brief.mjs';
 import { writeGate } from '../lib/gate-store.mjs';
@@ -9,34 +8,11 @@ import { hashFile, sha256 } from '../lib/hash.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { scanSecrets } from '../lib/secrets-scan.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
+import { gitFilesFromRepoRoot } from '../lib/git-files.mjs';
 
 // Same base resolution as `review`, deliberately sharing `collectDiff` rather
 // than re-deriving it. Two gates that describe different diffs disagree about
 // what the task changed, and the user cannot tell which one is lying.
-
-function gitLines(root, args) {
-  try {
-    const out = execFileSync('git', args, {
-      cwd: root,
-      encoding: 'utf8',
-      maxBuffer: 50_000_000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    return out.split('\0').flatMap((s) => s.split(/\r?\n/)).filter(Boolean);
-  } catch {
-    return null;
-  }
-}
-
-// `ls-files` trả đường dẫn tương đối với thư mục nó chạy, còn `collectDiff` trả
-// đường dẫn tương đối với gốc GIT. Hai gốc trùng nhau thì không sao — và đó là
-// bố cục duy nhất test dựng — nhưng `.compass/` nằm trong thư mục con của một
-// repo lớn hơn thì cùng một file `.env` hiện hai lần dưới hai tên, và bản báo
-// cáo nói "hai vấn đề" cho một file. `--full-name` đưa `ls-files` về đúng không
-// gian của diff.
-function gitFilesFromRepoRoot(root, args) {
-  return gitLines(root, [args[0], '--full-name', ...args.slice(1)]);
-}
 
 export function secretsCommand({ cwd, taskId }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass secrets <id>' };

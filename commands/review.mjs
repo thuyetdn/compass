@@ -2,7 +2,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { findRoot, specPath, taskDir, evidenceDir, validateTaskId } from '../lib/paths.mjs';
 import { collectDiff, buildBrief, parseScopePaths } from '../lib/review-brief.mjs';
-import { parseFindings, formatFinding, BLOCKING } from '../lib/findings.mjs';
+import { parseFindings, formatFinding, checkCoverage, BLOCKING } from '../lib/findings.mjs';
+import { collectContext } from '../lib/review-context.mjs';
 import { writeGate, readGate } from '../lib/gate-store.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
@@ -20,7 +21,13 @@ const FINDINGS_FILE = 'findings.json';
 // what it promised, so changing the promise invalidates the verdict just as
 // surely as changing the code — and hashing only the diff let a rewritten spec
 // reopen the gate once, then pass on the next run.
-const briefIdFor = (spec, diff) => sha256(`${sha256(spec)}\n${sha256(diff)}`).slice(7, 19);
+//
+// CP-78 adds the context for the same reason. With an id over spec and diff
+// alone, findings written against yesterday's conventions file would answer
+// today's brief as soon as it was regenerated — the same one-run reopen, one
+// layer up.
+const briefIdFor = (spec, diff, context) =>
+  sha256(`${sha256(spec)}\n${sha256(diff)}\n${sha256(context)}`).slice(7, 19);
 
 function briefId(findingsSource) {
   try {
@@ -100,6 +107,17 @@ export function reviewCommand({ cwd, taskId }) {
     compassPaths: scopeParsed.paths,
   };
 
+  // Ngữ cảnh dò một lần cho mỗi lần đọc diff: brief, id và luật `basis` phải
+  // nói về cùng một bản ngữ cảnh (CP-78).
+  const contexts = new WeakMap();
+  const contextOf = (collected) => {
+    if (!contexts.has(collected)) {
+      contexts.set(collected, collectContext(root, { files: collected.files, deleted: collected.deleted ?? [] }));
+    }
+    return contexts.get(collected);
+  };
+  const idOf = (collected) => briefIdFor(readFileSync(file, 'utf8'), collected.diff, contextOf(collected).text);
+
   // Ba chỗ dựng brief, một hình dạng. Lệch một trường là brief "hiện tại" ở pha
   // hai không khớp brief pha một đã ghi, và gate mở lại vô cớ.
   const briefFor = (collected) => buildBrief({
@@ -107,7 +125,8 @@ export function reviewCommand({ cwd, taskId }) {
     spec: readFileSync(file, 'utf8'),
     diff: collected.diff,
     files: collected.files,
-    briefId: briefIdFor(readFileSync(file, 'utf8'), collected.diff),
+    briefId: idOf(collected),
+    context: contextOf(collected).text,
     base: collected.base,
     baseFrom: nguonGoc,
     end: collected.end ?? null,
@@ -214,10 +233,16 @@ export function reviewCommand({ cwd, taskId }) {
 
     const wanted = briefFor(current);
     const briefIsCurrent = readFileSync(briefFile, 'utf8') === wanted;
-    const answersThisBrief = briefId(source) === briefIdFor(readFileSync(file, 'utf8'), current.diff);
+    const answersThisBrief = briefId(source) === idOf(current);
 
     if (!briefIsCurrent) {
-      writeFileSync(briefFile, briefFor(current));
+      // Sổ ghi băm spec và diff của lần chạy trước. Cả hai còn khớp mà brief vẫn
+      // khác thì thứ đổi là ngữ cảnh repo — convention, nơi gọi, tài liệu — chứ
+      // không phải việc của task. Nói "code đã đổi" lúc đó là bảo người đọc đi tìm
+      // một thay đổi không có (CP-38).
+      const before = readGate(root, taskId, 'review');
+      const onlyContext = before?.diffHash === sha256(current.diff) && before?.specHash === hashFile(file);
+      writeFileSync(briefFile, wanted);
       writeGate(root, taskId, {
         gate: 'review',
         exitCode: 1,
@@ -232,7 +257,9 @@ export function reviewCommand({ cwd, taskId }) {
         exitCode: 1,
         output: [
           fail('review', [
-            'Code hoặc spec đã đổi sau khi soi — findings hiện có nói về bản cũ.',
+            onlyContext
+              ? 'Brief đã đổi dù spec và code của task không đổi: ngữ cảnh repo (convention, nơi gọi, tài liệu) hoặc mẫu brief của Compass đã khác — findings hiện có xét trên brief cũ.'
+              : 'Code hoặc spec đã đổi sau khi soi — findings hiện có nói về bản cũ.',
             `Đã sinh brief mới: .compass/${taskId}/${BRIEF_FILE}`,
           ]),
           '',
@@ -247,7 +274,7 @@ export function reviewCommand({ cwd, taskId }) {
       // left over from an earlier round. Saying "code đã đổi" here sends the
       // reader hunting for a change that never happened (CP-38).
       const quoted = briefId(source);
-      const wantedId = briefIdFor(readFileSync(file, 'utf8'), current.diff);
+      const wantedId = idOf(current);
       writeGate(root, taskId, {
         gate: 'review',
         exitCode: 1,
@@ -274,6 +301,28 @@ export function reviewCommand({ cwd, taskId }) {
     }
 
     const { findings } = parsed;
+
+    // CP-78: mỗi tiêu chí phải có kết luận, và kết luận phải khớp với finding.
+    // Thiếu là lỗi định dạng như JSON hỏng: chưa phán được gì về code.
+    const coverage = checkCoverage(parsed.coverage, findings, {
+      conventionsDeclared: contextOf(current).conventionsDeclared,
+    });
+    if (coverage.errors.length) {
+      ghiDo('coverage-invalid');
+      return {
+        exitCode: 2,
+        output: [
+          fail('review', coverage.errors),
+          '',
+          hint(`Sửa ${FINDINGS_FILE} theo mục "Tiêu chí soi" trong brief rồi chạy lại: compass review ${taskId}`),
+        ].join('\n'),
+      };
+    }
+    const unexamined = coverage.insufficient.length
+      ? ['', `Chưa soi được ${coverage.insufficient.length} tiêu chí (insufficient, không chặn):`,
+        ...coverage.insufficient.map(({ key, note }) => `  - ${key}: ${note}`)]
+      : [];
+
     const blocking = findings.filter((f) => BLOCKING.includes(f.severity));
 
     writeGate(root, taskId, {
@@ -286,6 +335,7 @@ export function reviewCommand({ cwd, taskId }) {
       diffHash: sha256(current.diff),
       findingCount: findings.length,
       blockingCount: blocking.length,
+      coverage: coverage.counts,
       outputFile: `evidence/${FINDINGS_FILE}`,
     });
 
@@ -298,6 +348,7 @@ export function reviewCommand({ cwd, taskId }) {
       if (others.length) {
         lines.push('', `Kèm ${others.length} finding không chặn:`, ...others.map(formatFinding));
       }
+      lines.push(...unexamined);
       return {
         exitCode: 1,
         output: [
@@ -312,6 +363,7 @@ export function reviewCommand({ cwd, taskId }) {
       ? 'không có finding nào'
       : `${findings.length} finding, không cái nào chặn`)];
     if (findings.length) lines.push('', ...findings.map(formatFinding));
+    lines.push(...unexamined);
     return { exitCode: 0, output: lines.join('\n') };
   }
 
@@ -344,6 +396,12 @@ export function reviewCommand({ cwd, taskId }) {
   // old one sends them to read the wrong promise.
   const stale = hadBrief && readFileSync(briefFile, 'utf8') !== fresh;
 
+  // Cùng luật với pha hai, đọc trước khi recordPending ghi đè sổ: spec và diff
+  // còn khớp sổ mà brief khác thì thứ đổi là ngữ cảnh repo. Lần soi đầu của chính
+  // CP-78 bắt được pha một vẫn báo "code hoặc spec đã đổi" ở đây (CP-38).
+  const before = readGate(root, taskId, 'review');
+  const onlyContext = stale && before?.diffHash === diffHash && before?.specHash === hashFile(file);
+
   if (!hadBrief || stale) {
     mkdirSync(taskDir(root, taskId), { recursive: true });
     writeFileSync(briefFile, fresh);
@@ -357,7 +415,9 @@ export function reviewCommand({ cwd, taskId }) {
   const headline = hadBrief && !stale
     ? ['Brief đã sinh nhưng chưa ai nộp findings.', `Brief: .compass/${taskId}/${BRIEF_FILE}`]
     : [
-        stale ? 'Code hoặc spec đã đổi — brief cũ nói về bản cũ.' : 'Chưa ai soi diff này.',
+        onlyContext
+          ? 'Brief đã đổi dù spec và code của task không đổi: ngữ cảnh repo (convention, nơi gọi, tài liệu) hoặc mẫu brief của Compass đã khác.'
+          : stale ? 'Code hoặc spec đã đổi — brief cũ nói về bản cũ.' : 'Chưa ai soi diff này.',
         `Brief: .compass/${taskId}/${BRIEF_FILE}  (${collected.files.length} file, ${diffHash.slice(7, 15)})`,
       ];
 
