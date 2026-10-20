@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { findRoot, specPath, validateTaskId } from '../lib/paths.mjs';
 import { parseRules } from '../lib/rule-parser.mjs';
@@ -9,8 +9,7 @@ import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { reposForGate } from '../lib/gates.mjs';
-
-const CONVENTIONS = path.join('.knowledge', 'decided', 'conventions.md');
+import { buildDraft, conventionStatus, DRAFT, CONVENTIONS } from '../lib/convention-draft.mjs';
 
 function formatViolation(v) {
   const where = `${v.file}:${v.line}`;
@@ -35,8 +34,15 @@ export function conventionCommand({ cwd, taskId, repo = null, gateRoot = null })
 
   const chon = reposForGate(root, parseSpec(readFileSync(file, 'utf8')).scope, repo);
   if (!chon.ok) return { exitCode: 2, output: chon.output };
-  if (chon.repos === null) return quet({ root, file, taskId, dir: root, repo: null });
-  if (repo !== null) return quet({ root, file, taskId, dir: chon.repos[0].dir, repo });
+  // Dòng convention thiếu hay đã cũ nói về cả dự án, nên in một lần mỗi lần gate
+  // chạy: `check` gọi gate này cho từng repo, và bản đầu lặp dòng đó theo số repo.
+  if (chon.repos === null) return withStatus(root, quet({ root, file, taskId, dir: root, repo: null }));
+  if (repo !== null) {
+    const result = quet({ root, file, taskId, dir: chon.repos[0].dir, repo });
+    const all = reposForGate(root, parseSpec(readFileSync(file, 'utf8')).scope, null);
+    const first = all.ok && all.repos !== null && all.repos[0]?.name === repo;
+    return first ? withStatus(root, result) : result;
+  }
 
   // Gọi thẳng mà không nêu repo, ở dự án nhiều repo: quét lần lượt từng repo trong
   // phạm vi như `check` làm, và dừng ở repo đỏ đầu tiên. Quét gốc một lần rồi ghi
@@ -45,9 +51,9 @@ export function conventionCommand({ cwd, taskId, repo = null, gateRoot = null })
   for (const r of chon.repos) {
     const result = quet({ root, file, taskId, dir: r.dir, repo: r.name });
     lines.push(`[${r.name}] ${result.output}`);
-    if (result.exitCode !== 0) return { exitCode: result.exitCode, output: lines.join('\n') };
+    if (result.exitCode !== 0) return withStatus(root, { exitCode: result.exitCode, output: lines.join('\n') });
   }
-  return { exitCode: 0, output: lines.join('\n') };
+  return withStatus(root, { exitCode: 0, output: lines.join('\n') });
 }
 
 // Quét một thư mục — gốc khi dự án một repo, thư mục repo khi nhiều repo — và ghi
@@ -73,11 +79,7 @@ function quet({ root, file, taskId, dir, repo }) {
     }, repo);
     return {
       exitCode: 0,
-      output: [
-        pass('convention', 'chưa có luật nào để kiểm tra'),
-        '',
-        hint(`Muốn có gate thật thì viết luật vào ${CONVENTIONS} — xem SKILL.md mục Convention.`),
-      ].join('\n'),
+      output: pass('convention', 'chưa có luật nào để kiểm tra'),
     };
   }
 
@@ -158,4 +160,54 @@ function quet({ root, file, taskId, dir, repo }) {
   }
 
   return { exitCode: 0, output: lines.join('\n') };
+}
+
+// Convention thiếu hay đã cũ nói ở mọi lần gate chạy, kèm sau kết quả gate. Chỉ
+// thêm chữ: mã thoát và bản ghi gate không đổi, vì convention cũ không phải code sai.
+function withStatus(root, result) {
+  const { lines } = conventionStatus(root);
+  return lines.length ? { ...result, output: [result.output, '', ...lines].join('\n') } : result;
+}
+
+// `compass convention --draft` — soạn bản nháp từ config và code của repo. Không
+// cần task id: convention thuộc về cả repo, không thuộc một task.
+export function conventionDraftCommand({ cwd, force = false }) {
+  const root = findRoot(cwd);
+  if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json. Chạy compass init trước.' };
+
+  const target = path.join(root, DRAFT);
+  if (existsSync(target) && !force) {
+    return {
+      exitCode: 2,
+      output: [
+        `Đã có bản nháp ${DRAFT}. Đọc nó trước khi soạn lại.`,
+        hint('Muốn soạn lại thì chạy: compass convention --draft --force'),
+      ].join('\n'),
+    };
+  }
+
+  const built = buildDraft(root);
+  if (!built.ok) return { exitCode: 2, output: built.reason };
+
+  // Ghi qua file tạm rồi đổi tên: hỏng giữa chừng thì không để lại nửa bản nháp
+  // trông như bản thật.
+  const tmp = `${target}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tmp, built.text);
+    renameSync(tmp, target);
+  } catch (err) {
+    try { rmSync(tmp, { force: true }); } catch { /* không xóa được file tạm thì thôi */ }
+    return { exitCode: 1, output: `Không ghi được ${DRAFT}: ${err.code ?? err.message}` };
+  }
+
+  const { configs, stated, rules } = built.summary;
+  return {
+    exitCode: 0,
+    output: [
+      `Đã soạn bản nháp: ${DRAFT}`,
+      `  ${configs} file config, ${stated} convention đếm từ code, ${rules} luật đề xuất`,
+      '',
+      hint(`Đưa bản nháp cho người duyệt. Người duyệt sửa rồi tự chuyển thành ${CONVENTIONS} — Compass không làm bước đó.`),
+    ].join('\n'),
+  };
 }

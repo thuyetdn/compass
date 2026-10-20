@@ -168,6 +168,16 @@ vừa là gate cho máy:
 
 Không có file này thì gate pass và nói rõ là chưa có luật nào.
 
+Chưa viết được thì để Compass soạn nháp: `compass convention --draft` đọc `.editorconfig`, Prettier,
+ESLint, `tsconfig.json` và đếm trên chính code (thụt lề, nháy, dấu chấm phẩy, tên file, tên file
+test), rồi ghi `.compass/conventions-draft.md`. Mỗi convention kèm bằng chứng, kiểu "38 / 40 file".
+Luật máy chạy được chỉ được đề xuất khi code hôm nay không phá chỗ nào. Bạn duyệt, sửa, rồi tự chuyển
+nó vào `.knowledge/decided/`; Compass không bao giờ tự ghi vào đó.
+
+Bản nháp mang dấu nguồn, nên về sau Compass tự nhận ra khi convention đã cũ: một file config đổi, hay
+code đã trôi khỏi một convention từng đếm được. Việc kiểm tra chạy ở mọi `init`, mọi `check` và trong
+mọi brief soi code, không cần ai bảo. Khi đó Claude soạn lại bản nháp và đưa bạn duyệt chỗ khác.
+
 ## Gõ lệnh trực tiếp
 
 Plugin đã đủ để Claude làm việc. Muốn tự gõ trong terminal thì cài thêm:
@@ -183,6 +193,7 @@ compass init T-001 --type=feature-s   # tạo spec skeleton
 compass spec T-001                    # gate: spec hợp lệ?
 compass check T-001                   # chạy mọi gate áp dụng
 compass done T-001                    # cổng cuối
+compass convention --draft            # soạn nháp conventions.md từ config và code
 ```
 
 Không cài cũng chạy được từ thư mục repo: `node cli.mjs status`.
@@ -252,7 +263,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1445 test, ~75 giây
+npm test           # suite chính, 1494 test, ~100 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 

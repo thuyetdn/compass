@@ -70,6 +70,15 @@ Từ `feature-s`, gate `review` cần một người soi khác bạn:
    `.compass/<id>/evidence/findings.json`, với một kết luận cho từng tiêu chí.
 4. Chạy lại `compass review <id>` để gate đọc kết quả.
 
+### Convention thiếu hoặc đã cũ
+
+`compass init`, `compass check` hay brief soi code in `⚠ Chưa có .knowledge/decided/conventions.md`
+hoặc `⚠ … có thể đã cũ` thì làm ngay, không chờ ai bảo, và trước khi viết spec:
+
+1. Chạy `compass convention --draft` (thêm `--force` nếu bản nháp cũ còn đó).
+2. Đưa người xem `.compass/conventions-draft.md`, chỉ ra chỗ khác với file đang dùng.
+3. Chờ người duyệt. Không tự sửa `.knowledge/decided/`.
+
 ### Khi chưa biết lỗi ở đâu
 
 `compass investigate <id>` mở hồ sơ điều tra. Không sửa code trong lúc điều tra. Mỗi giả thuyết nêu

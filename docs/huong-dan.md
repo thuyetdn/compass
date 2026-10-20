@@ -110,6 +110,11 @@ khi thư mục có `.env` mà `.gitignore` chưa che, hoặc khi code mới đ�
 
 **`convention`** chạy các luật viết trong `.knowledge/decided/conventions.md`, mỗi luật là một khối
 ` ```rule ` với regex cấm. Chưa có file đó thì gate xanh và nói rõ là chưa có luật nào.
+`compass convention --draft` soạn nháp file đó từ config của repo và từ chính code, kèm bằng chứng
+cho từng convention, ở `.compass/conventions-draft.md`; người duyệt rồi tự chuyển vào
+`.knowledge/decided/`. Bản nháp mang dấu nguồn, nên mọi `init`, mọi lần gate chạy và mọi brief soi
+code tự báo khi convention đã cũ (config đổi, hay code đã trôi khỏi một convention từng đếm được).
+Gate vẫn xanh trong trường hợp đó; agent soạn lại bản nháp và đưa người duyệt.
 
 **`test`** chạy lệnh test rồi đối chiếu: mọi ID trong spec phải xuất hiện trên một dòng **pass**.
 Thấy ID trên dòng fail hay skip, hay một ID khớp hai test khác nhau, đều là đỏ, và gate nói rõ trường

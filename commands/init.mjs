@@ -7,6 +7,7 @@ import { TASK_TYPES, rulesFor } from '../lib/task-types.mjs';
 import { DEFAULT_CONFIG } from '../lib/config.mjs';
 import { hint } from '../lib/report.mjs';
 import { ensureCompassGitignore } from '../lib/signature.mjs';
+import { conventionStatus } from '../lib/convention-draft.mjs';
 import { detectRepos } from '../lib/repo-detect.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -115,6 +116,9 @@ export function initCommand({ cwd, taskId, type }) {
   );
   const ignoreLine = gitignoreLine(root, taskId, ignoreState);
   if (ignoreLine) lines.push(ignoreLine);
+  // Task nào cũng mở bằng `init`, nên đây là chỗ convention thiếu hay đã cũ được
+  // nói ra trước khi ai viết spec — không đợi người nhớ mà hỏi (CP-82).
+  lines.push(...conventionStatus(root).lines);
   lines.push(
     '',
     hint('Điền spec, rồi chạy: compass spec ' + taskId)

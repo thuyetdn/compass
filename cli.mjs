@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { initCommand, initMultiCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
 import { testCommand } from './commands/test.mjs';
-import { conventionCommand } from './commands/convention.mjs';
+import { conventionCommand, conventionDraftCommand } from './commands/convention.mjs';
 import { knowledgeCommand } from './commands/knowledge.mjs';
 import { uiCommand } from './commands/ui.mjs';
 import { visualCommand } from './commands/visual.mjs';
@@ -25,6 +25,7 @@ Dùng:
   compass knowledge [id] [--sync] [--page]
   compass secrets <id>
   compass convention <id>
+  compass convention --draft [--force]  soạn nháp conventions.md từ config và code
   compass test <id>
   compass ui <id>
   compass visual <id>
@@ -93,7 +94,9 @@ async function main() {
         result = knowledgeCommand({ cwd, taskId, sync: flags.sync === true, page: flags.page === true });
         break;
       case 'convention':
-        result = conventionCommand({ cwd, taskId });
+        result = flags.draft === true
+          ? conventionDraftCommand({ cwd, force: flags.force === true })
+          : conventionCommand({ cwd, taskId });
         break;
       case 'test':
         result = testCommand({ cwd, taskId });

@@ -165,6 +165,8 @@ Trước khi viết gì:
 2. Nếu dự án có `.knowledge/index.md` → đọc bản đồ, rồi chỉ nạp mảnh liên quan
 3. **Đọc `.knowledge/decided/pitfalls.md`** nếu có — bẫy người trước đã sập, tốn cả buổi mỗi cái
 4. Không nuốt cả thư mục docs vào context
+5. `init` in dòng "Chưa có …conventions.md" hay "…có thể đã cũ" thì làm theo mục
+   [Convention thiếu hoặc đã cũ](#convention-thiếu-hoặc-đã-cũ) trước khi viết spec
 
 *Knowledge base cho biết **ở đâu** và **tại sao**. Code cho biết **thực tế là gì**. Khi lệch nhau, code thắng về sự thật — nhưng phải báo người, không tự sửa docs.*
 
@@ -327,6 +329,42 @@ ra được thì cứ quét — gate đỏ oan còn hơn bỏ sót. Gốc quét 
 ngay trong worktree vẫn thấy code của nó.
 
 **Giới hạn:** chỉ khớp mẫu theo dòng, không phân tích AST. Luật kiểu "component này phải nhận prop kia" chưa làm được. Quy ước mềm cứ để dạng văn xuôi — vẫn đọc được, chỉ không có gate.
+
+### Convention thiếu hoặc đã cũ
+
+`compass convention --draft` đọc config của repo (`.editorconfig`, Prettier, ESLint, `tsconfig.json`,
+script trong `package.json`) và đếm trên code (thụt lề, nháy, dấu chấm phẩy, cách đặt tên file, tên
+file test), rồi soạn `.compass/conventions-draft.md`. Mỗi convention kèm bằng chứng: dòng config, hay
+"38 / 40 file". Đếm được dưới 20 file, hoặc dưới 90 % đồng ý, thì nó vào mục "Chưa đủ mẫu" hay
+"Không nhất quán", không thành luật. Luật máy chạy được chỉ được đề xuất khi code hôm nay không phá
+chỗ nào, và để `severity: warn`. File config viết bằng JS không bao giờ bị chạy.
+
+Chỉ đọc file đã theo dõi trong git, cả file code lẫn file config, và luật đề xuất cũng chỉ chạy thử
+trên những file đó. Nhờ vậy file nháp chưa add trên máy ai đó không đổi được bản nháp hay kết luận. Dự
+án nhiều repo thì đếm trong từng repo đã khai, và đọc config ở gốc lẫn trong từng repo. Repo lớn thì
+tên file vẫn đếm hết, còn thụt lề, nháy và dấu chấm phẩy đọc từ 1.000 file lấy đều theo thứ tự tên,
+mỗi file 64 KB đầu; bản nháp ghi rõ khi đã lấy mẫu như vậy.
+
+Bản nháp mang một dấu nguồn: comment cuối file ghi dấu vân tay từng file config và số đếm sau mỗi
+convention. Nó đi theo file khi người chuyển bản nháp vào `.knowledge/decided/`. Từ đó Compass tự so
+lại ở mọi `init`, mọi lần gate `convention` chạy (tức mọi `check`) và trong mọi brief soi
+code. Nó báo "có thể đã cũ" khi một file config đổi, bị xóa hay mới xuất hiện, hoặc khi code đã trôi
+khỏi một convention đếm được. Gate vẫn pass, vì convention cũ không phải code sai.
+
+Gặp một trong hai dòng sau, ở bất kỳ đâu, thì làm ngay, **không chờ ai bảo**:
+
+- `⚠ Chưa có .knowledge/decided/conventions.md`
+- `⚠ .knowledge/decided/conventions.md có thể đã cũ`
+
+1. Chạy `compass convention --draft` (thêm `--force` nếu bản nháp cũ còn đó).
+2. Đưa người xem bản nháp. Repo đã có `conventions.md` thì chỉ ra chỗ bản nháp khác file đang dùng,
+   kèm lý do Compass đưa ra, và mục "Cần người quyết".
+3. Dừng và **chờ người duyệt**. Đây là luật 5: convention mâu thuẫn với code thì người chọn bên.
+   **Không tự sửa `.knowledge/decided/`**; người duyệt tự chuyển file, hay bảo bạn chuyển.
+
+Dòng đó hiện ngay sau `init` thì làm ba bước trên **trước khi viết spec**, để spec và code theo đúng
+convention người vừa xác nhận. File `conventions.md` viết tay, không có dấu nguồn, chỉ được một dòng
+nhắc rằng Compass không biết nó cũ hay chưa; không có gì để làm.
 
 ### Gate `ui` — đo số, không nhìn ảnh
 
