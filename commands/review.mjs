@@ -26,10 +26,10 @@ const FINDINGS_FILE = 'findings.json';
 // alone, findings written against yesterday's conventions file would answer
 // today's brief as soon as it was regenerated — the same one-run reopen, one
 // layer up.
-const briefIdFor = (spec, diff, context) =>
+export const briefIdFor = (spec, diff, context) =>
   sha256(`${sha256(spec)}\n${sha256(diff)}\n${sha256(context)}`).slice(7, 19);
 
-function briefId(findingsSource) {
+export function briefId(findingsSource) {
   try {
     return JSON.parse(findingsSource)?.brief ?? null;
   } catch {
@@ -40,7 +40,7 @@ function briefId(findingsSource) {
 // Brief cũ nói về đúng spec và diff này không. Không đọc được hai phần đó (brief
 // sửa tay, hay mẫu brief đã khác) thì coi như không — báo "code hoặc spec đã đổi"
 // an toàn hơn đoán là ngữ cảnh.
-function sameSubject(oldBrief, spec, diff) {
+export function sameSubject(oldBrief, spec, diff) {
   const old = briefSubject(oldBrief);
   return old !== null && old.spec === spec && old.diff === diff;
 }

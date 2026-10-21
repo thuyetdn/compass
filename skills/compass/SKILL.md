@@ -351,10 +351,13 @@ lại ở mọi `init`, mọi lần gate `convention` chạy (tức mọi `check
 code. Nó báo "có thể đã cũ" khi một file config đổi, bị xóa hay mới xuất hiện, hoặc khi code đã trôi
 khỏi một convention đếm được. Gate vẫn pass, vì convention cũ không phải code sai.
 
-Gặp một trong hai dòng sau, ở bất kỳ đâu, thì làm ngay, **không chờ ai bảo**:
+`init` hay gate `convention` in một trong hai dòng sau thì làm ngay, **không chờ ai bảo**:
 
 - `⚠ Chưa có .knowledge/decided/conventions.md`
 - `⚠ .knowledge/decided/conventions.md có thể đã cũ`
+
+Brief soi code thì chỉ ghi một lưu ý cho người soi ("convention đã khai có thể đã cũ"), để họ không
+bắt code theo luật repo đã rời đi. Người soi không làm ba bước dưới đây: họ chỉ ghi `findings.json`.
 
 1. Chạy `compass convention --draft` (thêm `--force` nếu bản nháp cũ còn đó).
 2. Đưa người xem bản nháp. Repo đã có `conventions.md` thì chỉ ra chỗ bản nháp khác file đang dùng,
@@ -586,6 +589,52 @@ Gate nào đọc code mà thiếu `sourceHash` thì bị coi là bản ghi cũ v
 **`config.json` được tin.** Compass bắt được lệnh test **đổi sau** khi gate chạy, nhưng nếu ai sửa nó **trước** — trỏ sang một lệnh `echo` in ra TAP giả — thì không phát hiện được. Compass không phán được lệnh đó có phải test suite thật hay không.
 
 Hai điều này chặn được **sai sót vô tình**, không chặn được **cố ý gian lận**. Đó là ranh giới, và bạn nên biết nó ở đâu.
+
+## Soi PR của người khác
+
+Gate `review` chỉ soi task của chính bạn. Được nhờ soi PR của đồng nghiệp thì dùng `compass pr`:
+
+```
+compass pr 123                       PR #123 trên GitHub, lấy bằng git fetch từ origin
+compass pr feature/loc-quoc-gia      một nhánh, hay một sha
+  --base=origin/develop              nhánh để so; mặc định origin/HEAD, rồi main, rồi master.
+                                     Với số PR, chỉ base dạng origin/<nhánh> được fetch mới;
+                                     base khác (develop) dùng bản local đang có
+  --spec=ticket.md                   soi theo ticket; không có thì soi theo commit message
+  --run-tests                        chạy test của PR
+```
+
+Hai pha như gate `review`:
+
+1. `compass pr <ref>` sinh `.git/compass/pr/<key>/review-brief.md` rồi thoát mã 1. `<key>` là `pr-123`,
+   `sha-<7 ký tự>`, hay tên nhánh. Tên nhánh có ký tự ngoài `A-Za-z0-9._-` (như `/`) hay có chữ hoa
+   thì được đổi ký tự lạ thành `-` và kèm 6 ký tự băm: `feature/loc` thành `feature-loc-<6 ký tự>`.
+   Lệnh in sẵn đường dẫn đúng.
+2. Đưa brief cho một agent **khác**, không mang lịch sử phiên này. Agent đó ghi
+   `.git/compass/pr/<key>/findings.json` theo đúng mười tiêu chí.
+3. Chạy lại đúng lệnh cũ. Compass kiểm tra findings như gate `review`, rồi ghi `.git/compass/pr/<key>/report.md`
+   để dán vào PR: kết luận, kết quả test, finding theo mức kèm file và dòng. Mã thoát 0 khi không có
+   Critical hay Major và test (nếu chạy) pass.
+
+Những điều cần biết:
+
+- **Không đụng việc của bạn.** Diff là `điểm rẽ...đầu PR`, nên commit đã có trên nhánh gốc không lọt
+  vào. Ngữ cảnh đọc từ một worktree tạm ở đầu PR, nằm ngoài repo và được gỡ đi kể cả khi lỗi. Branch,
+  index và thay đổi chưa commit của bạn giữ nguyên. Brief, findings và báo cáo nằm trong thư mục git
+  (`.git/compass/pr/`), không trong cây làm việc, nên không lên git và PR không chạm tới được. Trong
+  một worktree phụ, thư mục đó là của repo chính; lệnh luôn in sẵn đường dẫn đúng.
+- **Không có spec thì soi theo ý định có được.** Đưa ticket bằng `--spec`. Không có ticket thì brief
+  dùng commit message của PR và nói rõ đó là tất cả những gì người soi có.
+- **`--run-tests` chạy code của người khác.** Chỉ bật khi người dùng đồng ý, và nói rõ điều đó với họ.
+  Lệnh test lấy từ `.compass/config.json` **đã commit ở đỉnh nhánh gốc** (`--base`), không từ PR
+  và không từ đĩa — đứng trên nhánh PR thì file trên đĩa là của PR; sửa config thì commit lên nhánh
+  gốc. Test chạy trong worktree tạm; khai
+  `prSetup` (ví dụ `npm ci`) nếu cần cài trước. `prTestTimeout` (giây, mặc định 1.200) là một ngân
+  sách chung cho cả `prSetup` lẫn test: quá hạn thì cả cây tiến trình bị dừng. Báo cáo kèm đoạn cuối
+  output test, với đường dẫn trên máy đã được thay bằng `<repo>`, `<worktree>`, `~`; vẫn đọc lại
+  trước khi dán lên PR. Không bật thì báo cáo ghi "chưa chạy", không bao giờ ngụ ý là đã pass.
+- **PR đổi thì soi lại.** Đầu PR có commit mới thì brief đổi, findings cũ không còn khớp, và lệnh nói
+  rõ "PR đã đổi".
 
 ## Điều tra — khi chưa biết vấn đề ở đâu
 

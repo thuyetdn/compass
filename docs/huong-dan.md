@@ -131,6 +131,13 @@ nơi gọi code vừa đổi, tài liệu nhắc tới nó), đưa cho một age
 chí và ghi `findings.json` với một kết luận cho **từng** tiêu chí; thiếu một tiêu chí là gate đỏ.
 Finding mức `Critical` hay `Major` chặn gate. Sửa code sau khi soi thì gate tự mở lại.
 
+**`compass pr <số PR | nhánh>`** không phải gate mà là lệnh soi PR của người khác theo cùng mười
+tiêu chí. Nó lấy PR bằng `git fetch`, đọc code ở worktree tạm, soi theo ticket (`--spec`) hoặc commit
+message, và ghi `.git/compass/pr/<key>/report.md` để dán vào PR. Branch và thay đổi chưa commit của bạn
+giữ nguyên. `--run-tests` chạy test của PR, tức là chạy code của người khác trên máy bạn; lệnh
+test lấy từ config đã commit ở nhánh gốc, và `"prSetup": "npm ci"` trong config đó chạy trước nếu
+cần cài.
+
 Hai gate `ui` và `visual` cần `dev` và `devUrl` trong config. Repo không khai `devUrl` (backend
 chẳng hạn) thì `check` ghi bản ghi bỏ qua thay vì chạy.
 

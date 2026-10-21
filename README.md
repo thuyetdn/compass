@@ -127,6 +127,23 @@ không ai sập lại.
 Gate `test` không chỉ xem suite xanh. Nó đối chiếu từng ID trong spec với output thật,
 nên "13 test case" trong spec mà chỉ viết 11 thì không qua được.
 
+## Soi PR của người khác
+
+Được nhờ review PR của đồng nghiệp thì bảo Claude "soi PR 123". Compass dùng đúng mười tiêu chí của
+gate `review`, cho một agent không biết gì về PR soi, rồi ghi `.git/compass/pr/pr-123/report.md` để
+dán vào PR:
+
+```bash
+compass pr 123 --spec=ticket.md       # PR #123, soi theo ticket; bỏ --spec thì soi theo commit message
+```
+
+Nó lấy PR bằng `git fetch` (không cần `gh`), đọc code ở một worktree tạm, và không đụng branch hay
+thay đổi chưa commit của bạn. `--run-tests` chạy test của PR, tức là chạy code của người viết PR
+trên máy bạn, nên chỉ bật khi bạn muốn. Lệnh test lấy từ `.compass/config.json` đã commit ở nhánh
+gốc (không từ PR, không từ bản chưa commit trên máy); cần cài gì
+trước (ví dụ `npm ci`) thì khai `"prSetup": "npm ci"` trong đó. Cả `prSetup` lẫn test dùng chung
+một hạn `prTestTimeout` giây, mặc định 20 phút; quá hạn thì cả cây tiến trình bị dừng.
+
 ## Dự án nhiều repo
 
 Một task hay đụng cả backend lẫn frontend. Để Claude dò giúp:
@@ -176,7 +193,8 @@ nó vào `.knowledge/decided/`; Compass không bao giờ tự ghi vào đó.
 
 Bản nháp mang dấu nguồn, nên về sau Compass tự nhận ra khi convention đã cũ: một file config đổi, hay
 code đã trôi khỏi một convention từng đếm được. Việc kiểm tra chạy ở mọi `init`, mọi `check` và trong
-mọi brief soi code, không cần ai bảo. Khi đó Claude soạn lại bản nháp và đưa bạn duyệt chỗ khác.
+mọi brief soi code, không cần ai bảo. Thấy `init` hay `check` báo, Claude soạn lại bản nháp và đưa
+bạn duyệt chỗ khác; trong brief thì đó chỉ là lưu ý cho người soi.
 
 ## Gõ lệnh trực tiếp
 
@@ -194,6 +212,7 @@ compass spec T-001                    # gate: spec hợp lệ?
 compass check T-001                   # chạy mọi gate áp dụng
 compass done T-001                    # cổng cuối
 compass convention --draft            # soạn nháp conventions.md từ config và code
+compass pr 123                        # soi PR của người khác
 ```
 
 Không cài cũng chạy được từ thư mục repo: `node cli.mjs status`.
@@ -263,7 +282,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1494 test, ~100 giây
+npm test           # suite chính, 1591 test, ~100 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 

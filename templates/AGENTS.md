@@ -72,12 +72,20 @@ Từ `feature-s`, gate `review` cần một người soi khác bạn:
 
 ### Convention thiếu hoặc đã cũ
 
-`compass init`, `compass check` hay brief soi code in `⚠ Chưa có .knowledge/decided/conventions.md`
-hoặc `⚠ … có thể đã cũ` thì làm ngay, không chờ ai bảo, và trước khi viết spec:
+`compass init` hay `compass check` in `⚠ Chưa có .knowledge/decided/conventions.md` hoặc
+`⚠ … có thể đã cũ` thì làm ngay, không chờ ai bảo, và trước khi viết spec. Phiên đang soi code theo
+một brief thì không làm việc này; nó chỉ ghi `findings.json`.
 
 1. Chạy `compass convention --draft` (thêm `--force` nếu bản nháp cũ còn đó).
 2. Đưa người xem `.compass/conventions-draft.md`, chỉ ra chỗ khác với file đang dùng.
 3. Chờ người duyệt. Không tự sửa `.knowledge/decided/`.
+
+### Soi PR của người khác
+
+`compass pr <số PR | nhánh>` soi một PR theo cùng mười tiêu chí, không đụng branch hay cây làm việc
+của bạn. Nó sinh `.git/compass/pr/<key>/review-brief.md` rồi thoát mã 1. Đưa brief cho một phiên Codex
+mới, phiên đó ghi `findings.json` cạnh brief, rồi chạy lại cùng lệnh để ra `report.md` dán vào PR.
+Chỉ thêm `--run-tests` khi người dùng đồng ý: nó chạy code của người viết PR trên máy này.
 
 ### Khi chưa biết lỗi ở đâu
 
