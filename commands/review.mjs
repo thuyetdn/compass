@@ -4,6 +4,7 @@ import { findRoot, specPath, taskDir, evidenceDir, validateTaskId } from '../lib
 import { collectDiff, buildBrief, briefSubject, parseScopePaths } from '../lib/review-brief.mjs';
 import { parseFindings, formatFinding, checkCoverage, BLOCKING } from '../lib/findings.mjs';
 import { collectContext } from '../lib/review-context.mjs';
+import { planUnits, collectUnits } from '../lib/workspace-git.mjs';
 import { writeGate, readGate } from '../lib/gate-store.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
@@ -92,7 +93,9 @@ export function reviewCommand({ cwd, taskId }) {
   // task ở đỉnh nhánh vẫn được soi trọn, kể cả file nó quên khai (CP-36).
   const khaiCuoi = spec.reviewEnd !== null && spec.reviewEnd !== undefined;
   const scopeParsed = parseScopePaths(spec.scope);
-  if (khaiCuoi && scopeParsed.rejected.length) {
+  // `Soi đến (be):` của repo con cũng thu hẹp theo Phạm vi (CP-84).
+  const thuHep = khaiCuoi || Object.keys(spec.repoEnds ?? {}).length > 0;
+  if (thuHep && scopeParsed.rejected.length) {
     return {
       exitCode: 2,
       output: [
@@ -115,12 +118,30 @@ export function reviewCommand({ cwd, taskId }) {
     compassPaths: scopeParsed.paths,
   };
 
+  // Repo con có git riêng (CP-84): mỗi git một diff, gộp vào một brief. Không có
+  // repo con nào như vậy thì `units` là null và mọi thứ đi đúng đường cũ.
+  const plan = planUnits(root, spec);
+  if (!plan.ok) {
+    return {
+      exitCode: 2,
+      output: [fail('review', plan.errors), '', hint('Sửa lời khai trong spec hay config.json rồi chạy lại.')].join('\n'),
+    };
+  }
+  const collect = () => (plan.units
+    ? collectUnits(root, plan, diffOptions, { scopePaths: scopeParsed.paths })
+    : collectDiff(root, diffOptions));
+
   // Ngữ cảnh dò một lần cho mỗi lần đọc diff: brief, id và luật `basis` phải
   // nói về cùng một bản ngữ cảnh (CP-78).
   const contexts = new WeakMap();
   const contextOf = (collected) => {
     if (!contexts.has(collected)) {
-      contexts.set(collected, collectContext(root, { files: collected.files, deleted: collected.deleted ?? [] }));
+      contexts.set(collected, collectContext(root, {
+        files: collected.files,
+        deleted: collected.deleted ?? [],
+        units: plan.units ?? [],
+        rootGit: plan.units ? plan.found.rootGit : true,
+      }));
     }
     return contexts.get(collected);
   };
@@ -142,6 +163,8 @@ export function reviewCommand({ cwd, taskId }) {
     narrowedTo: collected.narrowedTo ?? [],
     // Repo một commit soi từ cây rỗng; brief phải nói ra điều đó (CP-52).
     fromEmptyTree: collected.fromEmptyTree ?? false,
+    rootRange: collected.rootRange ?? true,
+    repoRanges: collected.repoRanges ?? [],
   });
 
   // Phase two: an agent has answered, so read the verdict — but only if the
@@ -149,7 +172,7 @@ export function reviewCommand({ cwd, taskId }) {
   // it was written against: reviewer reports Major, author fixes, reruns, and
   // the stale pass would sail through. That is normal workflow, not cheating.
   if (existsSync(findingsFile)) {
-    const current = collectDiff(root, diffOptions);
+    const current = collect();
     const recorded = readGate(root, taskId, 'review')?.diffHash ?? null;
 
     // Mọi nhánh thoát của pha hai đều phải ghi sổ. `done` đọc sổ chứ không chạy
@@ -388,7 +411,7 @@ export function reviewCommand({ cwd, taskId }) {
     ...extra,
   });
 
-  const collected = collectDiff(root, diffOptions);
+  const collected = collect();
   if (!collected.ok) {
     recordPending();
     return { exitCode: 2, output: fail('review', [collected.reason]) };

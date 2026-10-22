@@ -153,7 +153,10 @@ Chi tiết từng gate, kể cả cách khai `Gốc soi:` để thu hẹp phạm
   `visualThreshold` (mặc định 0.1%) giảm bớt, không chữa được.
 - **Nhiều repo.** `convention`, `ui`, `visual` đo từng repo và ghi bằng chứng riêng cho từng repo;
   `test` gộp mọi repo vào một bản ghi. Dựng config bằng `compass init --multi`, rồi chạy
-  `compass status` để kiểm tra Compass đọc ra gì.
+  `compass status` để kiểm tra Compass đọc ra gì. Repo con có `.git` riêng thì `review` soi git của
+  từng repo trong `Phạm vi`, `secrets` quét git của mọi repo, và `compass pr` chạy trong thư mục repo
+  đó (`cd be && compass pr 123`). Gốc soi của repo con khai bằng `Gốc soi (be): <sha>` trong spec,
+  hay `repos.be.reviewBase` trong config.
 - **Worktree mồ côi bị quét như code thường.** Worktree của agent (`.claude/worktrees/` hay chỗ khác,
   miễn tạo bằng `git worktree add`) được nhận ra và bỏ qua, không cần xoá trước khi chạy gate. Nhưng
   xoá thư mục quản trị trong `.git/worktrees/` mà để lại thư mục worktree thì Compass, như git, coi

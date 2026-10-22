@@ -156,6 +156,10 @@ Nó đọc từng thư mục con: lockfile quyết trình quản lý gói, cổn
 `vite.config` quyết `devUrl`, repo không có test vẫn được khai với lệnh fail. Chỗ nào
 phải đoán thì nó **không ghi** mà hỏi bạn — hai repo cùng tranh một cổng là lúc đó.
 
+Mỗi repo có `.git` riêng nằm dưới gốc cũng được. `review` soi git của từng repo trong
+`Phạm vi`, `secrets` quét git của mọi repo, và `compass pr` chạy ngay trong thư mục repo
+(`cd be && compass pr 123`). Gốc soi của repo con khai bằng `Gốc soi (be): <sha>`.
+
 ## Xem knowledge base
 
 ```bash
@@ -282,7 +286,7 @@ Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều 
 ## Phát triển
 
 ```bash
-npm test           # suite chính, 1593 test, ~100 giây
+npm test           # suite chính, 1651 test, ~100 giây
 npm run test:deep  # 17 test qua CLI thật trên examples/todo, ~115 giây
 ```
 

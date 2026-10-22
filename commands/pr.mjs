@@ -7,7 +7,10 @@ import { buildBrief, fenceFor } from '../lib/review-brief.mjs';
 import { collectContext, gitObjectReader } from '../lib/review-context.mjs';
 import { parseFindings, checkCoverage, formatFinding, BLOCKING, SEVERITIES } from '../lib/findings.mjs';
 import { runCommand } from '../lib/test-runner.mjs';
-import { gitLines, gitSubdir } from '../lib/git-files.mjs';
+import { gitLines, gitSubdir, gitTopLevel, realPath } from '../lib/git-files.mjs';
+import { gitUnits } from '../lib/workspace-git.mjs';
+import { loadConfig } from '../lib/config.mjs';
+import { isInside } from '../lib/repos.mjs';
 import { hint } from '../lib/report.mjs';
 import { resolveSource, resolvePrBase, resolveCommit, checkRef, dropFetched, mergeBase, commitMessages, prDiff, withWorktree, prKey } from '../lib/pr-source.mjs';
 import { code } from '../lib/convention-draft.mjs';
@@ -228,6 +231,45 @@ function buildReport({ label, intentFrom, base, sha, files, findings, insufficie
   return out.join('\n');
 }
 
+// Gốc Compass và git của PR. Thường là một: gốc nằm trong git của repo. Gốc khai
+// `repos` mà repo con có `.git` riêng (CP-84, issue #1) thì PR là của git chứa thư
+// mục đang đứng, còn config vẫn ở gốc. Gốc khai repo đó thắng mọi `.compass/` nằm
+// bên trong nó: đứng trên nhánh PR thì `be/.compass/config.json` là của người viết PR.
+function locate(cwd) {
+  const top = gitTopLevel(cwd);
+  if (top) {
+    const realTop = realPath(top);
+    const seen = new Set();
+    for (const candidate of [findRoot(path.dirname(realTop)), findRoot(cwd)]) {
+      if (!candidate || seen.has(candidate)) continue;
+      seen.add(candidate);
+      const unit = gitUnits(candidate).units.find((u) => u.dir === realTop);
+      if (unit) return { root: candidate, repo: realTop, nested: unit };
+    }
+  }
+  const root = findRoot(cwd);
+  return root ? { root, repo: root, nested: null } : null;
+}
+
+// Config cho `--run-tests` của repo con: từ config của gốc trên đĩa, mục `repos`
+// có thư mục nằm trong git đó. Gốc nằm ngoài git của PR, nên PR không sửa được nó.
+// Hai repo chung một git thì lấy repo chứa thư mục đang đứng, không lấy repo khai
+// trước trong config (lần soi đầu của CP-84).
+//
+// Không đi qua `resolveRepos`: một mục khác trong `repos` hỏng (repo chưa clone) không
+// phải việc của PR này (lần soi thứ hai của CP-84).
+function nestedConfig(root, unit, cwd) {
+  const cfg = loadConfig(root);
+  if (!cfg.ok) return { ok: false, errors: cfg.errors ?? ['không đọc được .compass/config.json của gốc'] };
+  const here = realPath(cwd);
+  const inside = (r) => isInside(path.join(unit.dir, r.inUnit), here);
+  const repo = unit.repos.find(inside) ?? unit.repos.find((r) => r.inUnit === '') ?? unit.repos[0];
+  const { repos: _all, ...shared } = cfg.config;
+  const config = { ...shared, ...repo.own };
+  delete config.path;
+  return { ok: true, config, sub: repo.inUnit };
+}
+
 // `warned`: CLI đã in lời cảnh báo `--run-tests` ra stderr trước khi chạy, nên
 // output không lặp lại nó.
 export function prCommand(options) {
@@ -237,7 +279,7 @@ export function prCommand(options) {
     const { wroteReport: _wrote, ...shown } = result;
     return shown;
   } finally {
-    const root = options.ref ? findRoot(options.cwd) : null;
+    const root = options.ref ? locate(options.cwd)?.repo ?? null : null;
     if (root) {
       dropFetched(root, options.ref);
       // Lần chạy nào không ghi báo cáo mới thì báo cáo cũ của ref này phải đi: nó nói
@@ -261,18 +303,26 @@ export function prCommand(options) {
 function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, warned = false, contextOf = collectContext }) {
   if (!ref) return { exitCode: 2, output: USAGE };
 
-  const root = findRoot(cwd);
-  if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
-  if (gitLines(root, ['rev-parse', '--git-dir']) === null) {
-    return { exitCode: 2, output: 'compass pr cần chạy trong một repo git.' };
+  const located = locate(cwd);
+  if (!located) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
+  // `root` là gốc Compass; `repo` là git của PR, nơi mọi lệnh git chạy.
+  const { root, repo, nested } = located;
+  if (!nested && gitLines(root, ['rev-parse', '--git-dir']) === null) {
+    const subs = gitUnits(root).units.map((u) => u.rel);
+    return {
+      exitCode: 2,
+      output: subs.length
+        ? [prFail([`Gốc Compass này không phải repo git. Repo con có git riêng: ${subs.join(', ')}.`]), '', hint(`cd vào repo của PR rồi chạy lại, ví dụ: cd ${subs[0]} && compass pr ${ref}`)].join('\n')
+        : 'compass pr cần chạy trong một repo git.',
+    };
   }
 
-  const source = resolveSource(root, ref, base);
+  const source = resolveSource(repo, ref, base);
   if (source.error) return { exitCode: 2, output: prFail([source.error]) };
-  const baseRes = resolvePrBase(root, base, source.freshBase);
+  const baseRes = resolvePrBase(repo, base, source.freshBase);
   if (baseRes.error) return { exitCode: 2, output: prFail([baseRes.error]) };
 
-  const fork = mergeBase(root, baseRes.sha, source.sha);
+  const fork = mergeBase(repo, baseRes.sha, source.sha);
   if (!fork) return { exitCode: 2, output: prFail([`${source.label} và ${baseRes.label} không có tổ tiên chung — không biết PR bắt đầu từ đâu.`]) };
   if (fork === source.sha) {
     return { exitCode: 2, output: prFail([`${source.label} không có commit nào ngoài ${baseRes.label} — không có gì để soi.`]) };
@@ -286,10 +336,10 @@ function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, wa
   }
   const intentFrom = ticket ? `ticket ${code(path.basename(ticket.name))}` : 'commit message của PR (PR không có spec)';
 
-  const state = prStateDir(root);
+  const state = prStateDir(repo);
   if (!state) return { exitCode: 2, output: prFail(['Không tìm được thư mục git của repo này.']) };
   const dir = path.join(state, source.key);
-  const rel = path.relative(root, dir).split(path.sep).join('/');
+  const rel = path.relative(nested ? repo : root, dir).split(path.sep).join('/');
   const briefFile = path.join(dir, BRIEF_FILE);
   const findingsFile = path.join(dir, FINDINGS_FILE);
   // Lệnh chạy lại in trong brief chỉ mang những cờ đổi nội dung brief (`--base`
@@ -307,19 +357,22 @@ function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, wa
   // Gốc Compass có thể là thư mục con của repo (`examples/todo`). Worktree luôn là
   // cả repo, nên ngữ cảnh, convention và lệnh test phải chạy ở đúng thư mục con đó
   // bên trong worktree (lần soi đầu của CP-81).
-  const located = gitSubdir(root);
-  if (!located) return { exitCode: 2, output: prFail([`Không xác định được gốc Compass ${root} nằm ở đâu trong repo git.`]) };
-  const { sub } = located;
+  // Repo con: thư mục của repo khai trong `repos`, tính từ gốc git của nó.
+  const reposCfg = nested ? nestedConfig(root, nested, cwd) : null;
+  const inRepo = nested ? null : gitSubdir(root);
+  if (!nested && !inRepo) return { exitCode: 2, output: prFail([`Không xác định được gốc Compass ${root} nằm ở đâu trong repo git.`]) };
+  if (nested && !reposCfg.ok) return { exitCode: 2, output: prFail([`Không đọc được config của gốc Compass: ${reposCfg.errors.join('; ')}`]) };
+  const sub = nested ? reposCfg.sub : inRepo.sub;
   // Diff dựng trong repo của người dùng, trước khi có worktree nào: xem `prDiff`.
-  const collected = prDiff(root, fork, source.sha);
+  const collected = prDiff(repo, fork, source.sha);
   if (!collected.ok) return { exitCode: 2, output: prFail([collected.reason]) };
   const intent = intentFor({
     label: source.label, sha: source.sha, base: fork, ticket, hidden: collected.hidden, binaries: collected.binaries,
-    messages: ticket ? '' : commitMessages(root, fork, source.sha),
+    messages: ticket ? '' : commitMessages(repo, fork, source.sha),
   });
 
   try {
-    return withWorktree(root, source.sha, (head) => {
+    return withWorktree(repo, source.sha, (head) => {
       const here = sub ? path.join(head, sub) : head;
       let context;
       try {
@@ -410,7 +463,7 @@ function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, wa
       // Test chạy bằng lệnh trong config của người soi, không phải của PR: PR sửa
       // được config của chính nó, và một lệnh test viết lại là cách gọn nhất để
       // chạy thứ khác trên máy này.
-      const cfg = reviewerConfig(root, sub, baseRes.sha);
+      const cfg = nested ? reposCfg : reviewerConfig(root, sub, baseRes.sha);
       const command = cfg.ok ? cfg.config.test : null;
       let test = null;
       if (runTests) {
@@ -431,7 +484,7 @@ function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, wa
         test ??= { ...runCommand(command, here, { timeoutMs: Math.max(1000, timeoutMs - spent) }), command, step: 'test' };
         // Báo cáo đi lên PR: đường dẫn trên máy người soi (thư mục tạm, repo, thư
         // mục nhà) không được theo output test lên đó (lần soi thứ mười sáu của CP-81).
-        test = { ...test, output: scrubSecrets(scrubPaths(test.output, [[here, '<worktree>'], [root, '<repo>'], [homedir(), '~']])) };
+        test = { ...test, output: scrubSecrets(scrubPaths(test.output, [[here, '<worktree>'], [repo, '<repo>'], [root, '<repo>'], [homedir(), '~']])) };
       }
 
       const findings = parsed.findings;

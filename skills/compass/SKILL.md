@@ -180,7 +180,7 @@ compass init <id> --type=<loại>
 
 Test case phải có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`), mô tả, và kỳ vọng **đo được**. "Hoạt động đúng" không phải kỳ vọng đo được.
 
-**Bốn dòng khai thêm, dùng khi cần:**
+**Năm dòng khai thêm, dùng khi cần:**
 
 | Dòng | Khi nào | Gate làm gì |
 |---|---|---|
@@ -188,6 +188,7 @@ Test case phải có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`), mô tả, và k�
 | `Kiểm tra bằng: mắt` | Việc sửa tài liệu, đổi config — không có test tự động | Nói thẳng nó không đo gì, vẫn đòi bảng case |
 | `Soi đến: <sha>` | Task nằm giữa lịch sử nhánh, có commit của việc khác đến sau nó | Gate `review` dừng diff ở commit đó và chỉ giữ file trong `Phạm vi:` |
 | `Dùng .env: <lý do>` | Task thật sự cần đọc file `.env` | Gate `secrets` cho phép **đọc**, vẫn chặn commit file `.env` |
+| `Gốc soi (be): <sha>`, `Soi đến (be): <sha>` | Repo con `be` có git riêng (mục "Repo con có git riêng") | Gốc soi và Soi đến của riêng git đó |
 
 `Kiểm tra bằng: mắt` không phải cửa sau. Gate vẫn đòi liệt kê từng case và cách kiểm tra, và báo lỗi
 nếu suite có test mang task id — lời khai mâu thuẫn với thực tế thì phải sửa, không đoán.
@@ -794,6 +795,41 @@ gì. Dự án một repo giữ nguyên đường cũ: khe trần, `baseline/<vie
 `test` thì khác: nó chạy lệnh test từng repo, gộp output rồi đối chiếu ID **một lần**, nên vẫn ghi một khe
 `test`.
 
+### Repo con có git riêng
+
+Mỗi repo có thể là một git riêng nằm dưới gốc (`be/.git`, `fe/.git`), còn gốc có git riêng chỉ theo dõi
+`.compass/` hoặc không có git nào. Compass coi mỗi git là một đơn vị:
+
+| Gate / lệnh | Làm gì với repo con có git riêng |
+|---|---|
+| `review` | Diff từng repo **trong `Phạm vi`** ngay trong git của nó, gộp vào một brief. Đường dẫn mang tiền tố repo (`be/b.js`), phần "Phạm vi" của brief có một dòng cho mỗi repo |
+| `secrets` | Quét index và file chưa ignore của **mọi** repo, cả repo không nằm trong `Phạm vi`. Diff cũng của mọi repo; repo đang đứng trên nhánh chính mà không khai gốc soi chỉ góp thay đổi chưa commit |
+| `compass pr` | Dùng git chứa thư mục đang đứng: `cd be && compass pr 123`. Lệnh test của `--run-tests` lấy từ mục `repos.be` trong config của gốc, không bao giờ từ `.compass/config.json` mà PR commit |
+
+Gốc soi của repo con khai riêng, vì sha của git gốc không có nghĩa gì trong git khác:
+
+```
+Gốc soi (be): abc1234
+Soi đến (be): def5678
+```
+
+Hai dòng này nằm ở phần đầu spec, cạnh `Gốc soi:`. Config nhận `repos.be.reviewBase`; `reviewBase` ở phần
+chung **không** áp cho repo con. `Soi đến (be):` thu hẹp diff của be theo các mục `be/…` trong `Phạm vi`.
+`Gốc soi:` không ngoặc vẫn chỉ nói về git của gốc. Khai `Gốc soi (fe):` cho một repo dùng chung git với
+gốc, hay cho repo không khai trong `repos`, là gate đỏ kèm lời chỉ cách khai đúng. Repo có git nằm ngoài
+gốc (junction, đường dẫn trỏ ra ngoài) bị từ chối: Compass không soi một git nó không được giao.
+
+`Phạm vi` nhận cả tên repo (`web/x.js`) lẫn đường dẫn (`apps/web/x.js`). Repo khai trong `repos` mà chưa
+clone thì `review` đỏ nếu nó nằm trong `Phạm vi`, và bỏ qua nếu không; `secrets` vẫn quét mọi repo còn lại.
+`config.json` không đọc được mà có nhắc `repos` thì cả hai gate đỏ, vì không biết repo con nào cần quét.
+Repo có `.git` mà git không đọc được (trên Windows hay gặp nhất là `safe.directory`) cũng làm cả hai gate
+đỏ, dù `.git` đó nằm ngay trong repo, ở một thư mục cha dùng chung, hay là git của gốc: chạy
+`git -C <thư mục> status` để xem git từ chối vì sao.
+
+Hai giới hạn: file `.compass/` nằm trong repo con (`be/.compass/scripts/x.mjs`) không vào brief kể cả khi
+khai trong `Phạm vi` — luật đó chỉ áp cho git của gốc. Và `compass pr` chạy trong repo con cần đọc được
+`config.json` của gốc để biết repo đó là repo con; config hỏng thì lệnh báo không tìm thấy nhánh.
+
 Bốn điều cần biết:
 
 - **Dev server chạy trong thư mục repo**, không còn ở gốc. Lệnh `dev` chỉ chạy được từ gốc (`pnpm --filter
@@ -866,7 +902,8 @@ theo từng repo.
 
 Ở chế độ nhiều repo, mọi gate đều có bằng chứng đúng chỗ: `convention`, `ui`, `visual` đo từng repo và
 ghi khe `<gate>@<repo>` (xem mục "Gate nào chạy theo repo"), `test` gộp mọi repo vào một khe `test`, còn
-`spec`, `knowledge`, `secrets`, `review` chạy một lần ở gốc.
+`spec`, `knowledge`, `secrets`, `review` chạy một lần ở gốc. `secrets` và `review` vẫn đọc git riêng của
+từng repo con (xem mục "Repo con có git riêng").
 
 `done` chỉ coi `convention`, `ui`, `visual` là xong khi **mọi** repo trong `Phạm vi` có khe riêng xanh —
 hoặc, với `ui`/`visual`, khe bỏ qua hợp lệ mà `check` ghi cho repo không khai `devUrl`. Thiếu một repo,

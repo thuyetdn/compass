@@ -9,6 +9,7 @@ import { hashSource } from '../lib/source-hash.mjs';
 import { scanSecrets } from '../lib/secrets-scan.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { gitFilesFromRepoRoot } from '../lib/git-files.mjs';
+import { planUnits, collectUnits, listUnits } from '../lib/workspace-git.mjs';
 
 // Same base resolution as `review`, deliberately sharing `collectDiff` rather
 // than re-deriving it. Two gates that describe different diffs disagree about
@@ -61,13 +62,27 @@ export function secretsCommand({ cwd, taskId }) {
   // khai `Soi đến: B` thì `secrets` và `check` đều in PASSED trong khi dòng đọc
   // vẫn nằm ở HEAD. Lý do 1 và 2 sống sót vì chúng đọc `git ls-files`, nhưng lý
   // do 3 — chỗ duy nhất có chốt xin phép của người duyệt — thì bị đi vòng.
-  const collected = collectDiff(root, {
+  //
+  // Repo con có git riêng (CP-84) thì quét MỌI repo, không chỉ repo trong Phạm vi:
+  // cùng lý do ở trên. Repo con đứng trên nhánh chính mà không ai khai gốc soi chỉ
+  // góp thay đổi chưa commit, vì lịch sử của nó không phải việc của task.
+  const plan = planUnits(root, spec, { forSecrets: true });
+  if (!plan.ok) {
+    return {
+      exitCode: 2,
+      output: [fail('secrets', plan.errors), '', hint('Sửa lời khai trong spec hay config.json rồi chạy lại.')].join('\n'),
+    };
+  }
+  const diffOptions = {
     baseRef,
     baseFrom: nguonGoc,
     endRef: null,
     endFrom: 'spec',
     scopePaths: [],
-  });
+  };
+  const collected = plan.units
+    ? collectUnits(root, plan, diffOptions, { forSecrets: true })
+    : collectDiff(root, diffOptions);
 
   // An empty diff means two different things to the two gates that read one.
   // For `review` it is a broken base: nobody can review nothing, so it is red.
@@ -100,8 +115,15 @@ export function secretsCommand({ cwd, taskId }) {
   // Dựng lại được: tràn `maxBuffer` làm 195 file theo dõi thành 0, và gate xanh.
   // Không đọc được danh sách thì chưa quét được, mà báo xanh lúc chưa quét đúng
   // là kiểu sai Compass sinh ra để chặn.
-  const tracked = gitFilesFromRepoRoot(root, ['ls-files', '-z']);
-  const untracked = gitFilesFromRepoRoot(root, ['ls-files', '-z', '--others', '--exclude-standard']);
+  // Repo con góp index và file chưa ignore của nó, mang tiền tố như trong diff.
+  const listAll = (args) => {
+    if (!plan.units) return gitFilesFromRepoRoot(root, args);
+    const own = plan.found.rootGit ? gitFilesFromRepoRoot(root, args) : [];
+    const subs = listUnits(plan.units, args);
+    return own === null || subs === null ? null : [...own, ...subs];
+  };
+  const tracked = listAll(['ls-files', '-z']);
+  const untracked = listAll(['ls-files', '-z', '--others', '--exclude-standard']);
 
   if (tracked === null || untracked === null) {
     return {
@@ -136,6 +158,9 @@ export function secretsCommand({ cwd, taskId }) {
     configHash: configFile ? sha256(JSON.stringify(configFile)) : null,
     diffHash: sha256(diffText),
     base: collected.ok ? String(collected.base) : null,
+    repoBases: collected.ok && collected.repoRanges?.length
+      ? Object.fromEntries(collected.repoRanges.map((r) => [r.label, String(r.base)]))
+      : undefined,
     declared,
     problemCount: result.problems.length,
   };
