@@ -803,7 +803,7 @@ Mỗi repo có thể là một git riêng nằm dưới gốc (`be/.git`, `fe/.g
 | Gate / lệnh | Làm gì với repo con có git riêng |
 |---|---|
 | `review` | Diff từng repo **trong `Phạm vi`** ngay trong git của nó, gộp vào một brief. Đường dẫn mang tiền tố repo (`be/b.js`), phần "Phạm vi" của brief có một dòng cho mỗi repo |
-| `secrets` | Quét index và file chưa ignore của **mọi** repo, cả repo không nằm trong `Phạm vi`. Diff cũng của mọi repo; repo đang đứng trên nhánh chính mà không khai gốc soi chỉ góp thay đổi chưa commit |
+| `secrets` | Quét index và file chưa ignore của **mọi** repo, cả repo không nằm trong `Phạm vi`. Diff cũng của mọi repo; repo ngoài `Phạm vi` đang đứng trên nhánh chính mà không khai gốc soi chỉ góp thay đổi chưa commit, còn repo trong `Phạm vi` được diff như `review` |
 | `compass pr` | Dùng git chứa thư mục đang đứng: `cd be && compass pr 123`. Lệnh test của `--run-tests` lấy từ mục `repos.be` trong config của gốc, không bao giờ từ `.compass/config.json` mà PR commit |
 
 Gốc soi của repo con khai riêng, vì sha của git gốc không có nghĩa gì trong git khác:

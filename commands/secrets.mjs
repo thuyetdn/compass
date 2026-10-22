@@ -64,8 +64,9 @@ export function secretsCommand({ cwd, taskId }) {
   // do 3 — chỗ duy nhất có chốt xin phép của người duyệt — thì bị đi vòng.
   //
   // Repo con có git riêng (CP-84) thì quét MỌI repo, không chỉ repo trong Phạm vi:
-  // cùng lý do ở trên. Repo con đứng trên nhánh chính mà không ai khai gốc soi chỉ
-  // góp thay đổi chưa commit, vì lịch sử của nó không phải việc của task.
+  // cùng lý do ở trên. Repo con ngoài Phạm vi đứng trên nhánh chính mà không ai khai
+  // gốc soi chỉ góp thay đổi chưa commit, vì lịch sử của nó không phải việc của task.
+  // Repo trong Phạm vi thì diff như `review` diff nó.
   const plan = planUnits(root, spec, { forSecrets: true });
   if (!plan.ok) {
     return {
