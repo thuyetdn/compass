@@ -317,11 +317,13 @@ test('CP-82-S6 a config value quoting the mark opening line does not take over t
   assert.doesNotMatch(r.output, /hỏng|bỏ qua|có thể đã cũ/, r.output);
 });
 
-test('CP-82-P1 a 60 MB repo of 5,000 files is drafted within 10 s', () => {
+test('CP-82-P1 a 60 MB repo of 5,000 files is drafted within 20 s', () => {
+  // Chạy riêng mất chừng 3,5 giây. 20 giây là chỗ cho `npm test` chạy song song mọi
+  // file, nơi cùng bản nháp từng mất 11–14 giây (CP-85); bản chậm gấp sáu vẫn đỏ.
   const big = codeFile({ extra: 500 });
   const root = manyFiles(5000, big);
   assert.ok(big.length * 5000 > 55_000_000, `fixture chỉ ${big.length * 5000} byte`);
-  const { value } = withinBudget({ run: () => draft(root, true), budgetMs: 10_000, tries: 2, label: 'draft 5.000 file' });
+  const { value } = withinBudget({ run: () => draft(root, true), budgetMs: 20_000, tries: 2, label: 'draft 5.000 file' });
   assert.equal(value.exitCode, 0, value.output);
 });
 
