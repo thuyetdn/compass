@@ -803,7 +803,7 @@ Mỗi repo có thể là một git riêng nằm dưới gốc (`be/.git`, `fe/.g
 | Gate / lệnh | Làm gì với repo con có git riêng |
 |---|---|
 | `review` | Diff từng repo **trong `Phạm vi`** ngay trong git của nó, gộp vào một brief. Đường dẫn mang tiền tố repo (`be/b.js`), phần "Phạm vi" của brief có một dòng cho mỗi repo |
-| `secrets` | Quét index và file chưa ignore của **mọi** repo, cả repo không nằm trong `Phạm vi`. Diff cũng của mọi repo; repo ngoài `Phạm vi` mà không khai gốc soi chỉ góp thay đổi chưa commit, đứng ở nhánh nào cũng vậy, còn repo trong `Phạm vi` được diff như `review` |
+| `secrets` | Quét index và file chưa ignore của **mọi** repo trừ repo nằm ngoài gốc Compass bị bỏ qua, cả repo không nằm trong `Phạm vi`. Diff cũng của mọi repo; repo ngoài `Phạm vi` mà không khai gốc soi chỉ góp thay đổi chưa commit, đứng ở nhánh nào cũng vậy, còn repo trong `Phạm vi` được diff như `review` |
 | `compass pr` | Dùng git chứa thư mục đang đứng: `cd be && compass pr 123`. Lệnh test của `--run-tests` lấy từ mục `repos.be` trong config của gốc, không bao giờ từ `.compass/config.json` mà PR commit |
 
 Gốc soi của repo con khai riêng, vì sha của git gốc không có nghĩa gì trong git khác:
@@ -829,7 +829,8 @@ clone thì `review` đỏ nếu nó nằm trong `Phạm vi`, và bỏ qua nếu 
 `config.json` không đọc được mà có nhắc `repos` thì cả hai gate đỏ, vì không biết repo con nào cần quét.
 Repo có `.git` mà git không đọc được (trên Windows hay gặp nhất là `safe.directory`) cũng làm cả hai gate
 đỏ, dù `.git` đó nằm ngay trong repo, ở một thư mục cha dùng chung, hay là git của gốc: chạy
-`git -C <thư mục> status` để xem git từ chối vì sao.
+`git -C <thư mục> status` để xem git từ chối vì sao. Trừ khi repo đó nằm ngoài gốc Compass và ngoài
+`Phạm vi`: khi ấy nó bị bỏ qua như mọi repo nằm ngoài gốc.
 
 Hai giới hạn: file `.compass/` nằm trong repo con (`be/.compass/scripts/x.mjs`) không vào brief kể cả khi
 khai trong `Phạm vi` — luật đó chỉ áp cho git của gốc. Và `compass pr` chạy trong repo con cần đọc được

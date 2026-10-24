@@ -210,3 +210,24 @@ test('CP-89-S3 a .env the root git tracks under the junction is still caught', (
   assert.equal(s.exitCode, 1, s.output);
   assert.match(s.output, /vendor\/\.env/);
 });
+
+// CP-90 — hai lỗi nhỏ lần soi của CP-89 để lại.
+
+test('CP-90-H3 SKILL.md names the exception for a repo skipped outside the root', () => {
+  const text = readFileSync(path.join(ROOT, 'skills', 'compass', 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
+  const row = text.split('\n').find((l) => l.startsWith('| `secrets` | Quét index'));
+  assert.ok(row);
+  assert.match(row, /\*\*mọi\*\* repo trừ repo nằm ngoài gốc Compass bị bỏ qua/);
+  const para = text.slice(text.indexOf('Repo có `.git` mà git không đọc được'), text.indexOf('Hai giới hạn:'));
+  assert.match(para.replace(/\n/g, ' '), /trừ khi repo đó nằm ngoài gốc Compass và ngoài `Phạm vi`/i);
+});
+
+test('CP-90-H4 an outside folder with an unreadable .git is called a git in the skip note', () => {
+  const root = workspace();
+  const outside = outsideFolder(path.join(root, 'vendor'));
+  writeFileSync(path.join(outside, '.git'), 'gitdir: ../khong-co-thu-muc-nay\n');
+  const r = review(root);
+  assert.equal(r.exitCode, 1, r.output);
+  assert.match(r.output, /Bỏ qua repo "vendor": git của nó nằm ngoài gốc Compass/);
+  assert.doesNotMatch(r.output, /thư mục của nó/);
+});
