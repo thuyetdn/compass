@@ -817,7 +817,8 @@ Hai dòng này nằm ở phần đầu spec, cạnh `Gốc soi:`. Config nhận 
 chung **không** áp cho repo con. `Soi đến (be):` thu hẹp diff của be theo các mục `be/…` trong `Phạm vi`.
 `Gốc soi:` không ngoặc vẫn chỉ nói về git của gốc. Khai `Gốc soi (fe):` cho một repo dùng chung git với
 gốc, hay cho repo không khai trong `repos`, là gate đỏ kèm lời chỉ cách khai đúng. Repo có git nằm ngoài
-gốc (junction, đường dẫn trỏ ra ngoài) bị từ chối khi nó nằm trong `Phạm vi`: Compass không soi một git nó
+gốc (junction, đường dẫn trỏ ra ngoài), hay là một thư mục thường nằm ngoài gốc, bị từ chối khi nó nằm
+trong `Phạm vi`: Compass không soi một git nó
 không được giao. Ngoài `Phạm vi` thì cả hai gate bỏ qua nó, không đọc file chưa theo dõi nào git thấy
 qua thư mục đó, và in một dòng `ℹ Bỏ qua repo "<tên>"`. Vì vậy `.env` trong repo đó không được quét. File
 mà git của gốc (hay của repo con chứa nó) đã theo dõi dưới thư mục đó thì vẫn là file của git ấy, vẫn được

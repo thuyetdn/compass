@@ -283,13 +283,16 @@ test('CP-88-S6 the same junction nested inside a sub-repo leaks nothing either',
   assert.doesNotMatch(all, /SECRET-HUB-SUB-88|hubfile|hub\/\.env/);
 });
 
-test('CP-88-S7 a config name that differs in case from the folder still skips everything', () => {
+test('CP-88-S7 a config name that differs in case from the folder still skips everything', (t) => {
   // Lần soi thứ ba: config khai `Hub`, thư mục là `hub`. So phân biệt hoa thường thì
   // bước bỏ qua không khớp và `.env` của git bên ngoài vào brief.
   assert.ok(isUnder('hub/.env', 'Hub', { fold: true }));
   assert.ok(!isUnder('hub/.env', 'Hub', { fold: false }));
   const root = workspace({ repos: { be: {}, Hub: {} }, ignoreAll: false });
-  if (!fsFoldsCase(root)) return; // `Hub` và `hub` là hai thư mục khác nhau ở đây
+  if (!fsFoldsCase(root)) {
+    t.skip('hệ thống file này phân biệt hoa thường: `Hub` và `hub` là hai thư mục');
+    return;
+  }
   hubIntoSubdir(path.join(root, 'hub'));
   const r = review(root);
   assert.equal(r.exitCode, 1, r.output);
@@ -312,21 +315,27 @@ test('CP-88-S8 a .env the root git itself tracks under a skipped junction is sti
   assert.match(s.output, /hub\/\.env/);
 });
 
-test('CP-88-V4 Phạm vi naming a skipped repo in another case refuses it where case folds', () => {
+test('CP-88-V4 Phạm vi naming a skipped repo in another case refuses it where case folds', (t) => {
   assert.ok(isUnder('Hub/h.js', 'hub', { fold: true }));
   const root = workspace({ repos: { be: {}, hub: {} }, scope: 'be/a.js, Hub/h.js' });
-  if (!fsFoldsCase(root)) return;
+  if (!fsFoldsCase(root)) {
+    t.skip('hệ thống file này phân biệt hoa thường');
+    return;
+  }
   hubOutside(root);
   const r = review(root);
   assert.equal(r.exitCode, 2, r.output);
   assert.match(r.output, /Repo "hub" có git nằm ngoài gốc Compass/);
 });
 
-test('CP-88-S9 Phạm vi naming the task\'s repo in another case keeps it in scope', () => {
+test('CP-88-S9 Phạm vi naming the task\'s repo in another case keeps it in scope', (t) => {
   // Lần soi thứ tư: `BE/x.js` cho repo `be` từng làm be thành "ngoài Phạm vi", và
   // `secrets` chỉ còn đọc thay đổi chưa commit của nó.
   const root = workspace({ scope: 'BE/x.js' });
-  if (!fsFoldsCase(root)) return; // `BE` và `be` là hai thư mục khác nhau ở đây
+  if (!fsFoldsCase(root)) {
+    t.skip('hệ thống file này phân biệt hoa thường: `BE` và `be` là hai thư mục');
+    return;
+  }
   const be = path.join(root, 'be');
   git(be, ['checkout', '-q', '-b', 'alpha']);
   put(be, 'x.js', readsEnv);
@@ -351,11 +360,14 @@ function caseSensitiveDir() {
   return existsSync(path.join(dir, 'PROBE')) ? null : dir;
 }
 
-test('CP-88-EC5 on a case-sensitive folder a skipped `hub` does not hide a real `Hub` folder', () => {
+test('CP-88-EC5 on a case-sensitive folder a skipped `hub` does not hide a real `Hub` folder', (t) => {
   // Lần soi thứ tư: gập hoa thường theo tên hệ điều hành thì trên ổ phân biệt hoa
   // thường, junction `hub` bị bỏ qua giấu luôn `Hub/.env` là file thật của gốc.
   const parent = caseSensitiveDir();
-  if (!parent) return; // máy này không có thư mục phân biệt hoa thường
+  if (!parent) {
+    t.skip('máy này không tạo được thư mục phân biệt hoa thường');
+    return;
+  }
   const root = workspace({ repos: { be: {}, hub: {} }, ignoreAll: false, parent });
   assert.equal(fsFoldsCase(root), false);
   hubIntoSubdir(path.join(root, 'hub'));
