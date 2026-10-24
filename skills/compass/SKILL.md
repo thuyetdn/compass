@@ -803,7 +803,7 @@ Mỗi repo có thể là một git riêng nằm dưới gốc (`be/.git`, `fe/.g
 | Gate / lệnh | Làm gì với repo con có git riêng |
 |---|---|
 | `review` | Diff từng repo **trong `Phạm vi`** ngay trong git của nó, gộp vào một brief. Đường dẫn mang tiền tố repo (`be/b.js`), phần "Phạm vi" của brief có một dòng cho mỗi repo |
-| `secrets` | Quét index và file chưa ignore của **mọi** repo, cả repo không nằm trong `Phạm vi`. Diff cũng của mọi repo; repo ngoài `Phạm vi` đang đứng trên nhánh chính mà không khai gốc soi chỉ góp thay đổi chưa commit, còn repo trong `Phạm vi` được diff như `review` |
+| `secrets` | Quét index và file chưa ignore của **mọi** repo, cả repo không nằm trong `Phạm vi`. Diff cũng của mọi repo; repo ngoài `Phạm vi` mà không khai gốc soi chỉ góp thay đổi chưa commit, đứng ở nhánh nào cũng vậy, còn repo trong `Phạm vi` được diff như `review` |
 | `compass pr` | Dùng git chứa thư mục đang đứng: `cd be && compass pr 123`. Lệnh test của `--run-tests` lấy từ mục `repos.be` trong config của gốc, không bao giờ từ `.compass/config.json` mà PR commit |
 
 Gốc soi của repo con khai riêng, vì sha của git gốc không có nghĩa gì trong git khác:
@@ -817,7 +817,11 @@ Hai dòng này nằm ở phần đầu spec, cạnh `Gốc soi:`. Config nhận 
 chung **không** áp cho repo con. `Soi đến (be):` thu hẹp diff của be theo các mục `be/…` trong `Phạm vi`.
 `Gốc soi:` không ngoặc vẫn chỉ nói về git của gốc. Khai `Gốc soi (fe):` cho một repo dùng chung git với
 gốc, hay cho repo không khai trong `repos`, là gate đỏ kèm lời chỉ cách khai đúng. Repo có git nằm ngoài
-gốc (junction, đường dẫn trỏ ra ngoài) bị từ chối: Compass không soi một git nó không được giao.
+gốc (junction, đường dẫn trỏ ra ngoài) bị từ chối khi nó nằm trong `Phạm vi`: Compass không soi một git nó
+không được giao. Ngoài `Phạm vi` thì cả hai gate bỏ qua nó, không đọc file chưa theo dõi nào git thấy
+qua thư mục đó, và in một dòng `ℹ Bỏ qua repo "<tên>"`. Vì vậy `.env` trong repo đó không được quét. File
+mà git của gốc (hay của repo con chứa nó) đã theo dõi dưới thư mục đó thì vẫn là file của git ấy, vẫn được
+quét. Tên repo và `Phạm vi` so như hệ thống file của gốc so: không phân biệt hoa thường khi nó không phân biệt (Compass dò bằng chính thư mục `.compass`).
 
 `Phạm vi` nhận cả tên repo (`web/x.js`) lẫn đường dẫn (`apps/web/x.js`). Repo khai trong `repos` mà chưa
 clone thì `review` đỏ nếu nó nằm trong `Phạm vi`, và bỏ qua nếu không; `secrets` vẫn quét mọi repo còn lại.

@@ -9,13 +9,21 @@ import { hashSource } from '../lib/source-hash.mjs';
 import { scanSecrets } from '../lib/secrets-scan.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { gitFilesFromRepoRoot } from '../lib/git-files.mjs';
-import { planUnits, collectUnits, listUnits } from '../lib/workspace-git.mjs';
+import { planUnits, collectUnits, listUnits, notSkipped } from '../lib/workspace-git.mjs';
 
 // Same base resolution as `review`, deliberately sharing `collectDiff` rather
 // than re-deriving it. Two gates that describe different diffs disagree about
 // what the task changed, and the user cannot tell which one is lying.
 
-export function secretsCommand({ cwd, taskId }) {
+// Dòng ghi chú của lần chạy (repo bị bỏ qua, CP-88) đi cuối output, dù gate xanh hay đỏ.
+export function secretsCommand(options) {
+  const notes = [];
+  const result = secretsOnce(options, notes);
+  if (!notes.length) return result;
+  return { ...result, output: [result.output, ...notes.map((n) => `ℹ ${n}`)].join('\n') };
+}
+
+function secretsOnce({ cwd, taskId }, notes) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass secrets <id>' };
 
   const validation = validateTaskId(taskId);
@@ -64,9 +72,9 @@ export function secretsCommand({ cwd, taskId }) {
   // do 3 — chỗ duy nhất có chốt xin phép của người duyệt — thì bị đi vòng.
   //
   // Repo con có git riêng (CP-84) thì quét MỌI repo, không chỉ repo trong Phạm vi:
-  // cùng lý do ở trên. Repo con ngoài Phạm vi đứng trên nhánh chính mà không ai khai
-  // gốc soi chỉ góp thay đổi chưa commit, vì lịch sử của nó không phải việc của task.
-  // Repo trong Phạm vi thì diff như `review` diff nó.
+  // cùng lý do ở trên. Repo con ngoài Phạm vi mà không ai khai gốc soi chỉ góp thay
+  // đổi chưa commit, đứng ở nhánh nào cũng vậy, vì lịch sử của nó không phải việc của
+  // task (issue #2, CP-88). Repo trong Phạm vi thì diff như `review` diff nó.
   const plan = planUnits(root, spec, { forSecrets: true });
   if (!plan.ok) {
     return {
@@ -74,6 +82,7 @@ export function secretsCommand({ cwd, taskId }) {
       output: [fail('secrets', plan.errors), '', hint('Sửa lời khai trong spec hay config.json rồi chạy lại.')].join('\n'),
     };
   }
+  notes.push(...(plan.notes ?? []));
   const diffOptions = {
     baseRef,
     baseFrom: nguonGoc,
@@ -121,7 +130,9 @@ export function secretsCommand({ cwd, taskId }) {
     if (!plan.units) return gitFilesFromRepoRoot(root, args);
     const own = plan.found.rootGit ? gitFilesFromRepoRoot(root, args) : [];
     const subs = listUnits(plan.units, args);
-    return own === null || subs === null ? null : [...own, ...subs];
+    if (own === null || subs === null) return null;
+    // Chỉ file chưa theo dõi mới bỏ theo repo bị bỏ qua; index thì quét trọn (CP-88).
+    return args.includes('--others') ? [...own, ...subs].filter(notSkipped(plan.found)) : [...own, ...subs];
   };
   const tracked = listAll(['ls-files', '-z']);
   const untracked = listAll(['ls-files', '-z', '--others', '--exclude-standard']);

@@ -4,7 +4,7 @@ import { findRoot, specPath, taskDir, evidenceDir, validateTaskId } from '../lib
 import { collectDiff, buildBrief, briefSubject, parseScopePaths } from '../lib/review-brief.mjs';
 import { parseFindings, formatFinding, checkCoverage, BLOCKING } from '../lib/findings.mjs';
 import { collectContext } from '../lib/review-context.mjs';
-import { planUnits, collectUnits } from '../lib/workspace-git.mjs';
+import { planUnits, collectUnits, notSkipped } from '../lib/workspace-git.mjs';
 import { writeGate, readGate } from '../lib/gate-store.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
@@ -46,7 +46,15 @@ export function sameSubject(oldBrief, spec, diff) {
   return old !== null && old.spec === spec && old.diff === diff;
 }
 
-export function reviewCommand({ cwd, taskId }) {
+// Dòng ghi chú của lần chạy (repo bị bỏ qua, CP-88) đi cuối output, dù gate xanh hay đỏ.
+export function reviewCommand(options) {
+  const notes = [];
+  const result = reviewOnce(options, notes);
+  if (!notes.length) return result;
+  return { ...result, output: [result.output, ...notes.map((n) => `ℹ ${n}`)].join('\n') };
+}
+
+function reviewOnce({ cwd, taskId }, notes) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass review <id>' };
 
   const validation = validateTaskId(taskId);
@@ -127,6 +135,7 @@ export function reviewCommand({ cwd, taskId }) {
       output: [fail('review', plan.errors), '', hint('Sửa lời khai trong spec hay config.json rồi chạy lại.')].join('\n'),
     };
   }
+  notes.push(...(plan.notes ?? []));
   const collect = () => (plan.units
     ? collectUnits(root, plan, diffOptions, { scopePaths: scopeParsed.paths })
     : collectDiff(root, diffOptions));
@@ -141,6 +150,7 @@ export function reviewCommand({ cwd, taskId }) {
         deleted: collected.deleted ?? [],
         units: plan.units ?? [],
         rootGit: plan.units ? plan.found.rootGit : true,
+        keep: notSkipped(plan.found),
       }));
     }
     return contexts.get(collected);

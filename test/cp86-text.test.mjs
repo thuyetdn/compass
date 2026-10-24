@@ -26,5 +26,5 @@ test('CP-86-H2 SKILL.md and secrets.mjs limit the uncommitted-only rule to repos
   assert.ok(row, 'không thấy dòng secrets trong bảng repo con');
   assert.match(row, /ngoài `Phạm vi`[^|]*chỉ góp thay đổi chưa commit/);
   const src = read('commands/secrets.mjs');
-  assert.match(src, /Repo con ngoài Phạm vi đứng trên nhánh chính/);
+  assert.match(src, /Repo con ngoài Phạm vi mà không ai khai gốc soi chỉ góp thay/);
 });
