@@ -13,8 +13,17 @@ import { TASK_TYPES, rulesFor } from '../lib/task-types.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TEMPLATE = path.join(ROOT, 'templates', 'AGENTS.md');
-const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
-const template = () => readFileSync(TEMPLATE, 'utf8');
+// Checkout với `core.autocrlf=true` cho file dòng CRLF, và regex `\n` bên dưới
+// không khớp nữa (CP-92). Đưa về LF trước khi đọc.
+const lf = (s) => s.replace(/\r\n/g, '\n');
+const read = (rel) => lf(readFileSync(path.join(ROOT, rel), 'utf8'));
+const template = () => lf(readFileSync(TEMPLATE, 'utf8'));
+
+function rulesIn(skill) {
+  const section = skill.match(/## Luật tối cao\n([\s\S]*?)\n## /);
+  assert.ok(section, 'SKILL.md không còn mục Luật tối cao');
+  return [...section[1].matchAll(/^\d+\. \*\*(.+?)\*\*/gm)].map((m) => m[1]);
+}
 
 test('CP-75-H1 the AGENTS.md template exists', () => {
   assert.ok(existsSync(TEMPLATE), 'thiếu templates/AGENTS.md');
@@ -31,14 +40,16 @@ test('CP-75-H2 every command the template names is one the CLI dispatches', () =
 });
 
 test('CP-75-H3 the rules an agent must not break match SKILL.md', () => {
-  const skill = read('skills/compass/SKILL.md');
-  const section = skill.match(/## Luật tối cao\n([\s\S]*?)\n## /);
-  assert.ok(section, 'SKILL.md không còn mục Luật tối cao');
-  const rules = [...section[1].matchAll(/^\d+\. \*\*(.+?)\*\*/gm)].map((m) => m[1]);
+  const rules = rulesIn(read('skills/compass/SKILL.md'));
   assert.equal(rules.length, 5, 'SKILL.md đổi số luật — cập nhật đoạn mẫu theo');
   for (const rule of rules) {
     assert.ok(template().includes(rule), `đoạn mẫu thiếu luật: ${rule}`);
   }
+});
+
+test('CP-92-H1 the Luật tối cao section is found when SKILL.md has CRLF line endings', () => {
+  const crlf = read('skills/compass/SKILL.md').replace(/\r?\n/g, '\r\n');
+  assert.equal(rulesIn(lf(crlf)).length, 5);
 });
 
 test('CP-75-H4 the task-type table equals lib/task-types.mjs', () => {

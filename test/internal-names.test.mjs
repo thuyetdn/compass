@@ -110,9 +110,13 @@ test('CP-74-H2 the investigation scripts whose SQL was renamed still run', () =>
   }
 });
 
-test('CP-74-H3 the SKILL.md SQL example still declares an output for every query', async () => {
+// Checkout với `core.autocrlf=true` cho SKILL.md dòng CRLF, và regex `\n` bên dưới
+// không khớp nữa (CP-92). Đưa về LF trước khi đọc.
+const lf = (s) => s.replace(/\r\n/g, '\n');
+const skillText = () => lf(readFileSync(path.join(ROOT, 'skills', 'compass', 'SKILL.md'), 'utf8'));
+
+async function checkSqlExample(skill) {
   const { parseQueryOutputs } = await import('../lib/query-outputs.mjs');
-  const skill = readFileSync(path.join(ROOT, 'skills', 'compass', 'SKILL.md'), 'utf8');
   const block = skill.match(/```sql\n([\s\S]*?)```/);
   assert.ok(block, 'SKILL.md không còn khối ```sql');
   assert.match(block[1], /from orders/);
@@ -123,6 +127,15 @@ test('CP-74-H3 the SKILL.md SQL example still declares an output for every query
   assert.equal(parsed.queries.length, 2);
   assert.equal(parsed.queries[0].out, 'INV-4-q0-status-dist-0908.csv');
   assert.equal(parsed.queries[1].manual, true);
+}
+
+test('CP-74-H3 the SKILL.md SQL example still declares an output for every query', async () => {
+  await checkSqlExample(skillText());
+});
+
+test('CP-92-H2 the SQL example is found when SKILL.md has CRLF line endings', async () => {
+  const crlf = skillText().replace(/\r?\n/g, '\r\n');
+  await checkSqlExample(lf(crlf));
 });
 
 test('CP-74-V2 writing-vi.md keeps its 56 pairs after the rename', () => {
