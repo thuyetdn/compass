@@ -10,7 +10,7 @@
       "source": "./",
       "displayName": "Compass",
       "description": "Evidence-based development workflow: spec before code, gates that run real commands",
-      "version": "3.2.0"
+      "version": "3.2.1"
     }
   ]
 }
