@@ -618,7 +618,8 @@ Gate nào đọc code mà thiếu `sourceHash` thì bị coi là bản ghi cũ v
 
 **`config.json` được tin.** Compass bắt được lệnh test **đổi sau** khi gate chạy, nhưng nếu ai sửa nó **trước** — trỏ sang một lệnh `echo` in ra TAP giả — thì không phát hiện được. Compass không phán được lệnh đó có phải test suite thật hay không.
 `secretsPublic` cũng vậy: một file `.env` chứa khoá thật mà được khai public từ trước khi gate chạy
-thì gate không quét nó. Dòng `ℹ` nêu tên từng file như thế, nên người duyệt config là người chặn.
+thì gate không quét nó. Dòng `ℹ` nêu tên từng file như thế. Dòng do chính task thêm thì brief soi
+code đánh dấu **mới** và người soi báo `security`; dòng đã có ở gốc soi thì chỉ người duyệt config chặn.
 
 Hai điều này chặn được **sai sót vô tình**, không chặn được **cố ý gian lận**. Đó là ranh giới, và bạn nên biết nó ở đâu.
 

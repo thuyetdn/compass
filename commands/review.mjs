@@ -48,6 +48,14 @@ export function sameSubject(oldBrief, spec, diff) {
   return old !== null && old.spec === spec && old.diff === diff;
 }
 
+// Brief cũ nói về một danh sách secretsPublic khác mục `nay` không. Một chỗ cho cả hai
+// pha (CP-95). Brief cũ không đọc ra được mục đó (sửa tay, mẫu khác) thì không đủ căn
+// cứ để bảo danh sách đã đổi: người gọi rơi về câu "ngữ cảnh repo".
+function khaiPublicDoiTrong(briefCu, nay) {
+  const cu = briefSecretsPublic(briefCu);
+  return cu !== null && cu !== nay;
+}
+
 // `secretsPublic` của config hiện tại, hay null khi không khai gì (CP-93). Config hỏng
 // JSON cũng là null: gate `secrets` đã nói ra điều đó, brief không nhắc lại.
 function khaiPublicNay(root) {
@@ -343,7 +351,7 @@ function reviewOnce({ cwd, taskId }, notes) {
       // findings-hỏng ghi đè sổ, và lần chạy sau báo nhầm (CP-79).
       const briefCu = readFileSync(briefFile, 'utf8');
       const onlyContext = sameSubject(briefCu, readFileSync(file, 'utf8'), current.diff);
-      const khaiPublicDoi = onlyContext && briefSecretsPublic(briefCu) !== publicOf(current);
+      const khaiPublicDoi = onlyContext && khaiPublicDoiTrong(briefCu, publicOf(current));
       writeFileSync(briefFile, wanted);
       writeGate(root, taskId, {
         gate: 'review',
@@ -503,7 +511,7 @@ function reviewOnce({ cwd, taskId }, notes) {
   // Cùng luật với pha hai, đọc từ brief cũ trước khi nó bị ghi đè: spec và diff
   // trong đó còn y nguyên mà brief khác thì thứ đổi là ngữ cảnh repo (CP-38, CP-79).
   const onlyContext = stale && sameSubject(readFileSync(briefFile, 'utf8'), readFileSync(file, 'utf8'), collected.diff);
-  const khaiPublicDoi = onlyContext && briefSecretsPublic(readFileSync(briefFile, 'utf8')) !== publicOf(collected);
+  const khaiPublicDoi = onlyContext && khaiPublicDoiTrong(readFileSync(briefFile, 'utf8'), publicOf(collected));
 
   if (!hadBrief || stale) {
     mkdirSync(taskDir(root, taskId), { recursive: true });
