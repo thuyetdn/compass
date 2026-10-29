@@ -1,12 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { findRoot, specPath, validateTaskId } from '../lib/paths.mjs';
+import { findRoot, specPath, validateTaskId, configPath } from '../lib/paths.mjs';
 import { collectDiff } from '../lib/review-brief.mjs';
 import { writeGate } from '../lib/gate-store.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
-import { scanSecrets } from '../lib/secrets-scan.mjs';
+import { scanSecrets, parseSecretsPublic } from '../lib/secrets-scan.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { gitFilesFromRepoRoot } from '../lib/git-files.mjs';
 import { planUnits, collectUnits, listUnits, notSkipped } from '../lib/workspace-git.mjs';
@@ -21,6 +21,21 @@ export function secretsCommand(options) {
   const result = secretsOnce(options, notes);
   if (!notes.length) return result;
   return { ...result, output: [result.output, ...notes.map((n) => `ℹ ${n}`)].join('\n') };
+}
+
+// `loadConfig` từ chối config thiếu `test`, mà vài workspace vẫn để vậy. Lời khai
+// `secretsPublic` trong đó vẫn là lời khai: đọc thẳng từ JSON, đừng để nó biến mất
+// không một tiếng rồi gate đỏ trên đúng file đã khai.
+function docSecretsPublic(root, cfg, notes) {
+  if (cfg.ok) return cfg.config.secretsPublic;
+  const file = configPath(root);
+  if (!existsSync(file)) return undefined;
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'))?.secretsPublic;
+  } catch {
+    notes.push('config.json không phải JSON hợp lệ — không đọc được secretsPublic, gate quét mọi file .env');
+    return undefined;
+  }
 }
 
 function secretsOnce({ cwd, taskId }, notes) {
@@ -54,6 +69,19 @@ function secretsOnce({ cwd, taskId }, notes) {
   const declared = spec.envDeclared ?? null;
 
   const cfg = loadConfig(root);
+
+  // Lời khai sai thì từ chối, không đoán: một mẫu `be/.env*` mà lặng lẽ bỏ qua là
+  // gate đỏ không rõ vì sao, còn hiểu nó như glob là mở đúng lỗ CP-91 đã đóng.
+  // Chỉ gate này đọc `secretsPublic`, nên config hỏng ở đây không chặn `test`.
+  const khaiPublic = parseSecretsPublic(docSecretsPublic(root, cfg, notes));
+  if (!khaiPublic.ok) {
+    return {
+      exitCode: 2,
+      output: [fail('secrets', khaiPublic.errors), '', hint('Sửa "secretsPublic" trong .compass/config.json rồi chạy lại.')].join('\n'),
+    };
+  }
+  const daKhaiPublic = khaiPublic.paths;
+
   const khaiTrongSpec = spec.reviewBase !== null && spec.reviewBase !== undefined;
   const baseRef = khaiTrongSpec
     ? spec.reviewBase
@@ -158,16 +186,24 @@ function secretsOnce({ cwd, taskId }, notes) {
     untrackedUnignored: untracked,
     declared,
     deletedFiles,
+    publicFiles: daKhaiPublic,
   });
 
-  const configFile = cfg.ok ? cfg.config : null;
+  // Gate xanh nhờ lời khai thì phải nói ra, cả khi đỏ vì chỗ khác: không ai được
+  // đọc "PASSED" thành "đã quét file này và sạch" (issue #3).
+  for (const p of result.publicTracked) notes.push(`secretsPublic: không quét ${p} — config.json khai là file public`);
+  for (const p of result.publicUntracked) notes.push(`secretsPublic khai ${p} nhưng git không theo dõi file đó — lời khai không có tác dụng`);
+
   const record = {
     gate: 'secrets',
     exitCode: result.ok ? 0 : 1,
     at: new Date().toISOString(),
     specHash: hashFile(file),
     sourceHash: hashSource(root),
-    configHash: configFile ? sha256(JSON.stringify(configFile)) : null,
+    // Băm cả file, cùng cách `test` băm, để `done` so được: gỡ một dòng `secretsPublic`
+    // sau khi gate xanh thì bản ghi này phải mất hiệu lực (CP-91). Băm cả khi config
+    // thiếu hay bị từ chối, để `done` báo config đổi chứ không đổ cho bản ghi cũ.
+    configHash: hashFile(configPath(root)),
     diffHash: sha256(diffText),
     base: collected.ok ? String(collected.base) : null,
     repoBases: collected.ok && collected.repoRanges?.length
@@ -203,8 +239,13 @@ function secretsOnce({ cwd, taskId }, notes) {
   }
 
   writeGate(root, taskId, record);
+  // File khai public vẫn nằm trong index, chỉ là không quét: dòng PASSED không được
+  // nói index sạch, vì dòng `ℹ` giải thích nằm tận cuối output.
+  const khongQuet = result.publicTracked.length;
   const dong = [
-    pass('secrets', 'không thấy file .env nào trong diff, trong index, hay chưa được ignore.'),
+    pass('secrets', khongQuet
+      ? `${khongQuet} file đang theo dõi được config.json khai public nên không quét; ngoài chúng, diff, index và file chưa ignore không có .env nào.`
+      : 'không thấy file .env nào trong diff, trong index, hay chưa được ignore.'),
   ];
   if (result.reads.length) {
     dong.push(`  ${result.reads.length} dòng đọc .env, đã khai: ${declared}`);

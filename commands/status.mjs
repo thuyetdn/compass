@@ -7,6 +7,7 @@ import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
 import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
 import { loadConfig, DEAD_FIELDS } from '../lib/config.mjs';
 import { resolveRepos, reposForScope } from '../lib/repos.mjs';
+import { parseSecretsPublic } from '../lib/secrets-scan.mjs';
 
 
 
@@ -45,6 +46,16 @@ function cauHinh(root) {
   }
 
   lines.push('', 'Đọc kỹ lệnh test từng repo — sai ở đây thì gate `test` đỏ mà không rõ vì sao.');
+
+  // File gate `secrets` không quét vì config khai là public (CP-91). Đây là nơi
+  // người ta đến để xem config nói gì, nên lỗ có chủ ý phải hiện ở đây.
+  const khaiPublic = parseSecretsPublic(cfg.config.secretsPublic);
+  if (!khaiPublic.ok) {
+    lines.push('', '⚠ secretsPublic có lỗi — gate secrets sẽ từ chối chạy:', ...khaiPublic.errors.map((e) => `   ${e}`));
+  } else if (khaiPublic.paths.length) {
+    lines.push('', `secretsPublic — gate secrets không quét ${khaiPublic.paths.length} file khai là public:`);
+    for (const p of khaiPublic.paths) lines.push(`      ${p}`);
+  }
 
   // Trường bỏ rồi nhưng config cũ còn khai. Im lặng thì người dùng vẫn tin nó có
   // tác dụng — đúng cái bẫy khiến nó bị bỏ. Nói ở đây vì đây là nơi người ta đến

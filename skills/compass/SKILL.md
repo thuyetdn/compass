@@ -256,8 +256,32 @@ Gate đọc diff của task rồi đỏ khi gặp một trong ba thứ:
 | 2 | File `.env` có trong thư mục mà `.gitignore` chưa che | đưa sẵn dòng cần thêm vào `.gitignore` |
 | 3 | Dòng code mới đọc `.env` mà spec không khai | chỉ file và số dòng, nhắc dòng `Dùng .env:` |
 
-`.env.example`, `.env.sample`, `.env.template` là tài liệu — miễn. Chặn chúng là chặn đúng file
-dạy người ta đừng commit file thật.
+`.env.example`, `.env.sample`, `.env.template` và `.env.dist` (quy ước của Symfony) là tài liệu —
+miễn. Chặn chúng là chặn đúng file dạy người ta đừng commit file thật. Chỉ đuôi cuối tính:
+`.env.dist.local` vẫn bị chặn.
+
+**Repo cố ý commit `.env` chứa cấu hình public** thì khai từng file trong `config.json`, đúng như
+gate in ra:
+
+```json
+"secretsPublic": ["delegate-app-backend/.env", "delegate-app-backend/.env.alpha"]
+```
+
+Đây là lỗ có chủ ý: Compass không kiểm tra được file có thật sự public hay không. Nên nó bó hẹp:
+
+- **Đường dẫn chính xác, không ký tự đại diện.** `be/.env*` bị từ chối (exit 2), vì nó che luôn
+  một `.env.production.local` ai đó commit sau này với khoá thật. Mỗi file public mới là một dòng
+  config có người xem.
+- **Chỉ miễn lý do 1, cho file git đang theo dõi.** File khai mà nằm trên đĩa chưa ignore vẫn đỏ;
+  code mới đọc nó vẫn cần `Dùng .env:` trong spec.
+- **Gate kể tên từng file nó không quét**, bằng một dòng `ℹ`, kể cả khi xanh. Khai mà git không
+  theo dõi thì cũng có một dòng `ℹ` nói lời khai không có tác dụng. `compass status` liệt kê danh sách.
+- **So phân biệt hoa thường.** Khai `BE/.env` cho file `be/.env` thì gate vẫn đỏ.
+- **`done` so `configHash` của bản ghi `secrets`.** Gỡ một dòng khai sau khi gate xanh thì phải
+  chạy lại `check`. Bản ghi `secrets` từ 3.1.2 trở về trước băm config theo cách khác, nên cũng phải
+  chạy lại một lần.
+
+Lời khai nằm ở config chứ không ở spec, vì đó là sự thật về repo, không phải về một task.
 
 **Muốn đọc `.env` thì khai vào spec**, ở phần đầu như `Gốc soi:`:
 
@@ -579,7 +603,7 @@ Bản ghi gate được ký kèm **danh tính**, không chỉ nội dung. Bốn 
 | `sig` | Bản ghi bị sửa tay, chuyển khe, hay chép từ task khác |
 | `specHash` | Spec đổi sau khi gate chạy — phải duyệt lại |
 | `sourceHash` | **Code đổi sau khi gate xanh** — bằng chứng nói về bản cũ |
-| `configHash` | Lệnh test đổi sau khi gate chạy |
+| `configHash` | `config.json` đổi sau khi gate `test` hay `secrets` chạy: lệnh test khác, hay danh sách `secretsPublic` khác |
 
 Gate nào đọc code mà thiếu `sourceHash` thì bị coi là bản ghi cũ và bị chặn — không được miễn.
 
@@ -588,6 +612,8 @@ Gate nào đọc code mà thiếu `sourceHash` thì bị coi là bản ghi cũ v
 **Khôi phục cả code lẫn bản ghi.** Lưu `gate.json` lúc xanh, sửa code, rồi khôi phục **cả hai** về đúng trạng thái cũ — `done` xanh. Đúng ra là nên thế: code đó thật sự là code đã được kiểm tra. Chỗ hở thật nằm ở việc không có gì xâu chuỗi các lần chạy theo thời gian.
 
 **`config.json` được tin.** Compass bắt được lệnh test **đổi sau** khi gate chạy, nhưng nếu ai sửa nó **trước** — trỏ sang một lệnh `echo` in ra TAP giả — thì không phát hiện được. Compass không phán được lệnh đó có phải test suite thật hay không.
+`secretsPublic` cũng vậy: một file `.env` chứa khoá thật mà được khai public từ trước khi gate chạy
+thì gate không quét nó. Dòng `ℹ` nêu tên từng file như thế, nên người duyệt config là người chặn.
 
 Hai điều này chặn được **sai sót vô tình**, không chặn được **cố ý gian lận**. Đó là ranh giới, và bạn nên biết nó ở đâu.
 

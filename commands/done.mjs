@@ -299,15 +299,26 @@ export function doneCommand({ cwd, taskId }) {
   // Gate nào chạy lệnh từ config thì BẮT BUỘC phải ghi configHash. Thiếu là bản
   // ghi cũ, không phải được miễn — dùng `record.configHash &&` sẽ âm thầm miễn
   // trừ mọi gate tương lai nào quên ghi.
-  const CONFIG_DEPENDENT_GATES = ['test'];
+  //
+  // `secrets` đọc `secretsPublic` từ config (CP-91): gỡ một dòng khai sau khi gate
+  // xanh mà bản ghi vẫn được tính thì lời khai thu hồi rồi vẫn còn hiệu lực. Bản ghi
+  // `secrets` của 3.1.2 trở về trước băm config theo cách khác, nên cũng lệch và
+  // phải chạy lại một lần — lời báo nói cả khả năng đó.
+  const CONFIG_DEPENDENT_GATES = ['test', 'secrets'];
   const currentConfigHash = hashFile(configPath(root));
   for (const name of soi) {
     const record = gates[name];
-    if (!record || !CONFIG_DEPENDENT_GATES.includes(parseSlot(name).gate)) continue;
+    const gate = parseSlot(name).gate;
+    if (!record || !CONFIG_DEPENDENT_GATES.includes(gate)) continue;
+    const chayLai = cachChayLai(name, taskId, required.includes(name));
     if (!record.configHash) {
-      them(`Gate "${name}" không ghi lại lệnh test đã dùng — bản ghi từ phiên bản cũ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
+      them(gate === 'secrets'
+        ? `Gate "${name}" không ghi lại config.json đã dùng — bản ghi từ phiên bản cũ. ${chayLai}`
+        : `Gate "${name}" không ghi lại lệnh test đã dùng — bản ghi từ phiên bản cũ. ${chayLai}`, required.includes(name));
     } else if (record.configHash !== currentConfigHash) {
-      them(`Lệnh test đã đổi kể từ khi gate "${name}" chạy — bằng chứng không còn mô tả đúng lệnh sẽ chạy bây giờ. ${cachChayLai(name, taskId, required.includes(name))}`, required.includes(name));
+      them(gate === 'secrets'
+        ? `config.json đã đổi kể từ khi gate "${name}" chạy (hoặc bản ghi từ Compass 3.1.2 trở về trước) — danh sách secretsPublic có thể đã khác. ${chayLai}`
+        : `Lệnh test đã đổi kể từ khi gate "${name}" chạy — bằng chứng không còn mô tả đúng lệnh sẽ chạy bây giờ. ${chayLai}`, required.includes(name));
     }
   }
 
