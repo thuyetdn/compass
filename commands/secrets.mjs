@@ -6,7 +6,7 @@ import { loadConfig } from '../lib/config.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
-import { scanSecrets, parseSecretsPublic } from '../lib/secrets-scan.mjs';
+import { scanSecrets, parseSecretsPublic, secretsPublicFromText } from '../lib/secrets-scan.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { gitFilesFromRepoRoot } from '../lib/git-files.mjs';
 import { planUnits, collectUnits, listUnits, notSkipped } from '../lib/workspace-git.mjs';
@@ -25,17 +25,12 @@ export function secretsCommand(options) {
 
 // `loadConfig` từ chối config thiếu `test`, mà vài workspace vẫn để vậy. Lời khai
 // `secretsPublic` trong đó vẫn là lời khai: đọc thẳng từ JSON, đừng để nó biến mất
-// không một tiếng rồi gate đỏ trên đúng file đã khai.
-function docSecretsPublic(root, cfg, notes) {
-  if (cfg.ok) return cfg.config.secretsPublic;
+// không một tiếng rồi gate đỏ trên đúng file đã khai. `{ ok: false }` khi JSON hỏng.
+function docSecretsPublic(root, cfg) {
+  if (cfg.ok) return { ok: true, value: cfg.config.secretsPublic };
   const file = configPath(root);
-  if (!existsSync(file)) return undefined;
-  try {
-    return JSON.parse(readFileSync(file, 'utf8'))?.secretsPublic;
-  } catch {
-    notes.push('config.json không phải JSON hợp lệ — không đọc được secretsPublic, gate quét mọi file .env');
-    return undefined;
-  }
+  if (!existsSync(file)) return { ok: true, value: undefined };
+  return secretsPublicFromText(readFileSync(file, 'utf8'));
 }
 
 function secretsOnce({ cwd, taskId }, notes) {
@@ -73,7 +68,24 @@ function secretsOnce({ cwd, taskId }, notes) {
   // Lời khai sai thì từ chối, không đoán: một mẫu `be/.env*` mà lặng lẽ bỏ qua là
   // gate đỏ không rõ vì sao, còn hiểu nó như glob là mở đúng lỗ CP-91 đã đóng.
   // Chỉ gate này đọc `secretsPublic`, nên config hỏng ở đây không chặn `test`.
-  const khaiPublic = parseSecretsPublic(docSecretsPublic(root, cfg, notes));
+  // JSON hỏng thì cũng không biết `repos`, tức không biết repo con nào có git riêng. Quét
+  // mỗi git gốc rồi xanh là bỏ sót `.env` repo con đã commit (CP-96). Không chép lời báo
+  // của trình đọc JSON: nó trích một đoạn file, mà config hỏng có khi chứa giá trị dán nhầm.
+  const doc = docSecretsPublic(root, cfg);
+  if (!doc.ok) {
+    return {
+      exitCode: 2,
+      output: [
+        fail('secrets', [
+          'Không đọc được .compass/config.json, nên không biết repo con nào có git riêng để quét,',
+          'cũng không đọc được secretsPublic: config.json không phải JSON hợp lệ. Chưa quét gì.',
+        ]),
+        '',
+        hint('Sửa .compass/config.json rồi chạy lại.'),
+      ].join('\n'),
+    };
+  }
+  const khaiPublic = parseSecretsPublic(doc.value);
   if (!khaiPublic.ok) {
     return {
       exitCode: 2,

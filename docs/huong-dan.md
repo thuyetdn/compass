@@ -111,6 +111,8 @@ khi thư mục có `.env` mà `.gitignore` chưa che, hoặc khi code mới đ�
 thì khai từng file vào `"secretsPublic"` trong `config.json` (đường dẫn chính xác, không ký tự đại
 diện); gate không báo lý do 1 cho file đó nhưng in một dòng `ℹ` kể tên nó. Brief soi code kể lại
 lời khai và đánh dấu dòng nào task vừa thêm, để người soi xét file đó có thật sự public không.
+`config.json` không phải JSON hợp lệ thì gate đỏ mà không quét gì, vì nó không biết repo con nào
+cần quét.
 
 **`convention`** chạy các luật viết trong `.knowledge/decided/conventions.md`, mỗi luật là một khối
 ` ```rule ` với regex cấm. Chưa có file đó thì gate xanh và nói rõ là chưa có luật nào.

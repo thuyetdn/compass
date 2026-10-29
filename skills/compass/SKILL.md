@@ -312,7 +312,8 @@ không tính là đọc file (đúng), nhưng một đường dẫn `.env` ghép
 thấy. Nó bắt trường hợp thường gặp, không phải lưới kín.
 
 Không phải repo git thì gate **đỏ**, không xanh. Không có diff nghĩa là chưa quét được gì, mà
-báo xanh lúc chưa quét đúng là kiểu sai Compass sinh ra để chặn.
+báo xanh lúc chưa quét đúng là kiểu sai Compass sinh ra để chặn. `config.json` không phải JSON hợp
+lệ cũng vậy: gate không biết repo con nào có git riêng, nên thoát mã 2 và không quét gì.
 
 **Thư mục nháp làm gate đỏ oan.** Lý do 2 hỏi git file nào chưa được ignore, nên một thư mục
 tạm chứa file thử — agent soi code hay dựng — làm gate đỏ dù task không đụng gì tới nó. Gặp thì

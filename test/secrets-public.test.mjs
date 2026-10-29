@@ -251,10 +251,11 @@ test('CP-91-E3 secretsPublic is read from a config loadConfig rejects, and a bro
   assert.equal(JSON.parse(gateJson(root)).secrets.configHash, sha256(readFileSync(file, 'utf8')));
 
   put(root, '.compass/config.json', '{ "secretsPublic": [');
-  // Mã thoát ở đây không thuộc CP-91: config hỏng thì `repos` cũng mất, và repo con nào
-  // được quét là chuyện của workspace-git. Chỉ đòi gate nói ra là lời khai không được đọc.
+  // CP-96: config hỏng thì `repos` cũng mất, nên gate không quét gì và nói ra lời khai
+  // không được đọc.
   const broken = secrets(root);
-  assert.equal(infoLines(broken.output).filter((l) => /secretsPublic/.test(l) && /không đọc/.test(l)).length, 1, broken.output);
+  assert.equal(broken.exitCode, 2, broken.output);
+  assert.match(broken.output, /không đọc được secretsPublic/);
 });
 
 test('CP-91-EC1 an undeclared tracked .env next to a declared one still fails, alone', () => {
