@@ -1,7 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { findRoot, specPath, taskDir, evidenceDir, validateTaskId } from '../lib/paths.mjs';
-import { collectDiff, buildBrief, briefSubject, parseScopePaths } from '../lib/review-brief.mjs';
+import { findRoot, specPath, taskDir, evidenceDir, validateTaskId, configPath } from '../lib/paths.mjs';
+import { collectDiff, buildBrief, briefSubject, parseScopePaths, secretsPublicSection, briefSecretsPublic } from '../lib/review-brief.mjs';
+import { parseSecretsPublic, secretsPublicFromText, normalisePath } from '../lib/secrets-scan.mjs';
 import { parseFindings, formatFinding, checkCoverage, BLOCKING } from '../lib/findings.mjs';
 import { collectContext } from '../lib/review-context.mjs';
 import { planUnits, collectUnits, notSkipped } from '../lib/workspace-git.mjs';
@@ -44,6 +46,39 @@ export function briefId(findingsSource) {
 export function sameSubject(oldBrief, spec, diff) {
   const old = briefSubject(oldBrief);
   return old !== null && old.spec === spec && old.diff === diff;
+}
+
+// `secretsPublic` của config hiện tại, hay null khi không khai gì (CP-93). Config hỏng
+// JSON cũng là null: gate `secrets` đã nói ra điều đó, brief không nhắc lại.
+function khaiPublicNay(root) {
+  const file = configPath(root);
+  if (!existsSync(file)) return null;
+  const doc = secretsPublicFromText(readFileSync(file, 'utf8'));
+  if (!doc.ok || doc.value === undefined) return null;
+  const parsed = parseSecretsPublic(doc.value);
+  return parsed.ok && parsed.paths.length === 0 ? null : parsed;
+}
+
+// `secretsPublic` trong config.json ở gốc soi của git gốc: một lần `git show`. Không
+// đọc được vì bất kỳ lý do gì thì "không biết", và brief coi nó như dòng mới.
+function khaiPublicOGoc(root, ref, { rootGit, emptyTree }) {
+  if (!rootGit) return { ok: false, reason: 'gốc Compass không nằm trong git, nên không có `config.json` ở gốc soi để so' };
+  if (emptyTree) return { ok: false, reason: 'gốc soi là cây rỗng của git, chưa có `config.json` nào' };
+  if (!ref || String(ref).startsWith('-')) return { ok: false, reason: 'không biết gốc soi của git gốc' };
+  let text;
+  try {
+    // `./` tính đường dẫn từ cwd, nên đúng cả khi gốc Compass là thư mục con của repo.
+    text = execFileSync('git', ['show', `${ref}:./.compass/config.json`], {
+      cwd: root, encoding: 'utf8', maxBuffer: 10_000_000, stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return { ok: false, reason: '`config.json` không nằm trong git ở gốc soi' };
+  }
+  const doc = secretsPublicFromText(text);
+  if (!doc.ok) return { ok: false, reason: '`config.json` ở gốc soi không phải JSON hợp lệ' };
+  if (doc.value === undefined) return { ok: true, paths: [] };
+  if (!Array.isArray(doc.value)) return { ok: false, reason: '`secretsPublic` ở gốc soi không phải danh sách' };
+  return { ok: true, paths: doc.value.filter((v) => typeof v === 'string').map((v) => normalisePath(v.trim())) };
 }
 
 // Dòng ghi chú của lần chạy (repo bị bỏ qua, CP-88) đi cuối output, dù gate xanh hay đỏ.
@@ -155,7 +190,30 @@ function reviewOnce({ cwd, taskId }, notes) {
     }
     return contexts.get(collected);
   };
-  const idOf = (collected) => briefIdFor(readFileSync(file, 'utf8'), collected.diff, contextOf(collected).text);
+  // CP-93: lời khai `secretsPublic` vào brief và vào id brief, nên thêm hay bớt một
+  // dòng sau khi soi thì findings cũ không còn trả lời brief này. Không khai thì mục
+  // rỗng, id và brief y như trước — các lần soi đang dở không bị mở lại khi nâng cấp.
+  const khaiNay = khaiPublicNay(root);
+  const publics = new WeakMap();
+  const publicOf = (collected) => {
+    if (!khaiNay) return '';
+    if (!publics.has(collected)) {
+      // Một git: gốc soi là của chính diff. Nhiều git: `rootBase` có cả khi diff của git
+      // gốc rỗng — bố cục issue #3, git gốc chỉ theo dõi `.compass/`.
+      const goc = plan.units
+        ? collected.rootBase ?? null
+        : { base: collected.base, fromEmptyTree: collected.fromEmptyTree === true };
+      const base = khaiNay.ok
+        ? khaiPublicOGoc(root, goc?.base ?? null, {
+          rootGit: plan.units ? plan.found.rootGit : true,
+          emptyTree: goc?.fromEmptyTree === true,
+        })
+        : null;
+      publics.set(collected, secretsPublicSection(khaiNay, base));
+    }
+    return publics.get(collected);
+  };
+  const idOf = (collected) => briefIdFor(readFileSync(file, 'utf8'), collected.diff, contextOf(collected).text + publicOf(collected));
 
   // Ba chỗ dựng brief, một hình dạng. Lệch một trường là brief "hiện tại" ở pha
   // hai không khớp brief pha một đã ghi, và gate mở lại vô cớ.
@@ -175,6 +233,7 @@ function reviewOnce({ cwd, taskId }, notes) {
     fromEmptyTree: collected.fromEmptyTree ?? false,
     rootRange: collected.rootRange ?? true,
     repoRanges: collected.repoRanges ?? [],
+    secretsPublic: publicOf(collected),
   });
 
   // Phase two: an agent has answered, so read the verdict — but only if the
@@ -282,7 +341,9 @@ function reviewOnce({ cwd, taskId }, notes) {
       // — chứ không phải việc của task. Nói "code đã đổi" lúc đó là bảo người đọc đi
       // tìm một thay đổi không có (CP-38). Đọc từ brief chứ không từ sổ: nhánh
       // findings-hỏng ghi đè sổ, và lần chạy sau báo nhầm (CP-79).
-      const onlyContext = sameSubject(readFileSync(briefFile, 'utf8'), readFileSync(file, 'utf8'), current.diff);
+      const briefCu = readFileSync(briefFile, 'utf8');
+      const onlyContext = sameSubject(briefCu, readFileSync(file, 'utf8'), current.diff);
+      const khaiPublicDoi = onlyContext && briefSecretsPublic(briefCu) !== publicOf(current);
       writeFileSync(briefFile, wanted);
       writeGate(root, taskId, {
         gate: 'review',
@@ -298,7 +359,9 @@ function reviewOnce({ cwd, taskId }, notes) {
         exitCode: 1,
         output: [
           fail('review', [
-            onlyContext
+            khaiPublicDoi
+              ? 'Danh sách secretsPublic trong config.json đã đổi sau khi soi — findings hiện có xét trên danh sách cũ.'
+              : onlyContext
               ? 'Brief đã đổi dù spec và code của task không đổi: ngữ cảnh repo (convention, nơi gọi, tài liệu) hoặc mẫu brief của Compass đã khác — findings hiện có xét trên brief cũ.'
               : 'Code hoặc spec đã đổi sau khi soi — findings hiện có nói về bản cũ.',
             `Đã sinh brief mới: .compass/${taskId}/${BRIEF_FILE}`,
@@ -440,6 +503,7 @@ function reviewOnce({ cwd, taskId }, notes) {
   // Cùng luật với pha hai, đọc từ brief cũ trước khi nó bị ghi đè: spec và diff
   // trong đó còn y nguyên mà brief khác thì thứ đổi là ngữ cảnh repo (CP-38, CP-79).
   const onlyContext = stale && sameSubject(readFileSync(briefFile, 'utf8'), readFileSync(file, 'utf8'), collected.diff);
+  const khaiPublicDoi = onlyContext && briefSecretsPublic(readFileSync(briefFile, 'utf8')) !== publicOf(collected);
 
   if (!hadBrief || stale) {
     mkdirSync(taskDir(root, taskId), { recursive: true });
@@ -454,7 +518,9 @@ function reviewOnce({ cwd, taskId }, notes) {
   const headline = hadBrief && !stale
     ? ['Brief đã sinh nhưng chưa ai nộp findings.', `Brief: .compass/${taskId}/${BRIEF_FILE}`]
     : [
-        onlyContext
+        khaiPublicDoi
+          ? 'Danh sách secretsPublic trong config.json đã đổi — brief cũ nói về danh sách cũ.'
+          : onlyContext
           ? 'Brief đã đổi dù spec và code của task không đổi: ngữ cảnh repo (convention, nơi gọi, tài liệu) hoặc mẫu brief của Compass đã khác.'
           : stale ? 'Code hoặc spec đã đổi — brief cũ nói về bản cũ.' : 'Chưa ai soi diff này.',
         `Brief: .compass/${taskId}/${BRIEF_FILE}  (${collected.files.length} file, ${diffHash.slice(7, 15)})`,

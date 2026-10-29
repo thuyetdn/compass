@@ -264,7 +264,7 @@ miễn. Chặn chúng là chặn đúng file dạy người ta đừng commit fi
 gate in ra:
 
 ```json
-"secretsPublic": ["delegate-app-backend/.env", "delegate-app-backend/.env.alpha"]
+"secretsPublic": ["api/.env", "api/.env.alpha"]
 ```
 
 Đây là lỗ có chủ ý: Compass không kiểm tra được file có thật sự public hay không. Nên nó bó hẹp:
@@ -280,6 +280,11 @@ gate in ra:
 - **`done` so `configHash` của bản ghi `secrets`.** Gỡ một dòng khai sau khi gate xanh thì phải
   chạy lại `check`. Bản ghi `secrets` từ 3.1.2 trở về trước băm config theo cách khác, nên cũng phải
   chạy lại một lần.
+- **Brief soi code liệt kê lời khai.** Diff không gồm `.compass/`, nên brief có một mục riêng kể
+  từng đường dẫn khai, đánh dấu **mới** (config ở gốc soi chưa có, tức task này thêm), có từ trước,
+  hay **không biết** (không đọc được config ở gốc soi — coi như mới). Người soi phải báo finding
+  `security` cho dòng mới, trừ khi spec nói vì sao file đó public. Thêm hay bớt một dòng sau khi soi
+  thì `review` mở lại.
 
 Lời khai nằm ở config chứ không ở spec, vì đó là sự thật về repo, không phải về một task.
 
