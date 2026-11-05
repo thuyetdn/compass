@@ -409,7 +409,9 @@ vẫn chạy trên mọi repo như trước. Thứ đổi là brief soi code và
 Repo chưa có file riêng thì `compass status`, `compass done` (cho repo trong `Phạm vi`) và `compass pr`
 in một dòng:
 
-- `⚠ Repo `be` chưa có convention đã duyệt (…) — soạn nháp: compass convention --draft --repo=be`
+```text
+⚠ Repo `be` chưa có convention đã duyệt (`.knowledge/decided/conventions/be.md`) — soạn nháp: `compass convention --draft --repo=be`, rồi đưa người duyệt.
+```
 
 Gốc cũng là một đơn vị. Gốc chưa có `conventions.md` thì ba lệnh đó in
 `⚠ Gốc chưa có convention đã duyệt (…)`, kể cả ở dự án một repo; `done` của dự án nhiều repo chỉ in

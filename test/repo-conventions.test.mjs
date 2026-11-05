@@ -14,7 +14,7 @@ import { conventionDraftCommand } from '../commands/convention.mjs';
 import { knowledgeCommand } from '../commands/knowledge.mjs';
 import { collectContext } from '../lib/review-context.mjs';
 import { buildDraft } from '../lib/convention-draft.mjs';
-import { declaredNames, countNames, countLine, pendingLines, pendingLine } from '../lib/repo-conventions.mjs';
+import { declaredNames, countNames, countLine, pendingLines, pendingLine, readDeclaredRepos, repoLayout, repoOf } from '../lib/repo-conventions.mjs';
 import { coverageFor, writeReview } from './helpers/review.mjs';
 import { measureGrowth, assertLinear } from './helpers/growth.mjs';
 
@@ -670,4 +670,78 @@ test('CP-98-P2 a folder of 3,000 siblings reads at most 1,000 and says it sample
   const line = countLine('d', '.php', got);
   assert.match(line, /`safeUp` 1000\/1000 file/);
   assert.match(line, /lấy đều.*3000/);
+});
+
+// ---------------------------------------------------------------- CP-99
+// Bốn điểm lượt soi thứ ba của CP-98 để lại: dòng ví dụ trong tài liệu, ba bản sao của
+// việc đọc `repos` thô, một bộ lọc chết, và tên file có xuống dòng.
+
+test('CP-99-H1 the docs show the pending line exactly as Compass prints it', () => {
+  const skill = readFileSync(path.join(ROOT, 'skills', 'compass', 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
+  const agents = readFileSync(path.join(ROOT, 'templates', 'AGENTS.md'), 'utf8').replace(/\r\n/g, '\n');
+  const line = pendingLine('be');
+  const fenced = [...skill.matchAll(/^```text\n([\s\S]*?)\n```$/gm)].map((m) => m[1].split('\n'));
+  assert.ok(fenced.some((lines) => lines.includes(line)), `SKILL.md thiếu dòng:\n${line}`);
+  for (const [name, text] of [['SKILL.md', skill], ['AGENTS.md', agents]]) {
+    assert.doesNotMatch(text, /`⚠ Repo `/, `${name} còn code span lồng nhau`);
+  }
+});
+
+test('CP-99-H2 one raw reader serves the draft, the layout and the --repo check', () => {
+  const { root } = beWorkspace();
+  const got = readDeclaredRepos(root);
+  assert.equal(got.ok, true);
+  assert.deepEqual(Object.keys(got.repos), ['be']);
+  assert.equal(repoOf('be/x.php', repoLayout(root).repos)?.key, 'be');
+  assert.equal(conventionDraftCommand({ cwd: root, repo: 'be' }).exitCode, 0);
+});
+
+test('CP-99-V1 repos written as an array counts as no repos everywhere', () => {
+  const { root } = beWorkspace();
+  put(root, '.compass/config.json', JSON.stringify({ test: 'true', repos: ['be'] }));
+  const got = readDeclaredRepos(root);
+  assert.equal(got.ok, true);
+  assert.equal(got.repos, null);
+  const r = conventionDraftCommand({ cwd: root, repo: 'be' });
+  assert.equal(r.exitCode, 2, r.output);
+  assert.match(r.output, /repos/);
+  assert.deepEqual(repoLayout(root).repos, []);
+});
+
+test('CP-99-E1 a config that is not JSON is named without quoting the parser', () => {
+  const { root } = beWorkspace();
+  put(root, '.compass/config.json', '{ "repos": ');
+  assert.equal(readDeclaredRepos(root).ok, false);
+  const r = conventionDraftCommand({ cwd: root, repo: 'be' });
+  assert.equal(r.exitCode, 2, r.output);
+  assert.match(r.output, /không phải JSON hợp lệ/);
+  assert.doesNotMatch(r.output, /Unexpected|position|JSON\.parse/i);
+  assert.deepEqual(repoLayout(root).repos, []);
+  put(root, 'src/z.php', '<?php\nfunction z() {}\n');
+  assert.match(collectContext(root, { files: ['src/z.php'] }).text, /### convention/);
+});
+
+test('CP-99-EC1 a sibling whose name holds a newline never shows up as a partial name', (t) => {
+  if (process.platform === 'win32') {
+    t.diagnostic('Windows không cho đặt tên file có xuống dòng; case này chỉ đo được ở Linux và macOS');
+    return;
+  }
+  const root = singleRepo([
+    { 'src/c.php': '<?php\nfunction c() {}\n', 'src/d.php': '<?php\nfunction d() {}\n' },
+    { 'src/a\nb.php': '<?php\nfunction ab() {}\n' },
+  ]);
+  put(root, 'src/z.php', '<?php\nfunction z() {}\n');
+  const part = conventionPart(collectContext(root, { files: ['src/z.php'] }).text);
+  const samples = samplesIn(part);
+  assert.ok(samples.length >= 1, part);
+  for (const s of samples) {
+    assert.ok(['src/c.php', 'src/d.php', 'src/a\nb.php'].includes(s), `mẫu lạ: ${JSON.stringify(s)}`);
+  }
+  assert.ok(!samples.includes('src/a') && !samples.includes('b.php'));
+});
+
+test('CP-99-EC2 plain --draft on a multi-repo workspace still keeps every byte', async () => {
+  const { root } = beWorkspace();
+  const { buildDraft: oldBuild } = await oldModule('lib/convention-draft.mjs');
+  assert.equal(buildDraft(root).text, oldBuild(root).text);
 });

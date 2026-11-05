@@ -80,8 +80,8 @@ một brief thì không làm việc này; nó chỉ ghi `findings.json`.
 2. Đưa người xem `.compass/conventions-draft.md`, chỉ ra chỗ khác với file đang dùng.
 3. Chờ người duyệt. Không tự sửa `.knowledge/decided/`.
 
-Dự án nhiều repo: `compass status`, `compass done` hay `compass pr` in `⚠ Repo `be` chưa có convention
-đã duyệt` thì làm ba bước trên với `compass convention --draft --repo=be`. Bản nháp ở
+Dự án nhiều repo: `compass status`, `compass done` hay `compass pr` in dòng "⚠ Repo … chưa có
+convention đã duyệt" cho repo `be` thì làm ba bước trên với `compass convention --draft --repo=be`. Bản nháp ở
 `.compass/conventions-draft/be.md`; người duyệt chuyển nó vào `.knowledge/decided/conventions/be.md`.
 Dòng `⚠ Gốc chưa có convention đã duyệt` thì làm đúng ba bước trên, với `compass convention --draft`.
 

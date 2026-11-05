@@ -10,7 +10,7 @@ import { hashSource } from '../lib/source-hash.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { reposForGate, repoPathError } from '../lib/gates.mjs';
 import { buildDraft, conventionStatus, DRAFT, CONVENTIONS } from '../lib/convention-draft.mjs';
-import { draftFile, ownFile } from '../lib/repo-conventions.mjs';
+import { draftFile, ownFile, readDeclaredRepos } from '../lib/repo-conventions.mjs';
 
 function formatViolation(v) {
   const where = `${v.file}:${v.line}`;
@@ -230,18 +230,14 @@ export function conventionDraftCommand({ cwd, force = false, repo = null }) {
 // lý do để không soạn được convention cho nó.
 function checkDraftRepo(root, repo) {
   if (typeof repo !== 'string' || repo === '') return 'Viết --repo=<tên repo>, có dấu "=" và một tên khai trong "repos".';
-  let config;
-  try {
-    config = JSON.parse(readFileSync(path.join(root, '.compass', 'config.json'), 'utf8'));
-  } catch (err) {
-    // Không in lời của bộ đọc JSON: nó trích một đoạn của config.json, và config có
-    // thể chứa thứ không nên ra màn hình (luật của CP-96).
-    return err?.code === 'ENOENT'
+  const raw = readDeclaredRepos(root);
+  if (!raw.ok) {
+    return raw.reason === 'missing'
       ? 'Không đọc được .compass/config.json.'
       : '.compass/config.json không phải JSON hợp lệ — sửa nó rồi chạy lại.';
   }
-  const declared = config?.repos;
-  if (!declared || typeof declared !== 'object' || Array.isArray(declared)) {
+  const declared = raw.repos;
+  if (declared === null) {
     return '--repo chỉ dùng khi config.json khai "repos". Dự án một repo thì chạy: compass convention --draft';
   }
   const bad = repoPathError(repo);
