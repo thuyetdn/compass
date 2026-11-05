@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { findRoot, specPath, taskDir, evidenceDir, validateTaskId, configPath } from '../lib/paths.mjs';
-import { collectDiff, buildBrief, briefSubject, parseScopePaths, secretsPublicSection, briefSecretsPublic } from '../lib/review-brief.mjs';
+import { collectDiff, buildBrief, briefSubject, parseScopePaths, secretsPublicSection, briefSecretsPublic, linkedNote } from '../lib/review-brief.mjs';
 import { parseSecretsPublic, secretsPublicFromText, normalisePath } from '../lib/secrets-scan.mjs';
 import { parseFindings, formatFinding, checkCoverage, BLOCKING } from '../lib/findings.mjs';
 import { collectContext } from '../lib/review-context.mjs';
@@ -179,9 +179,16 @@ function reviewOnce({ cwd, taskId }, notes) {
     };
   }
   notes.push(...(plan.notes ?? []));
-  const collect = () => (plan.units
-    ? collectUnits(root, plan, diffOptions, { scopePaths: scopeParsed.paths })
-    : collectDiff(root, diffOptions));
+  // File chưa theo dõi bỏ vì nằm sau symlink hay junction thì nói ra (issue #5). Mỗi lượt
+  // chạy gọi `collect` đúng một lần, ở pha một hay pha hai, nên dòng này không lặp.
+  const collect = () => {
+    const collected = plan.units
+      ? collectUnits(root, plan, diffOptions, { scopePaths: scopeParsed.paths })
+      : collectDiff(root, diffOptions);
+    const note = linkedNote(collected.linked);
+    if (note) notes.push(note);
+    return collected;
+  };
 
   // Ngữ cảnh dò một lần cho mỗi lần đọc diff: brief, id và luật `basis` phải
   // nói về cùng một bản ngữ cảnh (CP-78).

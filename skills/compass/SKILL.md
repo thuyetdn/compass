@@ -507,7 +507,10 @@ Người soi xét mười tiêu chí, mỗi cái một khóa:
 | `docs` | tài liệu còn tả đúng hành vi | file Markdown nhắc tới file hay tên vừa đổi |
 
 Ngữ cảnh dò bằng regex nên sót được và thừa được; brief nói thẳng điều đó, và rào nó như dữ liệu
-bị soi, giống diff. Nội dung file `.env` không bao giờ vào brief. Mỗi mục có giới hạn (20 tên
+bị soi, giống diff. Nội dung file `.env` không bao giờ vào brief. File chưa theo dõi nằm sau một
+thư mục symlink hay junction cũng không vào brief, cả diff lẫn ngữ cảnh: git for Windows đi xuyên
+junction và liệt kê file ở chỗ khác như file của repo. `review` in một dòng `ℹ` nêu tên thư mục link,
+không nêu file bên trong. File git đã theo dõi phía sau link vẫn được soi như cũ. Mỗi mục có giới hạn (20 tên
 export, 8 nơi gọi mỗi tên, 15 tài liệu, 4 file mẫu mỗi khối convention, 10 thư mục được đếm tên hàm, tổng 200 KB) và cắt
 chỗ nào thì nói cắt bao nhiêu.
 

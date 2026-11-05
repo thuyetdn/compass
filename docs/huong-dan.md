@@ -143,7 +143,8 @@ so gì; xem ảnh, thấy đúng thì commit.
 **`review`** sinh một brief gồm spec, diff và phần ngữ cảnh máy dò từ repo (convention đã khai,
 nơi gọi code vừa đổi, tài liệu nhắc tới nó), đưa cho một agent **khác** soi. Agent đó xét mười tiêu
 chí và ghi `findings.json` với một kết luận cho **từng** tiêu chí; thiếu một tiêu chí là gate đỏ.
-Finding mức `Critical` hay `Major` chặn gate. Sửa code sau khi soi thì gate tự mở lại.
+Finding mức `Critical` hay `Major` chặn gate. Sửa code sau khi soi thì gate tự mở lại. File chưa
+commit nằm sau một symlink hay junction không vào brief, và `review` in một dòng `ℹ` nêu thư mục link đó.
 
 **`compass pr <số PR | nhánh>`** không phải gate mà là lệnh soi PR của người khác theo cùng mười
 tiêu chí. Nó lấy PR bằng `git fetch`, đọc code ở worktree tạm, soi theo ticket (`--spec`) hoặc commit
