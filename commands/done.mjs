@@ -11,6 +11,7 @@ import {
 } from '../lib/gates.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { resolveRepos, reposForScope } from '../lib/repos.mjs';
+import { pendingLines } from '../lib/repo-conventions.mjs';
 
 // Một bản ghi "gate không chạy được" mà `done` chấp nhận thay cho bản ghi xanh.
 // Hẹp hết mức có thể: chỉ gate cần trình duyệt, và chỉ đúng một lý do — cái duy
@@ -58,6 +59,25 @@ function cachChayLai(name, taskId, batBuoc) {
   return batBuoc
     ? `Chạy lại: compass check ${taskId}`
     : `Chạy lại: compass ${gate} ${taskId} — hoặc xoá khoá "${name}" trong .compass/${taskId}/evidence/gate.json nếu không cần gate này`;
+}
+
+// Việc treo của CP-98: đơn vị trong phạm vi task mà chưa có convention đã duyệt. Chỉ
+// in, không bao giờ đổi mã thoát — thiếu convention không có nghĩa là code sai
+// (quyết định với người dùng ngày 2026-11-05). Config không đọc được thì không biết
+// task đụng repo nào, nên không nói gì.
+//
+// Nhiều repo: mục `Phạm vi` không thuộc repo nào là file của gốc, nên gốc cũng là một
+// đơn vị của task — như khối "Gốc workspace" của brief (lần soi thứ hai của CP-98).
+function conventionPending(root, phamVi, scope) {
+  let keys = [];
+  if (phamVi.cheDo === 'mot') keys = [null];
+  else if (phamVi.cheDo === 'nhieu') {
+    const paths = String(scope ?? '').split(/[,\n]/).map((s) => s.trim().replace(/\\/g, '/')).filter(Boolean);
+    const rootToo = paths.some((p) => !phamVi.repos.some((n) => p === n || p.startsWith(`${n}/`)));
+    keys = [...(rootToo ? [null] : []), ...phamVi.repos];
+  }
+  const lines = pendingLines(root, keys);
+  return lines.length ? ['', ...lines] : [];
 }
 
 export function doneCommand({ cwd, taskId }) {
@@ -338,6 +358,7 @@ export function doneCommand({ cwd, taskId }) {
       lines.push('');
       lines.push(`Ghi chú: Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này.`);
     }
+    lines.push(...conventionPending(root, phamVi, spec.scope));
     return {
       exitCode: 1,
       output: lines.join('\n'),
@@ -373,6 +394,7 @@ export function doneCommand({ cwd, taskId }) {
     lines.push(`Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này và không được kiểm tra.`);
   }
   lines.push('', `Task ${taskId} hoàn thành. Bằng chứng: .compass/${taskId}/evidence/`);
+  lines.push(...conventionPending(root, phamVi, spec.scope));
 
   return {
     exitCode: 0,

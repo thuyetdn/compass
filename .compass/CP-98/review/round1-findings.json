@@ -1,0 +1,82 @@
+{
+  "brief": "082cfb78706b",
+  "coverage": {
+    "spec": { "verdict": "findings" },
+    "convention": { "verdict": "findings" },
+    "impact": { "verdict": "clean" },
+    "tests": { "verdict": "clean" },
+    "regression": { "verdict": "findings" },
+    "performance": { "verdict": "clean" },
+    "security": { "verdict": "findings" },
+    "errors": { "verdict": "findings" },
+    "reuse": { "verdict": "findings" },
+    "docs": { "verdict": "findings" }
+  },
+  "findings": [
+    {
+      "severity": "Major",
+      "criterion": "errors",
+      "title": "`convention --draft --repo=be` silently drafts the workspace root instead of repo be when loadConfig/resolveRepos fails",
+      "detail": "checkDraftRepo deliberately reads raw JSON so that a config without top-level `test` is accepted (its comment says so), but buildDraft then calls units(root, only), which goes through loadConfig + resolveRepos and, on any failure, returns [{ prefix: '', dir: root }] without applying `only`. So when config.json has no top-level `test` (the issue #3 layout `{ repos: { be: { test } } }` that CP-96 calls valid), or when any other declared repo directory is missing (e.g. `fe` not cloned), listFiles/readSources/byFolder/rule trials all run on the root's files. The command exits 0 and writes `.compass/conventions-draft/be.md` titled `Convention của repo \\`be\\`` and pointing at `.knowledge/decided/conventions/be.md`, but it contains no be code at all. Reproduced: root git ignoring /be/, be with its own git and 22 migrations declaring safeUp; with config `{\"repos\":{\"be\":{\"test\":\"true\"}}}` and with `{\"test\":\"true\",\"repos\":{\"be\":{},\"fe\":{}}}` (fe dir absent) the output is '0 file config, 0 convention đếm từ code' and 'Theo thư mục' says 'Không thư mục nào đủ mẫu có tên hàm chung' (safeUp never appears). A reviewer who moves that draft in approves an empty/wrong convention for be, and the pending line disappears. Fix: when `only !== null`, resolve the repo dir from raw config (repoDir / repoLayout, as gitUnits does) instead of falling back to the root, or refuse with exit 2.",
+      "file": "lib/convention-draft.mjs",
+      "line": 345
+    },
+    {
+      "severity": "Major",
+      "criterion": "spec",
+      "title": "Sample budget shared across units: an earlier block can use all 4 samples, and the repo block then falsely says no sibling file exists",
+      "detail": "conventionSection keeps one `budget = { left: 4 }` for the whole brief and processes the root unit first. If the root block has uncovered files in two directories (declared rules whose scope does not match, or inferred), it takes all 4 samples; samplesFor(files) for the next unit returns [] and the code prints 'Không tìm thấy file cùng thư mục và cùng loại để so.' even though the directory has siblings. Reproduced with one git, repos.be, root conventions.md whose only rule scopes .compass/scripts/**, task changing tools/x.js, lib2/y.js and be/migrations/m9.php (5 sibling migrations): brief shows 4 root samples (lib2/a,b, tools/a,b), and the be block says no file found. This is the exact issue #4 situation (repo gets no sample) and the statement is wrong; SKILL.md also promises every limit says what it cut. Goal 2 requires an inferred unit to show sample files. Fix: reserve samples per unit (e.g. at least one dir per unit) or, when the budget is exhausted, say the samples were cut by the 4-file limit instead of 'không tìm thấy'.",
+      "file": "lib/review-context.mjs",
+      "line": 366
+    },
+    {
+      "severity": "Minor",
+      "criterion": "security",
+      "title": "readOwn only refuses a symlink at the last path component; a symlinked/junction `.knowledge/decided/conventions` directory is followed",
+      "detail": "readOwn does lstatSync(full).isFile() on `.knowledge/decided/conventions/<key>.md`, which rejects a symlinked be.md (S2) but follows any symlink in the parent segments. Reproduced on Windows: `.knowledge/decided/conventions` as a junction to a temp dir outside the root containing be.md → readOwn(root,'be') returns 'OUTSIDE_CONTENT'. With slash keys (`store/backend`) the intermediate `store` dir is another such segment. The spec constraint says symlinks are not followed for the per-repo file. In non-nested `compass pr` the conventionRoot is the PR worktree, so this path and the `repos` that select the key both come from PR content. Root readConventions has the same pre-existing gap. Fix: realpath the file and require it to stay under realpath(root)/.knowledge/decided, or lstat each segment.",
+      "file": "lib/repo-conventions.mjs",
+      "line": 59
+    },
+    {
+      "severity": "Info",
+      "criterion": "security",
+      "title": "Non-nested `compass pr` takes repos and per-repo conventions from the PR's own worktree, though the comment says the repo name comes from the reviewer's config",
+      "detail": "When pr is not nested, `conventions` is {} so collectContext uses repoLayout(here) and convRoot = here, both the PR checkout. The PR can add a `repos` entry in .compass/config.json plus `.knowledge/decided/conventions/<key>.md` and its rules are shown as declared (and enable basis: declared). It could already do this by editing the root conventions.md, so this is not new exposure, but the buildReport comment 'tên repo lấy từ config của người soi (CP-98)' is only true in nested mode.",
+      "file": "commands/pr.mjs",
+      "line": 231
+    },
+    {
+      "severity": "Minor",
+      "criterion": "regression",
+      "title": "No test pins that pr's newest-by-commit samples come from the worktree's git rather than the user's checkout",
+      "detail": "The spec lists this regression risk. In CP-98-H5 the user's checkout (main) and the PR head have the same history for the siblings, so m0021/m0022 come out newest either way, and a version that ran git log in the user's checkout would still pass. The code is currently correct (gits.space = gitTopLevel of the worktree), but nothing blocks a regression. Make the checkout differ, e.g. check out a branch where another sibling was modified more recently than in the PR head.",
+      "file": "test/repo-conventions.test.mjs",
+      "line": 287
+    },
+    {
+      "severity": "Minor",
+      "criterion": "convention",
+      "basis": "inferred",
+      "title": "checkDraftRepo echoes the JSON parser's message, which quotes a snippet of config.json",
+      "detail": "`Không đọc được .compass/config.json: ${err.message}`. On Node 24 the message is e.g. `Unexpected token 's', ...\" \"token\": sk96abc }\" is not valid JSON`, so a pasted secret near the error reaches the terminal. CP-96 (commands/secrets.mjs, test CP-96-E1) made it a rule not to copy the JSON reader's message for this reason. loadConfig still does it, but new code should follow CP-96.",
+      "file": "commands/convention.mjs",
+      "line": 237
+    },
+    {
+      "severity": "Minor",
+      "criterion": "reuse",
+      "title": "readConventions duplicates readOwn(root, null)",
+      "detail": "readOwn(root, null) reads ownFile(null) === CONVENTIONS with the same lstat/isFile/readFileSync logic as readConventions in review-context.mjs, yet conventionSection picks `key === null ? readConventions(convRoot) : readOwn(convRoot, key)`. Two copies of the 'do not follow symlinks' check will drift (see the symlink finding). checkDraftRepo also re-implements the raw config read that repoLayout already does.",
+      "file": "lib/review-context.mjs",
+      "line": 318
+    },
+    {
+      "severity": "Minor",
+      "criterion": "docs",
+      "title": "README and templates/AGENTS.md do not mention per-repo conventions, --repo, or the new pending lines",
+      "detail": "README's command list still shows only `compass convention --draft` (cli help gained `--draft --repo=<repo>`), and the README convention section describes only the root conventions.md. templates/AGENTS.md 'Convention thiếu hoặc đã cũ' tells agents to react only to lines from init/check and to run plain `--draft`. Agents that follow AGENTS.md (Codex) will not know what to do with `⚠ Repo \\`be\\` chưa có convention đã duyệt` from status/done/pr. SKILL.md and huong-dan.md were updated, but these two were not.",
+      "file": "README.md",
+      "line": 219
+    }
+  ]
+}

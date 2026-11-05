@@ -8,6 +8,7 @@ import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
 import { loadConfig, DEAD_FIELDS } from '../lib/config.mjs';
 import { resolveRepos, reposForScope } from '../lib/repos.mjs';
 import { parseSecretsPublic } from '../lib/secrets-scan.mjs';
+import { pendingLines } from '../lib/repo-conventions.mjs';
 
 
 
@@ -44,6 +45,12 @@ function cauHinh(root) {
     // và tệ hơn: nó gợi ý rằng thiếu devUrl là chỗ cần sửa.
     if (repo.config.devUrl) lines.push(`      devUrl: ${repo.config.devUrl}`);
   }
+
+  // Việc treo của CP-98: gốc và từng repo chưa có convention đã duyệt. Tính lại mỗi
+  // lần, nên dòng tự hết khi người duyệt chuyển bản nháp vào. Không đổi mã thoát. Đứng
+  // trên lời nhắc đọc lệnh test, để phần config luôn kết thúc như trước.
+  const pending = pendingLines(root, [null, ...resolved.repos.map((r) => r.name).filter((n) => n !== null)]);
+  if (pending.length) lines.push('', ...pending);
 
   lines.push('', 'Đọc kỹ lệnh test từng repo — sai ở đây thì gate `test` đỏ mà không rõ vì sao.');
 

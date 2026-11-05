@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { findRoot, specPath, validateTaskId } from '../lib/paths.mjs';
 import { parseRules } from '../lib/rule-parser.mjs';
@@ -8,8 +8,9 @@ import { hashFile, sha256 } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
-import { reposForGate } from '../lib/gates.mjs';
+import { reposForGate, repoPathError } from '../lib/gates.mjs';
 import { buildDraft, conventionStatus, DRAFT, CONVENTIONS } from '../lib/convention-draft.mjs';
+import { draftFile, ownFile } from '../lib/repo-conventions.mjs';
 
 function formatViolation(v) {
   const where = `${v.file}:${v.line}`;
@@ -171,43 +172,83 @@ function withStatus(root, result) {
 
 // `compass convention --draft` — soạn bản nháp từ config và code của repo. Không
 // cần task id: convention thuộc về cả repo, không thuộc một task.
-export function conventionDraftCommand({ cwd, force = false }) {
+//
+// `repo` (CP-98): soạn cho riêng một repo trong `repos`, ghi vào
+// `.compass/conventions-draft/<repo>.md`. Tên repo đi vào đường dẫn, nên phải là một
+// khóa có thật trong config và qua cùng luật tên với `ui`/`visual` trước khi ghi gì.
+export function conventionDraftCommand({ cwd, force = false, repo = null }) {
   const root = findRoot(cwd);
   if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json. Chạy compass init trước.' };
 
-  const target = path.join(root, DRAFT);
+  if (repo !== null) {
+    const refused = checkDraftRepo(root, repo);
+    if (refused) return { exitCode: 2, output: refused };
+  }
+  const relTarget = repo === null ? DRAFT : draftFile(repo);
+  const destination = ownFile(repo);
+  const again = repo === null ? 'compass convention --draft --force' : `compass convention --draft --repo=${repo} --force`;
+
+  const target = path.join(root, relTarget);
   if (existsSync(target) && !force) {
     return {
       exitCode: 2,
       output: [
-        `Đã có bản nháp ${DRAFT}. Đọc nó trước khi soạn lại.`,
-        hint('Muốn soạn lại thì chạy: compass convention --draft --force'),
+        `Đã có bản nháp ${relTarget}. Đọc nó trước khi soạn lại.`,
+        hint(`Muốn soạn lại thì chạy: ${again}`),
       ].join('\n'),
     };
   }
 
-  const built = buildDraft(root);
+  const built = buildDraft(root, { only: repo });
   if (!built.ok) return { exitCode: 2, output: built.reason };
 
   // Ghi qua file tạm rồi đổi tên: hỏng giữa chừng thì không để lại nửa bản nháp
   // trông như bản thật.
   const tmp = `${target}.${process.pid}.tmp`;
   try {
+    mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(tmp, built.text);
     renameSync(tmp, target);
   } catch (err) {
     try { rmSync(tmp, { force: true }); } catch { /* không xóa được file tạm thì thôi */ }
-    return { exitCode: 1, output: `Không ghi được ${DRAFT}: ${err.code ?? err.message}` };
+    return { exitCode: 1, output: `Không ghi được ${relTarget}: ${err.code ?? err.message}` };
   }
 
   const { configs, stated, rules } = built.summary;
   return {
     exitCode: 0,
     output: [
-      `Đã soạn bản nháp: ${DRAFT}`,
+      `Đã soạn bản nháp: ${relTarget}`,
       `  ${configs} file config, ${stated} convention đếm từ code, ${rules} luật đề xuất`,
       '',
-      hint(`Đưa bản nháp cho người duyệt. Người duyệt sửa rồi tự chuyển thành ${CONVENTIONS} — Compass không làm bước đó.`),
+      hint(`Đưa bản nháp cho người duyệt. Người duyệt sửa rồi tự chuyển thành ${destination} — Compass không làm bước đó.`),
     ].join('\n'),
   };
+}
+
+// Lý do từ chối `--repo`, hay null. Đọc JSON thô: thiếu `test` ở một repo không phải
+// lý do để không soạn được convention cho nó.
+function checkDraftRepo(root, repo) {
+  if (typeof repo !== 'string' || repo === '') return 'Viết --repo=<tên repo>, có dấu "=" và một tên khai trong "repos".';
+  let config;
+  try {
+    config = JSON.parse(readFileSync(path.join(root, '.compass', 'config.json'), 'utf8'));
+  } catch (err) {
+    // Không in lời của bộ đọc JSON: nó trích một đoạn của config.json, và config có
+    // thể chứa thứ không nên ra màn hình (luật của CP-96).
+    return err?.code === 'ENOENT'
+      ? 'Không đọc được .compass/config.json.'
+      : '.compass/config.json không phải JSON hợp lệ — sửa nó rồi chạy lại.';
+  }
+  const declared = config?.repos;
+  if (!declared || typeof declared !== 'object' || Array.isArray(declared)) {
+    return '--repo chỉ dùng khi config.json khai "repos". Dự án một repo thì chạy: compass convention --draft';
+  }
+  const bad = repoPathError(repo);
+  if (bad) return bad;
+  const keys = Object.keys(declared).sort();
+  if (!Object.hasOwn(declared, repo)) {
+    return `Không có repo "${repo}" trong "repos" của config.json. Repo đã khai: ${keys.join(', ') || '(không có)'}.`;
+  }
+  return null;
 }

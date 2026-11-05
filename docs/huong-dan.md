@@ -122,6 +122,14 @@ cho từng convention, ở `.compass/conventions-draft.md`; người duyệt r�
 code tự báo khi convention đã cũ (config đổi, hay code đã trôi khỏi một convention từng đếm được).
 Gate vẫn xanh trong trường hợp đó; agent soạn lại bản nháp và đưa người duyệt.
 
+Dự án nhiều repo thì mỗi repo khai trong `repos` có file convention riêng ở
+`.knowledge/decided/conventions/<repo>.md`, đặt ở gốc workspace. Brief soi code đưa người soi đúng file
+của repo bị sửa. Repo chưa có file đó thì brief đưa thay bằng số đếm tên hàm trong thư mục (ví dụ
+"`safeUp` 438/443 file") và hai file mẫu mới nhất theo commit. `compass status`, `compass done` và
+`compass pr` in dòng nhắc cho tới khi người duyệt chuyển bản nháp vào. Soạn nháp:
+`compass convention --draft --repo=<repo>`, ra `.compass/conventions-draft/<repo>.md`. Gốc chưa có
+`conventions.md` thì ba lệnh đó cũng nhắc, kể cả ở dự án một repo. Dòng nhắc không chặn gate nào.
+
 **`test`** chạy lệnh test rồi đối chiếu: mọi ID trong spec phải xuất hiện trên một dòng **pass**.
 Thấy ID trên dòng fail hay skip, hay một ID khớp hai test khác nhau, đều là đỏ, và gate nói rõ trường
 hợp nào để bạn biết phải làm gì.

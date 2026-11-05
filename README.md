@@ -201,6 +201,13 @@ code đã trôi khỏi một convention từng đếm được. Việc kiểm tr
 mọi brief soi code, không cần ai bảo. Thấy `init` hay `check` báo, Claude soạn lại bản nháp và đưa
 bạn duyệt chỗ khác; trong brief thì đó chỉ là lưu ý cho người soi.
 
+Dự án nhiều repo thì mỗi repo trong `repos` có convention riêng ở
+`.knowledge/decided/conventions/<repo>.md`, đặt ở gốc workspace. Người soi code của repo `be` được đưa
+đúng file của `be`, không phải luật của gốc. Repo chưa có file đó thì brief đưa số đếm tên hàm trong
+thư mục ("`safeUp` 438/443 file") cùng hai file mẫu mới nhất theo commit, còn `status`, `done` và
+`compass pr` nhắc soạn nháp bằng `compass convention --draft --repo=be`. Gốc chưa có
+`conventions.md` thì ba lệnh đó cũng nhắc, kể cả ở dự án một repo. Lời nhắc không chặn gate nào.
+
 ## Gõ lệnh trực tiếp
 
 Plugin đã đủ để Claude làm việc. Muốn tự gõ trong terminal thì cài thêm:
@@ -217,6 +224,7 @@ compass spec T-001                    # gate: spec hợp lệ?
 compass check T-001                   # chạy mọi gate áp dụng
 compass done T-001                    # cổng cuối
 compass convention --draft            # soạn nháp conventions.md từ config và code
+compass convention --draft --repo=be  # soạn nháp convention riêng của repo be
 compass pr 123                        # soi PR của người khác
 ```
 

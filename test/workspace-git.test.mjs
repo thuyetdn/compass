@@ -326,8 +326,17 @@ test('CP-84-EC1 a repo in the root\'s own git gives the same brief as no repos a
   put(root, '.compass/config.json', JSON.stringify({ test: 'true' }));
   rmSync(path.join(root, '.compass', 'T-1', 'review-brief.md'));
   assert.equal(review(root).exitCode, 1);
-  assert.equal(briefOf(root), withRepos);
-  assert.doesNotMatch(withRepos, /Repo `/);
+  // Từ CP-98 (issue #4) mục convention của ngữ cảnh nói theo repo khai trong `repos`,
+  // có git riêng hay không: `fe` có convention riêng của nó. Nên phần ngữ cảnh, và id
+  // brief băm phần đó, được phép khác. Mọi phần còn lại — phạm vi, file, diff — vẫn
+  // phải y hệt: dùng chung git với gốc không làm đổi thứ người soi thấy.
+  const outsideContext = (brief) => brief
+    .replace(/## Ngữ cảnh do máy dò[\s\S]*?\n## Diff\n/, '## Diff\n')
+    .replace(/"brief": "[0-9a-f]+"/, '"brief": "<id>"');
+  assert.equal(outsideContext(briefOf(root)), outsideContext(withRepos));
+  const scope = withRepos.slice(withRepos.indexOf('## Phạm vi'), withRepos.indexOf('## Các file'));
+  assert.doesNotMatch(scope, /Repo `/);
+  assert.match(withRepos, /#### Repo `fe`|Repo `fe` chưa có convention đã duyệt/);
 });
 
 test('CP-84-EC2 a sub-repo outside Phạm vi is not in the brief', () => {

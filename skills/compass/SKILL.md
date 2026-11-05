@@ -400,6 +400,37 @@ Dòng đó hiện ngay sau `init` thì làm ba bước trên **trước khi vi�
 convention người vừa xác nhận. File `conventions.md` viết tay, không có dấu nguồn, chỉ được một dòng
 nhắc rằng Compass không biết nó cũ hay chưa; không có gì để làm.
 
+**Dự án nhiều repo: mỗi repo một file convention.** `.knowledge/decided/conventions.md` ở gốc chỉ nói
+về file của gốc. Repo khai trong `repos` có convention riêng ở `.knowledge/decided/conventions/<repo>.md`,
+ngay tại gốc workspace chứ không trong repo con, để file không lên PR của đội. Repo `store/backend` thì
+file là `conventions/store/backend.md`. Gate `convention` không đổi: luật trong `conventions.md` của gốc
+vẫn chạy trên mọi repo như trước. Thứ đổi là brief soi code và dòng nhắc.
+
+Repo chưa có file riêng thì `compass status`, `compass done` (cho repo trong `Phạm vi`) và `compass pr`
+in một dòng:
+
+- `⚠ Repo `be` chưa có convention đã duyệt (…) — soạn nháp: compass convention --draft --repo=be`
+
+Gốc cũng là một đơn vị. Gốc chưa có `conventions.md` thì ba lệnh đó in
+`⚠ Gốc chưa có convention đã duyệt (…)`, kể cả ở dự án một repo; `done` của dự án nhiều repo chỉ in
+khi `Phạm vi` có mục nằm ngoài mọi repo.
+
+Dòng này không đổi mã thoát, vì thiếu convention không có nghĩa là code sai. Gặp nó thì làm như ba
+bước trên, với `compass convention --draft --repo=be`. Bản nháp ghi ra `.compass/conventions-draft/be.md`
+và có thêm mục "Theo thư mục": thư mục nào có ít nhất 20 file cùng đuôi thì tên hàm nào có ở ít nhất
+90 % số file đó, ví dụ "`safeUp` 438/443 file". Người duyệt tự chuyển bản nháp vào
+`.knowledge/decided/conventions/be.md`, và dòng nhắc tự hết vì Compass xét lại mỗi lần chạy, không lưu
+trạng thái.
+
+**Giới hạn:** tên hàm dò bằng regex trên dòng mở đầu bằng `function`, `def` hay `func` (kèm `public`,
+`static`, `export async`…), không phân tích cú pháp. Method viết không kèm từ khóa (JS `foo() {}`,
+Java, C#) không được đếm, còn một dòng `function x()` nằm trong khối `/* */` thì lại bị đếm. Mục "Theo
+thư mục" không đi vào dấu nguồn, và file convention riêng của repo không được báo "có thể đã cũ": việc
+theo dõi đó chỉ có cho `conventions.md` của gốc. File mẫu "mới nhất theo commit" chỉ xét 200 commit gần
+nhất đụng thư mục đó hay thư mục con của nó; thư mục con nhận hết số commit đó thì mẫu rơi về thứ tự
+tên. Một symlink hay junction ở bất kỳ đoạn nào trên đường tới file convention (kể cả `.knowledge`) làm
+brief coi file đó như chưa có, trong khi gate `convention` vẫn đọc `conventions.md` của gốc qua nó.
+
 ### Gate `ui` — đo số, không nhìn ảnh
 
 Khai số thiết kế vào `.compass/<id>/design-contract.json`:
@@ -463,7 +494,7 @@ Người soi xét mười tiêu chí, mỗi cái một khóa:
 | Khóa | Xét gì | Brief đưa thêm |
 |---|---|---|
 | `spec` | đúng từng case, không làm ngoài phạm vi | — |
-| `convention` | theo convention của repo | `conventions.md` nguyên file; không có thì tối đa 2 file cùng thư mục để so |
+| `convention` | theo convention của repo | convention của repo chứa file bị sửa, nguyên file; chưa có thì số đếm tên hàm cùng thư mục, cộng tối đa 2 file mẫu mới nhất theo commit mỗi thư mục |
 | `impact` | chỗ khác đang dùng code vừa đổi | nơi gọi các tên export trong file bị sửa (chỉ JS và TS) |
 | `tests` | test kiểm tra kết quả thật | — |
 | `regression` | mỗi rủi ro hồi quy trong spec đã có test | — |
@@ -475,7 +506,17 @@ Người soi xét mười tiêu chí, mỗi cái một khóa:
 
 Ngữ cảnh dò bằng regex nên sót được và thừa được; brief nói thẳng điều đó, và rào nó như dữ liệu
 bị soi, giống diff. Nội dung file `.env` không bao giờ vào brief. Mỗi mục có giới hạn (20 tên
-export, 8 nơi gọi mỗi tên, 15 tài liệu, tổng 200 KB) và cắt chỗ nào thì nói cắt bao nhiêu.
+export, 8 nơi gọi mỗi tên, 15 tài liệu, 4 file mẫu mỗi khối convention, 10 thư mục được đếm tên hàm, tổng 200 KB) và cắt
+chỗ nào thì nói cắt bao nhiêu.
+
+Mục `convention` chia theo repo (xem "Dự án nhiều repo: mỗi repo một file convention"). Mỗi repo có
+file bị sửa được một khối riêng: có convention riêng thì đưa nguyên file (`basis: declared`), chưa có
+thì đưa số đếm tên hàm và file mẫu (`basis: inferred`). Một file `conventions.md` chỉ nói về
+`.compass/scripts` không còn được đưa ra như luật của một repo PHP. Convention có khối `rule` mà không
+`scope` nào khớp file bị sửa thì thư mục của file đó vẫn có mẫu; file chỉ có văn xuôi coi như phủ mọi
+thứ. Dự án một repo không có khối con, nên brief của repo đã khai convention giữ nguyên từng byte.
+`basis: declared` chỉ hợp lệ khi brief có ít nhất một khối đưa convention đã khai. File mẫu là file
+mới nhất theo `git log`; repo chưa có lịch sử thì lấy theo thứ tự tên.
 
 Findings theo format cứng:
 
@@ -657,6 +698,9 @@ Những điều cần biết:
   index và thay đổi chưa commit của bạn giữ nguyên. Brief, findings và báo cáo nằm trong thư mục git
   (`.git/compass/pr/`), không trong cây làm việc, nên không lên git và PR không chạm tới được. Trong
   một worktree phụ, thư mục đó là của repo chính; lệnh luôn in sẵn đường dẫn đúng.
+- **Repo con đọc convention ở gốc workspace.** `cd be && compass pr 123` lấy convention của `be` từ
+  `.knowledge/decided/conventions/be.md` ở gốc, không từ code của PR. Chưa có file đó thì brief đưa số
+  đếm tên hàm và file mẫu, còn báo cáo có thêm mục "Convention" với dòng nhắc soạn nháp.
 - **Không có spec thì soi theo ý định có được.** Đưa ticket bằng `--spec`. Không có ticket thì brief
   dùng commit message của PR và nói rõ đó là tất cả những gì người soi có.
 - **`--run-tests` chạy code của người khác.** Chỉ bật khi người dùng đồng ý, và nói rõ điều đó với họ.

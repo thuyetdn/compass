@@ -27,6 +27,8 @@ Dùng:
   compass secrets <id>
   compass convention <id>
   compass convention --draft [--force]  soạn nháp conventions.md từ config và code
+  compass convention --draft --repo=<repo> [--force]
+                                         soạn nháp convention riêng của một repo trong "repos"
   compass test <id>
   compass ui <id>
   compass visual <id>
@@ -97,8 +99,12 @@ async function main() {
         result = knowledgeCommand({ cwd, taskId, sync: flags.sync === true, page: flags.page === true });
         break;
       case 'convention':
+        if (flags.draft === true && flags.repo !== undefined && typeof flags.repo !== 'string') {
+          result = { exitCode: 2, output: 'Viết --repo=<tên repo>, có dấu "=" và một tên khai trong "repos".' };
+          break;
+        }
         result = flags.draft === true
-          ? conventionDraftCommand({ cwd, force: flags.force === true })
+          ? conventionDraftCommand({ cwd, force: flags.force === true, repo: typeof flags.repo === 'string' ? flags.repo : null })
           : conventionCommand({ cwd, taskId });
         break;
       case 'test':

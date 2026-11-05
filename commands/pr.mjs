@@ -14,6 +14,7 @@ import { isInside } from '../lib/repos.mjs';
 import { hint } from '../lib/report.mjs';
 import { resolveSource, resolvePrBase, resolveCommit, checkRef, dropFetched, mergeBase, commitMessages, prDiff, withWorktree, prKey } from '../lib/pr-source.mjs';
 import { code } from '../lib/convention-draft.mjs';
+import { pendingLine } from '../lib/repo-conventions.mjs';
 import { briefIdFor, briefId, sameSubject } from './review.mjs';
 
 export { prKey };
@@ -166,7 +167,7 @@ function testLine(test) {
 
 // Báo cáo để dán vào PR. Mọi chữ lấy từ findings là lời người soi viết; đi vào
 // một danh sách, không bao giờ thành heading hay fence của chính báo cáo.
-function buildReport({ label, intentFrom, base, sha, files, findings, insufficient = [], test, id }) {
+function buildReport({ label, intentFrom, base, sha, files, findings, insufficient = [], test, id, pending = [] }) {
   const blocking = findings.filter((f) => BLOCKING.includes(f.severity));
   // Một dòng, và không HTML: báo cáo đi lên PR, nơi `<img src=…>` hay `<details>`
   // trong lời người soi sẽ được trình duyệt dựng thành thật.
@@ -227,6 +228,10 @@ function buildReport({ label, intentFrom, base, sha, files, findings, insufficie
     const fence = fenceFor(tail);
     out.push('<details><summary>Output test (cuối)</summary>', '', `${fence}text`, tail, fence, '', '</details>', '');
   }
+  // Dòng do Compass viết (CP-98). Trong repo con, tên repo và convention lấy từ config
+  // ở gốc của người soi; đứng ở gốc thì từ config và convention trong code của PR, như
+  // mọi phần ngữ cảnh khác của lệnh này.
+  if (pending.length) out.push('### Convention', '', ...pending.map((l) => `- ${l}`), '');
   out.push(`<sub>Soi bởi một agent không biết lịch sử làm PR, theo mười tiêu chí của Compass. Brief \`${id}\`.</sub>`, '');
   return out.join('\n');
 }
@@ -378,7 +383,12 @@ function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, wa
       try {
         // Đọc từ object của git, không từ file vừa checkout: trên Windows lần mở đầu
         // mỗi file đó mới là phần tốn thời gian nhất của cả lệnh.
-        context = contextOf(here, { files: collected.files, deleted: collected.deleted ?? [], reader: gitObjectReader(head) });
+        // Repo con: convention của nó nằm ở gốc workspace, không trong worktree của PR
+        // (CP-98). Mọi file của diff thuộc repo khai trong `repos` chứa nó.
+        const conventions = nested
+          ? { layout: { sub: '', repos: nested.repos.map((r) => ({ key: r.name, at: r.inUnit, rel: r.rel })) }, conventionRoot: root }
+          : {};
+        context = contextOf(here, { files: collected.files, deleted: collected.deleted ?? [], reader: gitObjectReader(head), ...conventions });
       } catch (err) {
         return { exitCode: 2, output: prFail([`Không dựng được ngữ cảnh từ code của PR: ${err.message}`]) };
       }
@@ -489,7 +499,10 @@ function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, wa
 
       const findings = parsed.findings;
       const blocking = findings.filter((f) => BLOCKING.includes(f.severity));
-      const report = buildReport({ label: source.label, intentFrom, base: fork, sha: source.sha, files: collected.files, findings, insufficient: coverage.insufficient, test, id });
+      // Việc treo của CP-98: repo của PR chưa có convention đã duyệt. Chỉ in, không
+      // đổi kết luận hay mã thoát.
+      const pending = (context.conventionsMissing ?? []).map(pendingLine);
+      const report = buildReport({ label: source.label, intentFrom, base: fork, sha: source.sha, files: collected.files, findings, insufficient: coverage.insufficient, test, id, pending });
       writeOwn(path.join(dir, REPORT_FILE), report);
 
       const ok = blocking.length === 0 && (!test || test.exitCode === 0);
@@ -502,6 +515,7 @@ function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, wa
       if (coverage.insufficient.length) {
         lines.push('', `Chưa soi được ${coverage.insufficient.length} tiêu chí (insufficient):`, ...coverage.insufficient.map(({ key, note }) => `  - ${key}: ${note}`));
       }
+      if (pending.length) lines.push('', ...pending);
       lines.push('', hint(`Báo cáo để dán vào PR: ${rel}/${REPORT_FILE}`));
       return { exitCode: ok ? 0 : 1, output: lines.join('\n'), wroteReport: true };
     });

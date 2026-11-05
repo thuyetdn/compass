@@ -1,0 +1,73 @@
+{
+  "brief": "5b07b3297390",
+  "coverage": {
+    "spec": { "verdict": "findings" },
+    "convention": { "verdict": "clean" },
+    "impact": { "verdict": "findings" },
+    "tests": { "verdict": "clean" },
+    "regression": { "verdict": "clean" },
+    "performance": { "verdict": "findings" },
+    "security": { "verdict": "findings" },
+    "errors": { "verdict": "clean" },
+    "reuse": { "verdict": "clean" },
+    "docs": { "verdict": "findings" }
+  },
+  "findings": [
+    {
+      "severity": "Minor",
+      "criterion": "security",
+      "title": "pendingLine puts the repo key into report.md as raw text in the `--repo=` part, so a key with HTML/Markdown is rendered on the PR",
+      "detail": "pendingLine wraps the key in code() for the `Repo ...` part and the path, but the rerun hint uses `/^[\\w./-]+$/.test(key) ? key : JSON.stringify(key)`. JSON.stringify escapes quotes and control characters, not `<`, `>` or Markdown. repoPathError only rejects `\\`, `:`, a leading `/` and empty/`.`/`..` segments, so keys such as `<b>LGTM</b>` or `<img src=x>` get through: pendingLine('<b>LGTM</b>') returns `... --repo=\"<b>LGTM</b>\", rồi đưa người duyệt.` with the tag outside any code span. When `compass pr` runs at a workspace root that shares its git with its repos (not nested), collectContext builds the layout with repoLayout(here) from the worktree's `.compass/config.json`, which the PR author controls. buildReport then writes these lines into report.md under `### Convention`. The rest of buildReport keeps reviewer text out of HTML and headings for exactly this reason (the comment says the report goes on the PR, where `<img src=…>` gets rendered). Possible fix: put the whole rerun command in code(), or escape it the way findings text is escaped.",
+      "file": "lib/repo-conventions.mjs",
+      "line": 208
+    },
+    {
+      "severity": "Minor",
+      "criterion": "spec",
+      "title": "The sample budget is 4 per unit block, not 4 per brief as spec goal 4 and SKILL.md state",
+      "detail": "Spec goal 4: 'Up to 2 sample files per directory, at most 4 in the brief'. samplesFor creates `budget = { left: MAX_SAMPLES }` on every call, and the per-unit loop calls it once per block, including once for a declared unit's uncovered files. A task that touches the root plus N repos can therefore get 4×(N+1) samples, and test CP-98-EC4 asserts 4 root samples plus 2 be samples (6 in total). The code comment explains the choice: a shared budget let the root block starve the be block, which is the issue #4 bug. That is a reasonable design, but it changes a stated limit without updating the spec. SKILL.md still lists '4 file mẫu' among the brief's limits, and the cut message says 'mỗi khối kèm tối đa 4' while SKILL says per brief. Either update the spec and SKILL.md to 'per block', or enforce a global cap with a per-block minimum.",
+      "file": "lib/review-context.mjs",
+      "line": 272
+    },
+    {
+      "severity": "Minor",
+      "criterion": "spec",
+      "title": "`compass done` in a multi-repo workspace never prints the root's pending line, even when Phạm vi includes root files",
+      "detail": "Spec goal 6 says done prints pending lines for 'units in the task's Phạm vi', and goal 1 makes the root a unit for files outside every repo. conventionPending uses phamViRepo: in 'nhieu' mode the keys are `phamVi.repos`, which come from reposForScope and only ever contain declared repo names. Take a task whose Phạm vi is `be/, .compass/scripts/a.mjs` (the EC4 shape) in a workspace with no root conventions.md. The brief shows an inferred root block and conventionsMissing contains null, but done prints no '⚠ Gốc chưa có convention' line. status still prints it, so the user does get told somewhere, but the two outputs disagree. Possible fix: add null when some Phạm vi entry is not under any repo.",
+      "file": "commands/done.mjs",
+      "line": 68
+    },
+    {
+      "severity": "Minor",
+      "criterion": "performance",
+      "title": "`git log` for samples runs for every changed folder, including new folders with no sibling candidates",
+      "detail": "In samplesFor, `recentIn(gits, dir)` runs whenever budget is left, before anyone checks that `cands` is non-empty. Feature PRs usually add new directories. For a directory with no history, `git log -n 200 -- :(literal)dir/` cannot stop after 200 matches, so it walks the whole commit history with tree-limited diffs. New folders without candidates use none of the budget, so the loop keeps calling git for every one of them. On a long-history repo that is one full history walk per new folder, in both review and pr. The ordering is also pointless when `cands.length <= SAMPLES_PER_DIR`, because every candidate gets taken anyway. Possible fix: skip recentIn when `cands.length <= SAMPLES_PER_DIR` (which includes 0).",
+      "file": "lib/review-context.mjs",
+      "line": 282
+    },
+    {
+      "severity": "Minor",
+      "criterion": "docs",
+      "title": "The docs describe the pending line only for multi-repo repos, but every single-repo project without conventions.md now gets it in status, done and pr",
+      "detail": "pendingLines(root, [null, ...]) in status, the 'mot' branch of conventionPending in done, and conventionsMissing in pr all emit '⚠ Gốc chưa có convention đã duyệt (`.knowledge/decided/conventions.md`) — soạn nháp: compass convention --draft' for a plain single-repo project with no conventions.md. That changes visible output for the most common setup. README, docs/huong-dan.md, SKILL.md ('Repo chưa có file riêng thì compass status, compass done … in một dòng') and templates/AGENTS.md describe only the `⚠ Repo `be` …` multi-repo line. No test pins the single-repo root line either.",
+      "file": "skills/compass/SKILL.md",
+      "line": 409
+    },
+    {
+      "severity": "Info",
+      "criterion": "impact",
+      "title": "readOwn now also rejects the root conventions.md when `.knowledge` or `.knowledge/decided` is a symlink or junction",
+      "detail": "The old readConventions only lstat'ed the final file, so a symlinked `.knowledge` directory still gave a declared brief. readOwn walks every path segment and returns null on any link. That is consistent with the spec's 'symlinks are not followed', but for such a setup the brief now says 'Repo chưa khai convention', rejects `basis: declared`, and prints the root pending line, while gate `convention` and conventionStatus still read and enforce the same file through the link. Mentioning this as a known limit in SKILL.md would help.",
+      "file": "lib/repo-conventions.mjs",
+      "line": 69
+    },
+    {
+      "severity": "Info",
+      "criterion": "spec",
+      "title": "'Newest by commit' only covers the last 200 commits touching the folder recursively, so siblings in folders with busy subfolders fall back to name order",
+      "detail": "recentFiles uses `-n 200` with the pathspec `:(literal)dir/`, which matches subdirectories too. In a folder like `src/` whose subfolders get most commits, the last 200 commits may never touch a direct sibling, so samples silently fall back to name order, the behaviour goal 4 set out to replace. The spec does not mention the 200-commit window. Documenting it, or limiting the pathspec to direct children, would make it explicit.",
+      "file": "lib/repo-conventions.mjs",
+      "line": 192
+    }
+  ]
+}
