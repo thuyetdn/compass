@@ -394,6 +394,11 @@ export function conventionApproveCommand({ cwd, repo = null }) {
       ].join('\n'),
     };
   }
+  // Thư mục trên đường tới file đã duyệt phải là thư mục thật, xét trước khi hỏi file có
+  // chưa: một junction ở `conventions` làm gate nói "chưa có" trong khi lệnh này từng nói
+  // "đã có" và khuyên xóa một file nằm ngoài workspace (lần soi thứ ba của CP-103).
+  const linked = linkOnPath(root, destination);
+  if (linked) return { exitCode: 2, output: linked };
   try {
     lstatSync(path.join(root, destination));
     return {
@@ -402,7 +407,7 @@ export function conventionApproveCommand({ cwd, repo = null }) {
     };
   } catch { /* chưa có: đúng như cần */ }
 
-  const p = ownProblems(text, dir);
+  const p = ownProblems(text, dir, { prefix: path.relative(root, dir).split(path.sep).join('/') });
   if (!p.applies) {
     return {
       exitCode: 1,
@@ -417,7 +422,9 @@ export function conventionApproveCommand({ cwd, repo = null }) {
     return {
       exitCode: 1,
       output: [
-        fail('convention', [`Bản nháp ${rel} chưa duyệt được:`, ...gaps]),
+        // Không phải gate: không ghi bản ghi nào, nên không in "Gate … FAILED" (lần soi thứ ba).
+        `✗ Bản nháp ${rel} chưa duyệt được:`,
+        ...gaps.map((l) => `  ${l}`),
         '',
         hint('Điền tiếp cho đủ, đưa người dùng quyết các dòng `- [ ]`, rồi chạy lại lệnh này.'),
       ].join('\n'),
@@ -439,6 +446,21 @@ export function conventionApproveCommand({ cwd, repo = null }) {
         : 'Chạy lại gate: compass check <id>. Từ giờ gate convention chạy luật của file này trên repo đó.'),
     ].join('\n'),
   };
+}
+
+// Lý do từ chối khi một thư mục đã có trên đường tới `rel` là link hay không phải thư mục;
+// null khi mọi đoạn đã có là thư mục thật (đoạn chưa có thì `writeNoLink` tạo).
+function linkOnPath(root, rel) {
+  const parts = rel.split('/');
+  let at = root;
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    at = path.join(at, parts[i]);
+    let info;
+    try { info = lstatSync(at); } catch { return null; }
+    // `lstat`: symlink hay junction không bao giờ là thư mục ở đây.
+    if (!info.isDirectory()) return `${parts.slice(0, i + 1).join('/')} là symlink, junction hay không phải thư mục — Compass không ghi convention qua đó.`;
+  }
+  return null;
 }
 
 // Ghi `rel` dưới `root`, tạo thư mục còn thiếu, không đi qua link nào và không ghi đè.

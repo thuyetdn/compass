@@ -430,7 +430,9 @@ bản nháp theo 12 tiêu chí không?" Không tự làm tiếp. Người dùng 
    mục **"Agent đọc và viết"**: danh sách file mẫu (tối đa 2 file mới nhất theo commit ở mỗi thư mục,
    10 thư mục nhiều file nhất) và 12 tiêu chí, mỗi tiêu chí một câu hỏi và một dòng `compass-fill`.
 2. **Đọc các file mẫu rồi trả lời từng tiêu chí** bằng quy ước thật của repo:
-   - Mỗi ý kèm ít nhất một file làm bằng chứng, trong dấu backtick (`` `src/app.ts:12` ``).
+   - Mỗi ý kèm ít nhất một file làm bằng chứng, trong dấu backtick: đường dẫn tính từ repo
+     (`` `src/app.ts:12` ``), hay có tiền tố repo như bản nháp nêu file config (`` `be/.prettierrc` ``).
+     File của gốc workspace không tính là bằng chứng cho repo con.
    - Không thấy thì ghi "Không thấy trong repo"; không hợp với repo thì ghi "Không áp dụng: <lý do>".
      Không bịa.
    - Hai kiểu viết lẫn lộn thì ghi cả hai kèm số file, thành một dòng `- [ ]` để người quyết.

@@ -37,7 +37,8 @@ function cauHinh(root) {
   // Một repo không khai `repos` vẫn phải xem được — `resolveRepos` trả về một
   // repo tên null, và đó là dự án bình thường chứ không phải cấu hình thiếu.
   const nhieu = cfg.config.repos !== undefined;
-  lines.push(nhieu ? `Repo (${resolved.repos.length}):` : 'Một repo (không khai "repos"):');
+  // Đếm cả repo khai mà chưa có trên máy: chúng cũng được liệt kê bên dưới (CP-104).
+  lines.push(nhieu ? `Repo (${resolved.repos.length + (resolved.missing?.length ?? 0)}):` : 'Một repo (không khai "repos"):');
 
   for (const repo of resolved.repos) {
     const ten = repo.name ?? '(gốc)';
