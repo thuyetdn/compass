@@ -91,7 +91,7 @@ test('CP-64-H4 compass done after check never prints the hint', () => {
   assert.equal(check.exitCode, 0, check.output);
   const r = compass(root, 'done', 'X-1');
   assert.equal(r.exitCode, 0, r.output);
-  assert.match(r.output, /4 gate đã pass/);
+  assert.match(r.output, /5 gate đã pass/); // + convention từ CP-103
   assert.ok(!r.output.includes('Duyệt xong'), r.output);
 });
 

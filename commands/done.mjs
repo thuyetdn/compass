@@ -10,7 +10,7 @@ import {
   IMPLEMENTED_GATES, SOURCE_DEPENDENT_GATES, BROWSER_GATES, LY_DO_KHONG_DEVURL, PER_REPO_GATES,
 } from '../lib/gates.mjs';
 import { loadConfig } from '../lib/config.mjs';
-import { resolveRepos, reposForScope } from '../lib/repos.mjs';
+import { resolveReposForScope, reposForScope } from '../lib/repos.mjs';
 import { pendingLines } from '../lib/repo-conventions.mjs';
 
 // Một bản ghi "gate không chạy được" mà `done` chấp nhận thay cho bản ghi xanh.
@@ -42,11 +42,12 @@ function laBoQuaHopLe(record, slot) {
 function phamViRepo(root, spec) {
   const cfg = loadConfig(root);
   if (!cfg.ok) return { cheDo: 'khongRo', repos: [] };
-  const resolved = resolveRepos(root, cfg.config);
+  // Repo khai mà chưa có trên máy, ngoài Phạm vi, không làm task thành "không rõ" (CP-103).
+  const resolved = resolveReposForScope(root, cfg.config, spec.scope);
   if (!resolved.ok) return { cheDo: 'khongRo', repos: [] };
   const repos = reposForScope(resolved.repos, spec.scope);
   if (repos.some((r) => r.name === null)) return { cheDo: 'mot', repos: [] };
-  return { cheDo: 'nhieu', repos: repos.map((r) => r.name) };
+  return { cheDo: 'nhieu', repos: repos.map((r) => r.name), notes: resolved.notes ?? [] };
 }
 
 // Lệnh chạy lại đúng cho một gate. `compass check` chỉ chạm gate bắt buộc của
@@ -61,13 +62,17 @@ function cachChayLai(name, taskId, batBuoc) {
     : `Chạy lại: compass ${gate} ${taskId} — hoặc xoá khoá "${name}" trong .compass/${taskId}/evidence/gate.json nếu không cần gate này`;
 }
 
-// Việc treo của CP-98: đơn vị trong phạm vi task mà chưa có convention đã duyệt. Chỉ
-// in, không bao giờ đổi mã thoát — thiếu convention không có nghĩa là code sai
-// (quyết định với người dùng ngày 2026-11-05). Config không đọc được thì không biết
-// task đụng repo nào, nên không nói gì.
+// Việc treo của CP-98: đơn vị trong phạm vi task mà chưa có convention đã duyệt. Ở đây
+// chỉ in, không đổi mã thoát: từ CP-103 (issue #6) chính gate `convention` chặn repo con
+// thiếu convention, và `done` đã đòi bản ghi xanh của gate đó. Dòng này còn lại cho gốc,
+// thứ không bao giờ bị chặn, và cho file bị xóa sau lần gate xanh. Config không đọc được
+// thì không biết task đụng repo nào, nên không nói gì.
 //
 // Nhiều repo: mục `Phạm vi` không thuộc repo nào là file của gốc, nên gốc cũng là một
 // đơn vị của task — như khối "Gốc workspace" của brief (lần soi thứ hai của CP-98).
+// Repo khai mà chưa có trên máy, ngoài Phạm vi: `done` cũng nói ra như `check` (CP-103).
+const skipNotes = (phamVi) => (phamVi.notes ?? []).map((n) => `ℹ ${n}`);
+
 function conventionPending(root, phamVi, scope) {
   let keys = [];
   if (phamVi.cheDo === 'mot') keys = [null];
@@ -358,7 +363,7 @@ export function doneCommand({ cwd, taskId }) {
       lines.push('');
       lines.push(`Ghi chú: Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này.`);
     }
-    lines.push(...conventionPending(root, phamVi, spec.scope));
+    lines.push(...conventionPending(root, phamVi, spec.scope), ...skipNotes(phamVi));
     return {
       exitCode: 1,
       output: lines.join('\n'),
@@ -394,7 +399,7 @@ export function doneCommand({ cwd, taskId }) {
     lines.push(`Gate ${unimplemented.join(', ')} chưa xây dựng ở giai đoạn này và không được kiểm tra.`);
   }
   lines.push('', `Task ${taskId} hoàn thành. Bằng chứng: .compass/${taskId}/evidence/`);
-  lines.push(...conventionPending(root, phamVi, spec.scope));
+  lines.push(...conventionPending(root, phamVi, spec.scope), ...skipNotes(phamVi));
 
   return {
     exitCode: 0,

@@ -23,12 +23,18 @@ const gate = (root) => conventionCommand({ cwd: root, taskId: 'T-1' });
 const linesMatching = (output, re) => output.split(/\r?\n/).filter((l) => re.test(l));
 
 // Soạn bản nháp rồi chốt nó, như người duyệt làm.
-function adopt(root) {
+// `keepRules: false`: người duyệt bỏ các khối `rule` của bản nháp. Ở workspace nhiều repo,
+// luật bản nháp chung đề xuất (`**/*.js`) khớp file của repo con, và từ CP-103 luật ở gốc
+// như vậy làm gate đỏ (phải chuyển sang file của repo). Test dùng cờ này đo dấu nguồn,
+// không đo luật.
+function adopt(root, { keepRules = true } = {}) {
   const r = conventionDraftCommand({ cwd: root, force: true });
   assert.equal(r.exitCode, 0, r.output);
-  put(root, DECIDED, readFileSync(path.join(root, DRAFT), 'utf8'));
+  put(root, DECIDED, adoptText(readFileSync(path.join(root, DRAFT), 'utf8'), keepRules));
   return root;
 }
+
+const adoptText = (text, keepRules = false) => (keepRules ? text : text.replace(/```rule\n[\s\S]*?```\n?/g, ''));
 
 test('CP-82-H6 the gate on a repo with no conventions points at --draft in one line', () => {
   const r = gate(makeRepo(codeFiles(20)));
@@ -127,7 +133,8 @@ test('CP-82-EC14 paths with spaces round-trip through the mark', () => {
   for (const [rel, body] of Object.entries({ '.prettierrc': PRETTIER, ...codeFiles(25) })) put(dir, rel, body);
   execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore' });
   gitAdd(dir);
-  adopt(root);
+  ownFiles(root, ['web']);
+  adopt(root, { keepRules: false });
   assert.match(readFileSync(path.join(root, DECIDED), 'utf8'), /^source web%20app\/\.prettierrc [0-9a-f]{16}$/m);
   const b = gate(root);
   assert.equal(b.exitCode, 0, b.output);
@@ -144,6 +151,13 @@ test('CP-82-EC9 test files at the repo root give a mark that parses back as fres
   assert.doesNotMatch(r.output, /hỏng|có thể đã cũ/, r.output);
 });
 
+// Từ CP-103 (issue #6) gate `convention` đỏ ở repo con chưa có convention riêng đã duyệt.
+// Các test ở đây đo dấu nguồn của `conventions.md` ở gốc, nên repo con được ghi sẵn một
+// file viết tay, không luật.
+function ownFiles(root, names) {
+  for (const name of names) put(root, `.knowledge/decided/conventions/${name}.md`, `# ${name}\n`);
+}
+
 // Bố cục nhiều repo trong SKILL.md: gốc Compass không phải repo git, mỗi repo
 // con là một repo git riêng.
 function multiRepo() {
@@ -156,6 +170,7 @@ function multiRepo() {
     execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore' });
     gitAdd(dir);
   }
+  ownFiles(root, ['fe', 'be']);
   return root;
 }
 
@@ -166,7 +181,7 @@ test('CP-82-H10 a multi-repo root that is not a git repo is drafted from its rep
   const text = readFileSync(path.join(root, DRAFT), 'utf8');
   assert.match(text, /Đếm trên 30 file code/);
   assert.match(text, /Prettier \(`fe\/\.prettierrc`\)/);
-  put(root, DECIDED, text);
+  put(root, DECIDED, adoptText(text));
   assert.doesNotMatch(gate(root).output, /có thể đã cũ/);
   writeFileSync(path.join(root, 'fe', '.prettierrc'), JSON.stringify({ singleQuote: false }));
   const after = gate(root);
@@ -204,7 +219,8 @@ test('CP-82-EC15 in a multi-repo project the test folder is counted inside each 
     execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore' });
     gitAdd(dir);
   }
-  adopt(root);
+  ownFiles(root, ['fe', 'be']);
+  adopt(root, { keepRules: false });
   assert.match(readFileSync(path.join(root, DECIDED), 'utf8'), /^stat test-dir test\/ 30\/30$/m);
   for (let i = 15; i < 20; i += 1) put(path.join(root, 'be'), `test/api-${i}.test.js`, codeFile({ name: `api${i}` }));
   gitAdd(path.join(root, 'be'));

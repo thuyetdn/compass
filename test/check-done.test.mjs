@@ -494,17 +494,18 @@ test('CP-16-H3 the message names a command that actually works', async () => {
 test('CP-16-H4 every red gate outside the list is named, not just the first', async () => {
   const root = makeTask(GREEN);
   await checkCommand({ cwd: root, taskId: 'T-1' });
+  // `ui` thay cho `convention`: từ CP-103 `convention` bắt buộc cả với `fix`.
   ghiGate(root, 'review', 1);
-  ghiGate(root, 'convention', 1);
+  ghiGate(root, 'ui', 1);
   const result = doneCommand({ cwd: root, taskId: 'T-1' });
 
-  // Đếm đúng dòng "đã chạy và đỏ". Chỉ tìm chữ `convention` là rỗng nghĩa: nó
+  // Đếm đúng dòng "đã chạy và đỏ". Chỉ tìm chữ `ui` là rỗng nghĩa: nó
   // xuất hiện vì lý do khác (thiếu sourceHash), nên chèn `break` sau gate đầu
   // tiên vẫn xanh — reviewer đã chứng minh đúng như vậy.
   const dongDo = result.output.split('\n').filter((l) => l.includes('đã chạy và đỏ'));
   assert.equal(dongDo.length, 2, `phải nêu cả hai gate, thấy: ${dongDo.length}`);
   assert.ok(dongDo.some((l) => l.includes('"review"')));
-  assert.ok(dongDo.some((l) => l.includes('"convention"')));
+  assert.ok(dongDo.some((l) => l.includes('"ui"')));
 });
 
 test('CP-16-V1 a gate outside the list that never ran does not block', async () => {
@@ -615,13 +616,14 @@ test('CP-16-H5 a stale out-of-list gate is told the command that fixes it', asyn
   const file = gatePath(root, 'T-1');
   const data = JSON.parse(readFileSync(file, 'utf8'));
   const salt = getSalt(root);
-  const rec = { gate: 'convention', taskId: 'T-1', exitCode: 0, sourceHash: 'hash-moc-meo' };
-  data.convention = { ...rec, sig: signRecord(rec, salt) };
+  // `ui`: từ CP-103 `convention` nằm trong danh sách của `fix`, nên không còn là gate chạy thêm.
+  const rec = { gate: 'ui', taskId: 'T-1', exitCode: 0, sourceHash: 'hash-moc-meo' };
+  data.ui = { ...rec, sig: signRecord(rec, salt) };
   writeFileSync(file, JSON.stringify(data, null, 2));
 
   const result = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1);
-  assert.match(result.output, /compass convention T-1/, 'phải chỉ lệnh chạm được gate này');
+  assert.match(result.output, /compass ui T-1/, 'phải chỉ lệnh chạm được gate này');
   assert.doesNotMatch(result.output, /Chạy: compass check T-1/,
     'check không sửa được gate ngoài danh sách — đừng gợi ý nó');
 });

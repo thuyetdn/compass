@@ -1,0 +1,49 @@
+{
+  "brief": "378b22d36cc4",
+  "coverage": {
+    "spec": { "verdict": "findings" },
+    "convention": { "verdict": "clean" },
+    "impact": { "verdict": "findings" },
+    "tests": { "verdict": "clean" },
+    "regression": { "verdict": "clean" },
+    "performance": { "verdict": "clean" },
+    "security": { "verdict": "clean" },
+    "errors": { "verdict": "clean" },
+    "reuse": { "verdict": "clean" },
+    "docs": { "verdict": "findings" }
+  },
+  "findings": [
+    {
+      "severity": "Major",
+      "criterion": "docs",
+      "title": "SKILL.md 'Gate nào chạy theo repo' table still says root rules run on every repo, matched both repo-relative and root-relative",
+      "detail": "The table row for `convention` (skills/compass/SKILL.md:919) still reads: 'Luật vẫn viết một lần ở `.knowledge/decided/conventions.md` của gốc; `scope` khớp cả đường dẫn tính từ repo (`src/**/*.jsx`) lẫn tính từ gốc (`fe/src/**/*.jsx`)'. After this change the opposite is true. quetRepo (commands/convention.mjs) runs only `conventions/<repo>.md` on a repo. Any root rule whose scope matches a repo file, in either form, makes rulesTouching turn the gate red with a move instruction (CP-103-H2/EC3). The CP-103 section earlier in the same file (around line 404) says this correctly, so the skill now contradicts itself. An agent that looks up the per-repo gate table gets told to put repo rules in the root file, which is exactly what now turns the gate red. The spec lists SKILL.md in Phạm vi, and its stated goal is that gate and docs agree on where a repo's rules live. The same stale wording is in the runRules comment at lib/rule-runner.mjs:66-70 ('Luật vẫn viết một lần ở gốc').",
+      "file": "skills/compass/SKILL.md",
+      "line": 919
+    },
+    {
+      "severity": "Minor",
+      "criterion": "docs",
+      "title": "README still says Compass never writes into .knowledge/decided/, but --approve now does",
+      "detail": "README.md:196-197: 'Bạn duyệt, sửa, rồi tự chuyển nó vào `.knowledge/decided/`; Compass không bao giờ tự ghi vào đó.' The new `compass convention --approve --repo=<repo>` (conventionApproveCommand → writeNoLink) writes `.knowledge/decided/conventions/<repo>.md`. The README itself describes that command about 10 lines later. The absolute 'never' should be limited to the root draft or reworded.",
+      "file": "README.md",
+      "line": 197
+    },
+    {
+      "severity": "Info",
+      "criterion": "impact",
+      "title": "ui/visual called directly now silently skip a missing out-of-scope repo, with no ℹ line",
+      "detail": "reposForGate (lib/gates.mjs:69) now uses resolveReposForScope, so commands/ui.mjs:55 and commands/visual.mjs:50, which are not in Phạm vi, also stop failing when a declared repo is missing outside the task scope. That matches the intent. But only check/done/test/status print the 'ℹ Bỏ qua repo …' note: a direct `compass ui <id>` or `compass visual <id>` drops `resolved.notes`. That is harmless, but it is a behaviour change in callers the spec does not list.",
+      "file": "lib/gates.mjs",
+      "line": 69
+    },
+    {
+      "severity": "Info",
+      "criterion": "spec",
+      "title": "Editing an approved conventions/<repo>.md after a green gate is not detected by done",
+      "detail": "quetRepo records rulesHash = sha256(own + root), but nothing compares it later, and hashSource skips `.knowledge/` (lib/source-hash.mjs:12). So adding an error rule, or turning a decision back into `- [ ]`, in `.knowledge/decided/conventions/be.md` after `check` still lets `done` close green. SKILL.md documents this only for deleting the file. The behaviour predates this change for the root file, but CP-103 makes the per-repo file a hard gate input, so the limitation now matters more.",
+      "file": "commands/convention.mjs",
+      "line": 245
+    }
+  ]
+}

@@ -194,7 +194,9 @@ Chưa viết được thì để Compass soạn nháp: `compass convention --dra
 ESLint, `tsconfig.json` và đếm trên chính code (thụt lề, nháy, dấu chấm phẩy, tên file, tên file
 test), rồi ghi `.compass/conventions-draft.md`. Mỗi convention kèm bằng chứng, kiểu "38 / 40 file".
 Luật máy chạy được chỉ được đề xuất khi code hôm nay không phá chỗ nào. Bạn duyệt, sửa, rồi tự chuyển
-nó vào `.knowledge/decided/`; Compass không bao giờ tự ghi vào đó.
+nó vào `.knowledge/decided/`; Compass không tự ghi vào đó. Ngoại lệ duy nhất là
+`compass convention --approve --repo=<repo>`, chạy sau khi bạn xác nhận bản nháp của một repo con: nó
+chép bản nháp thành `.knowledge/decided/conventions/<repo>.md` và không bao giờ ghi đè file đã có.
 
 Bản nháp mang dấu nguồn, nên về sau Compass tự nhận ra khi convention đã cũ: một file config đổi, hay
 code đã trôi khỏi một convention từng đếm được. Việc kiểm tra chạy ở mọi `init`, mọi `check` và trong
@@ -206,7 +208,13 @@ Dự án nhiều repo thì mỗi repo trong `repos` có convention riêng ở
 đúng file của `be`, không phải luật của gốc. Repo chưa có file đó thì brief đưa số đếm tên hàm trong
 thư mục ("`safeUp` 438/443 file") cùng hai file mẫu mới nhất theo commit, còn `status`, `done` và
 `compass pr` nhắc soạn nháp bằng `compass convention --draft --repo=be`. Gốc chưa có
-`conventions.md` thì ba lệnh đó cũng nhắc, kể cả ở dự án một repo. Lời nhắc không chặn gate nào.
+`conventions.md` thì ba lệnh đó cũng nhắc, kể cả ở dự án một repo; gốc không bao giờ bị chặn.
+
+Repo con thì khác: chưa có file riêng là gate `convention` đỏ, với mọi loại task. Agent dừng và hỏi bạn,
+rồi soạn bản nháp theo 12 tiêu chí sau khi đọc code của repo, mỗi ý kèm file làm bằng chứng. Bạn xác nhận
+thì `compass convention --approve --repo=be` chép bản nháp vào chỗ đã duyệt. Gate chạy luật của chính
+file đó trên repo `be`. Luật ở `conventions.md` của gốc không chạy trên repo con; luật ở gốc mà khớp
+file của repo con làm gate đỏ và bảo chuyển nó sang file của repo.
 
 ## Gõ lệnh trực tiếp
 
@@ -225,6 +233,7 @@ compass check T-001                   # chạy mọi gate áp dụng
 compass done T-001                    # cổng cuối
 compass convention --draft            # soạn nháp conventions.md từ config và code
 compass convention --draft --repo=be  # soạn nháp convention riêng của repo be
+compass convention --approve --repo=be  # duyệt bản nháp đã điền, sau khi người dùng xác nhận
 compass pr 123                        # soi PR của người khác
 ```
 

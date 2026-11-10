@@ -108,6 +108,7 @@ test('CP-22-E1 status không id, chưa có config, báo rõ và không ném', ()
   assert.doesNotMatch(result.output, /at .*\.mjs:\d+/);
 });
 
+// CP-103 (issue #6): repo chưa clone không còn làm hỏng trang cấu hình; nó vẫn được nêu tên.
 test('CP-22-E2 status không id, repo trỏ vào thư mục không có, nêu tên repo', () => {
   const root = duAn({
     test: 'npm test',
@@ -117,8 +118,9 @@ test('CP-22-E2 status không id, repo trỏ vào thư mục không có, nêu tê
   const result = statusCommand({ cwd: root, taskId: undefined });
   rmSync(root, { recursive: true, force: true });
 
-  assert.equal(result.exitCode, 2);
+  assert.equal(result.exitCode, 0, result.output);
   assert.match(result.output, /khong_ton_tai/);
+  assert.match(result.output, /không có trên máy này/);
   assert.doesNotMatch(result.output, /at .*\.mjs:\d+/);
 });
 

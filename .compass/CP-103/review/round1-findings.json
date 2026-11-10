@@ -1,0 +1,105 @@
+{
+  "brief": "675d69e60ff2",
+  "coverage": {
+    "spec": { "verdict": "findings" },
+    "convention": { "verdict": "clean" },
+    "impact": { "verdict": "findings" },
+    "tests": { "verdict": "findings" },
+    "regression": { "verdict": "findings" },
+    "performance": { "verdict": "clean" },
+    "security": { "verdict": "clean" },
+    "errors": { "verdict": "findings" },
+    "reuse": { "verdict": "findings" },
+    "docs": { "verdict": "findings" }
+  },
+  "findings": [
+    {
+      "severity": "Major",
+      "criterion": "spec",
+      "title": "`done` and `test` skip a missing out-of-scope repo silently; the spec requires one ℹ line there too",
+      "detail": "The spec says a repo declared but missing on disk and outside Phạm vi \"is skipped with one `ℹ` line in `status`, `check`, `done` and `test`\". Only `check` (commands/check.mjs, `lines = resolved.notes...`) and `status <id>` print `resolved.notes`. In commands/done.mjs `phamViRepo` calls `resolveReposForScope` and keeps only `repos`, so `notes` are thrown away and `done` never prints the line. commands/test.mjs line 45 does the same when `compass test <id>` runs on its own. docs/huong-dan.md:143 and skills/compass/SKILL.md:462 both promise that `done` and `test` print `ℹ Bỏ qua repo \"x\": …`, so the docs describe output that does not exist. No test covers `done` or `test` here (CP-103-H8 checks only `status` and `check`).",
+      "file": "commands/done.mjs",
+      "line": 46
+    },
+    {
+      "severity": "Minor",
+      "criterion": "spec",
+      "title": "\"Không áp dụng\" with no reason counts as an answer",
+      "detail": "The spec asks for an explicit \"Không áp dụng: <lý do>\". `NO_EVIDENCE_NEEDED = /Không thấy trong repo|Không áp dụng/i` matches the bare phrase anywhere in the criterion body, so a criterion answered only with \"Không áp dụng\" (no reason), or an answer that mentions the phrase in passing (\"… Không áp dụng cho file SQL\"), passes both `--approve` and the gate with no evidence at all.",
+      "file": "lib/repo-conventions.mjs",
+      "line": 113
+    },
+    {
+      "severity": "Minor",
+      "criterion": "impact",
+      "title": "The gate re-checks evidence in the approved file, so deleting or renaming a cited file blocks unrelated tasks",
+      "detail": "`quetRepo` runs `problemLines(ownProblems(own, r.dir))` on the approved `conventions/<repo>.md` on every gate run, and `ownProblems` calls `evidenceExists` on the live tree. Evidence was meant to back the answers when they were approved. Once approved, a task that legitimately renames or deletes `src/a.ts` (the file cited for, say, every criterion) turns gate `convention` red with \"Không có bằng chứng: 1. Định dạng, …\". The hint then tells the agent not to edit the approved file without the reviewer, so a correct refactor is stuck on a convention-file problem it did not cause.",
+      "file": "commands/convention.mjs",
+      "line": 262
+    },
+    {
+      "severity": "Minor",
+      "criterion": "impact",
+      "title": "`--approve` creates `.knowledge/` and so turns gate `knowledge` red on the next `check`, with no warning",
+      "detail": "In a multi-repo workspace with no `.knowledge/` yet, the gate `knowledge` passes (\"dự án chưa dùng .knowledge\"). `writeNoLink` creates `.knowledge/decided/conventions/<repo>.md`, and from then on the knowledge gate expects generated docs and fails (missing manifest/components, reported as docs being stale or deleted). The success hint of `--approve` says only \"Chạy lại gate: compass check <id>\". The tests avoid this by calling `knowledgeCommand({ sync: true })` first (CP-103-H4/H8, test/helpers/conventions.mjs explains it), but users and agents are not told. Since this gate is now mandatory for every multi-repo task, every new workspace will hit it.",
+      "file": "commands/convention.mjs",
+      "line": 434
+    },
+    {
+      "severity": "Minor",
+      "criterion": "tests",
+      "title": "CP-103-H2's \"root rule is not run on be\" check cannot fail",
+      "detail": "The test checks `doesNotMatch(r.output, /vi phạm mức error/)` to show the root rule `be-no-log` (console.log) was not run on `be`. But `BE_FILES` holds no `console.log`, so running the root rule on `be` would find no violation either. The assertion passes whether the rule runs or not, so the spec's \"the rule is not run on `be`\" part of H2 has no test.",
+      "file": "test/repo-convention-gate.test.mjs",
+      "line": 154
+    },
+    {
+      "severity": "Minor",
+      "criterion": "tests",
+      "title": "S2 and S4 test a junctioned parent folder only, never the file itself being a link",
+      "detail": "Spec S2 is \"`conventions/be.md` is a symlink or junction to an outside file\", and S4 is \"the draft file is a symlink or junction\". Both tests replace the parent directory (`.knowledge/decided/conventions` or `.compass/conventions-draft`) with a junction. The last-segment check in `readNoLink` (`lstatSync(full).isFile()`) is never run against a file symlink, so a regression there (say, `statSync` in place of `lstatSync` for the final file) would go unnoticed. A file symlink can be skipped on Windows without privilege, as other tests in the repo do.",
+      "file": "test/repo-convention-gate.test.mjs",
+      "line": 473
+    },
+    {
+      "severity": "Minor",
+      "criterion": "regression",
+      "title": "No test for the listed risk \"the plain draft now counts the repos that exist when one is missing\"",
+      "detail": "`units()` in lib/convention-draft.mjs now calls `resolveRepos(..., { allowMissing: true })`. Before, a missing repo made it fall back to the whole root. The spec lists this as a regression risk, and it also changes what `conventionStatus`/`currentMarks` count when checking whether an adopted root `conventions.md` is stale. No test drafts or checks staleness in a workspace with a declared repo missing on disk (CP-98's missing-repo case covers only `--draft --repo=`).",
+      "file": "lib/convention-draft.mjs",
+      "line": 348
+    },
+    {
+      "severity": "Minor",
+      "criterion": "errors",
+      "title": "A repeated criterion heading drops the first body, hiding its `compass-fill`",
+      "detail": "In `ownProblems`, each `### N.` heading runs `bodies.set(cur, [])`. If a draft or approved file has `### 3.` twice (for example, the agent adds its own `### 3. Cấu trúc thư mục` below the generated one, which still carries `compass-fill`), only the second body is kept. The unanswered marker in the first is never seen, and `--approve` and the gate both pass. Merging bodies for a repeated number, or reporting the duplicate, would close this.",
+      "file": "lib/repo-conventions.mjs",
+      "line": 181
+    },
+    {
+      "severity": "Minor",
+      "criterion": "reuse",
+      "title": "Repo-name quoting for commands is copied in one place and missing in three others",
+      "detail": "`quetRepo` copies the `arg` quoting from `pendingLine` in lib/repo-conventions.mjs (`/^[\\w./-]+$/.test(name) ? name : JSON.stringify(name)`) instead of sharing it. The new commands printed elsewhere skip it: the draft header and agent section (`approve` in buildDraft, lib/convention-draft.mjs:700), the `--draft --repo` hint (commands/convention.mjs:362), and the `--approve` E1/V7 hints. `repoPathError` allows spaces, so a repo like `web app` gets `compass convention --approve --repo=web app` printed, and running it as written fails.",
+      "file": "commands/convention.mjs",
+      "line": 196
+    },
+    {
+      "severity": "Minor",
+      "criterion": "docs",
+      "title": "Docs say root rules \"apply to root files\", but in a multi-repo workspace the gate never runs them on any file",
+      "detail": "README.md:214, docs/huong-dan.md:130 and SKILL.md:415 say \"luật ở `conventions.md` của gốc chỉ áp cho file của gốc\". When `repos` is declared, `conventionCommand` only goes through `quetRepo` for each repo in Phạm vi. Root rules there are only parsed and checked by `rulesTouching`, and no code path runs `runRules` on root files. (`.compass` is also in the walker's SKIP_DIRS, so even `.compass/scripts/**` rules match nothing.) A reader will think root files are protected by root rules, but nothing enforces them.",
+      "file": "README.md",
+      "line": 214
+    },
+    {
+      "severity": "Minor",
+      "criterion": "docs",
+      "title": "AGENTS.md and the gate's own hint still send multi-repo users to the plain `--draft`, whose rules now turn the gate red",
+      "detail": "templates/AGENTS.md:94 tells the agent to run plain `compass convention --draft` on `⚠ Gốc chưa có convention đã duyệt`. `conventionStatus` (shown by `init` and after every gate run through `withStatus`) prints `chạy: compass convention --draft`, and the earlier AGENTS.md section says to act on it \"không chờ ai bảo\". In a multi-repo workspace that draft proposes rules like `scope: **/*.js`. Once adopted at the root, `rulesTouching` makes every repo red. SKILL.md warns about this (and the spec says the docs should point to `--draft --repo=`), but AGENTS.md, the file copied into users' projects, does not.",
+      "file": "templates/AGENTS.md",
+      "line": 94
+    }
+  ]
+}

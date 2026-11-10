@@ -16,6 +16,7 @@ import { testCommand } from '../commands/test.mjs';
 import { readGates, readGate, slotFor, parseSlot } from '../lib/gate-store.mjs';
 import { getSalt, signRecord } from '../lib/signature.mjs';
 import { gatePath } from '../lib/paths.mjs';
+import { approveConventions } from './helpers/conventions.mjs';
 
 const IN = (s) => `node -e "console.log('${s}')"`;
 const DO = 'node -e "process.exit(1)"';
@@ -44,6 +45,7 @@ function makeRoot({ config, specText = spec(), dirs = ['be/src', 'fe/src'] }) {
   writeFileSync(path.join(root, '.compass', 'config.json'), JSON.stringify(config, null, 2));
   writeFileSync(path.join(root, '.compass', 'T-1', 'spec.md'), specText);
   for (const d of dirs) mkdirSync(path.join(root, d), { recursive: true });
+  approveConventions(root, config);
   return root;
 }
 
@@ -358,18 +360,19 @@ test('CP-13-S4 a stale record in a repo slot is caught by the hash checks', asyn
 });
 
 test('CP-13-S5 the hint for a repo slot names a command that exists', async () => {
-  // `compass test@be` không phải lệnh. Lệnh là tên gate.
+  // `compass test@be` không phải lệnh. Lệnh là tên gate. Dùng `ui`: từ CP-103 `convention`
+  // bắt buộc cả với `fix`, nên lời khuyên của nó là `compass check`, không phải tên gate.
   const root = makeRoot({ config: HAI_REPO });
   await checkCommand({ cwd: root, taskId: 'T-1' });
 
   const file = gatePath(root, 'T-1');
   const data = JSON.parse(readFileSync(file, 'utf8'));
   const salt = getSalt(root);
-  const rec = { gate: 'convention', taskId: 'T-1', repo: 'be', exitCode: 1 };
-  data['convention@be'] = { ...rec, sig: signRecord(rec, salt) };
+  const rec = { gate: 'ui', taskId: 'T-1', repo: 'be', exitCode: 1 };
+  data['ui@be'] = { ...rec, sig: signRecord(rec, salt) };
   writeFileSync(file, JSON.stringify(data, null, 2));
 
   const r = doneCommand({ cwd: root, taskId: 'T-1' });
-  assert.match(r.output, /compass convention T-1/);
-  assert.doesNotMatch(r.output, /compass convention@be/, 'khe không phải tên lệnh');
+  assert.match(r.output, /compass ui T-1/);
+  assert.doesNotMatch(r.output, /compass ui@be/, 'khe không phải tên lệnh');
 });

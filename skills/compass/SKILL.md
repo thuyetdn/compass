@@ -350,7 +350,8 @@ message: Dùng CSS variable thay vì mã màu
 phạm · `scope` nhận glob `**` `*` `?` · `severity` là `error` (chặn) hoặc `warn` (chỉ hiện) ·
 `message` tùy chọn, hiện kèm mỗi vi phạm.
 
-Không có `conventions.md` thì gate pass và nói rõ là chưa có luật nào. Luật khai sai — thiếu trường, regex hỏng, `type` chưa hỗ trợ — thì gate **fail**, vì luật chạy không được trông như có bảo vệ mà thật ra không bảo vệ gì.
+Dự án một repo không có `conventions.md` thì gate pass và nói rõ là chưa có luật nào; repo con trong
+`repos` thiếu file riêng thì khác, xem "Dự án nhiều repo" bên dưới. Luật khai sai — thiếu trường, regex hỏng, `type` chưa hỗ trợ — thì gate **fail**, vì luật chạy không được trông như có bảo vệ mà thật ra không bảo vệ gì.
 
 `node_modules`, `dist`, `build`, `coverage`, `.git` không bị quét, và cả worktree liên kết lồng
 trong repo — bản checkout của agent không phải code của task. Nhận theo cấu trúc, không theo tên:
@@ -403,11 +404,56 @@ nhắc rằng Compass không biết nó cũ hay chưa; không có gì để làm
 **Dự án nhiều repo: mỗi repo một file convention.** `.knowledge/decided/conventions.md` ở gốc chỉ nói
 về file của gốc. Repo khai trong `repos` có convention riêng ở `.knowledge/decided/conventions/<repo>.md`,
 ngay tại gốc workspace chứ không trong repo con, để file không lên PR của đội. Repo `store/backend` thì
-file là `conventions/store/backend.md`. Gate `convention` không đổi: luật trong `conventions.md` của gốc
-vẫn chạy trên mọi repo như trước. Thứ đổi là brief soi code và dòng nhắc.
+file là `conventions/store/backend.md`. Gate `convention` và brief soi code đọc cùng file đó, nên hai bên
+không còn nói về hai bộ luật khác nhau.
 
-Repo chưa có file riêng thì `compass status`, `compass done` (cho repo trong `Phạm vi`) và `compass pr`
-in một dòng:
+**Gate `convention` khi quét repo `be`:**
+
+- **Chưa có `conventions/be.md` thì đỏ, với mọi loại task, kể cả `fix`.** Code chỉ đúng khi có chuẩn
+  để so. Không có dòng nào trong spec để miễn.
+- **Có file thì chạy luật của file đó** trên code của `be`.
+- **Luật ở `conventions.md` của gốc không chạy trên repo con.** Ở workspace nhiều repo, gate chỉ quét
+  các repo con trong `Phạm vi`, nên nó không chạy luật của gốc trên file nào; brief soi code vẫn đưa
+  `conventions.md` cho người soi khi task sửa file của gốc. Một luật ở gốc mà `scope` khớp file của
+  `be` (viết `be/src/**` hay `src/**`) làm gate đỏ, nêu tên luật và bảo chuyển nó sang
+  `conventions/be.md`. Luật đó không lặng lẽ thôi bảo vệ code. Luật ở gốc không khớp file nào của `be`,
+  như luật về `.compass/scripts`, thì không ảnh hưởng gì.
+- **Gate chỉ xét bằng chứng lúc `--approve`.** Mỗi lần chạy, gate chỉ đòi file của repo không còn
+  dòng `compass-fill` hay `- [ ]`; một task sau đổi tên hay xóa file từng được trích không làm gate đỏ.
+- **Gốc không bao giờ bị chặn** vì thiếu `conventions.md`, ở cả dự án một repo lẫn nhiều repo.
+
+**Gate đỏ vì `be` chưa có convention thì DỪNG và hỏi người dùng**: "Repo `be` chưa có convention. Tạo
+bản nháp theo 12 tiêu chí không?" Không tự làm tiếp. Người dùng đồng ý thì:
+
+1. Chạy `compass convention --draft --repo=be`. Bản nháp ghi ra `.compass/conventions-draft/be.md`, gồm
+   phần máy đếm (config, thụt lề, mục "Theo thư mục" với tên hàm chung như "`safeUp` 438/443 file") và
+   mục **"Agent đọc và viết"**: danh sách file mẫu (tối đa 2 file mới nhất theo commit ở mỗi thư mục,
+   10 thư mục nhiều file nhất) và 12 tiêu chí, mỗi tiêu chí một câu hỏi và một dòng `compass-fill`.
+2. **Đọc các file mẫu rồi trả lời từng tiêu chí** bằng quy ước thật của repo:
+   - Mỗi ý kèm ít nhất một file làm bằng chứng, trong dấu backtick (`` `src/app.ts:12` ``).
+   - Không thấy thì ghi "Không thấy trong repo"; không hợp với repo thì ghi "Không áp dụng: <lý do>".
+     Không bịa.
+   - Hai kiểu viết lẫn lộn thì ghi cả hai kèm số file, thành một dòng `- [ ]` để người quyết.
+   - Trả lời xong một tiêu chí thì xóa dòng `compass-fill` của nó.
+3. Đưa người dùng xem bản nháp, từng dòng `- [ ]` và các luật đề xuất. Người dùng quyết dòng nào thì
+   đổi thành `- [x]` kèm lựa chọn.
+4. **Người dùng xác nhận** thì chạy `compass convention --approve --repo=be`. Lệnh chép bản nháp thành
+   `.knowledge/decided/conventions/be.md`. Nó từ chối khi:
+   - còn dòng `compass-fill`;
+   - còn dòng `- [ ]`;
+   - một tiêu chí không có file nào có thật trong repo, cũng không ghi "Không thấy" hay "Không áp dụng";
+   - file đã duyệt có từ trước (không bao giờ ghi đè).
+
+Mười hai tiêu chí: 1 Định dạng, 2 Đặt tên, 3 Cấu trúc thư mục, 4 Phụ thuộc giữa các lớp, 5 Import và
+export, 6 Kiểu dữ liệu, 7 Lỗi và log, 8 Dữ liệu và API, 9 Theo framework, 10 Test, 11 Cấu hình và bí mật,
+12 Comment và tài liệu.
+
+`--approve` không biết ai đang gõ nó. Chỉ chạy lệnh này sau khi người dùng nói đồng ý: đó là luật 5,
+và Compass không đo được nó. File convention riêng viết tay từ trước, không có mục "Agent đọc và viết",
+vẫn hợp lệ: gate chạy luật của nó như thường.
+
+`init` in một dòng cho mỗi repo khai mà chưa có file riêng. `compass status`, `compass done` (cho repo
+trong `Phạm vi`) và `compass pr` cũng in dòng đó:
 
 ```text
 ⚠ Repo `be` chưa có convention đã duyệt (`.knowledge/decided/conventions/be.md`) — soạn nháp: `compass convention --draft --repo=be`, rồi đưa người duyệt.
@@ -415,14 +461,11 @@ in một dòng:
 
 Gốc cũng là một đơn vị. Gốc chưa có `conventions.md` thì ba lệnh đó in
 `⚠ Gốc chưa có convention đã duyệt (…)`, kể cả ở dự án một repo; `done` của dự án nhiều repo chỉ in
-khi `Phạm vi` có mục nằm ngoài mọi repo.
+khi `Phạm vi` có mục nằm ngoài mọi repo. Dòng của gốc chỉ nhắc, không đổi mã thoát.
 
-Dòng này không đổi mã thoát, vì thiếu convention không có nghĩa là code sai. Gặp nó thì làm như ba
-bước trên, với `compass convention --draft --repo=be`. Bản nháp ghi ra `.compass/conventions-draft/be.md`
-và có thêm mục "Theo thư mục": thư mục nào có ít nhất 20 file cùng đuôi thì tên hàm nào có ở ít nhất
-90 % số file đó, ví dụ "`safeUp` 438/443 file". Người duyệt tự chuyển bản nháp vào
-`.knowledge/decided/conventions/be.md`, và dòng nhắc tự hết vì Compass xét lại mỗi lần chạy, không lưu
-trạng thái.
+Repo khai trong `repos` mà chưa clone về máy, và không nằm trong `Phạm vi` của task, thì `status`,
+`check`, `done` và `test` bỏ qua với một dòng `ℹ Bỏ qua repo "x": …`. Task có repo đó trong `Phạm vi`
+thì vẫn dừng như trước.
 
 **Giới hạn:** tên hàm dò bằng regex trên dòng mở đầu bằng `function`, `def` hay `func` (kèm `public`,
 `static`, `export async`…), không phân tích cú pháp. Method viết không kèm từ khóa (JS `foo() {}`,
@@ -431,7 +474,17 @@ thư mục" không đi vào dấu nguồn, và file convention riêng của repo
 theo dõi đó chỉ có cho `conventions.md` của gốc. File mẫu "mới nhất theo commit" chỉ xét 200 commit gần
 nhất đụng thư mục đó hay thư mục con của nó; thư mục con nhận hết số commit đó thì mẫu rơi về thứ tự
 tên. Một symlink hay junction ở bất kỳ đoạn nào trên đường tới file convention (kể cả `.knowledge`) làm
-brief coi file đó như chưa có, trong khi gate `convention` vẫn đọc `conventions.md` của gốc qua nó.
+brief và gate coi file của repo như chưa có, và `--approve` từ chối ghi qua đó; riêng `conventions.md`
+của gốc thì gate vẫn đọc qua link. Compass chỉ thấy câu trả lời đã điền và file được trích, không biết
+agent có đọc thật hay không: người duyệt là chốt cuối. `sourceHash` không phủ `.knowledge/`, và
+`rulesHash` của bản ghi chưa được `done` so lại, nên sửa hay xóa file convention của repo sau lần gate
+xanh không làm `done` đỏ; xóa thì `done` in lại dòng nhắc, sửa thì không nói gì — chạy lại `check`.
+Gọi thẳng `compass ui` hay `compass visual` (không qua `check`) bỏ qua repo chưa clone mà không in
+dòng `ℹ`.
+
+Ở workspace nhiều repo, bản nháp chung (`compass convention --draft`, không `--repo`) vẫn đề xuất luật
+như `scope: **/*.js` cho `conventions.md` ở gốc. Luật đó khớp file của repo con, nên nhận vào gốc là gate
+đỏ. Dùng `--draft --repo=<repo>` cho từng repo.
 
 ### Gate `ui` — đo số, không nhìn ảnh
 
@@ -866,7 +919,7 @@ cũng đi qua từng repo như `check`, không bao giờ ghi một khe chung.
 
 | Gate | Đo gì, ở đâu |
 |---|---|
-| `convention` | Chỉ file trong thư mục repo. Luật vẫn viết một lần ở `.knowledge/decided/conventions.md` của gốc; `scope` khớp cả đường dẫn tính từ repo (`src/**/*.jsx`) lẫn tính từ gốc (`fe/src/**/*.jsx`). Vi phạm in theo gốc để biết file nằm ở repo nào |
+| `convention` | Chỉ file trong thư mục repo, theo luật của `.knowledge/decided/conventions/<repo>.md` (CP-103). Repo chưa có file đó thì đỏ. `scope` trong file của repo khớp cả đường dẫn tính từ repo (`src/**/*.jsx`) lẫn tính từ gốc (`fe/src/**/*.jsx`). Luật ở `conventions.md` của gốc không chạy ở đây; luật ở gốc mà khớp file của repo làm gate đỏ. Vi phạm in theo gốc để biết file nằm ở repo nào |
 | `ui`, `visual` | Config đã gộp của repo (`dev`, `devUrl`, `devTimeoutMs`, `visualThreshold`). Dev server chạy **trong thư mục repo**, Playwright tìm từ thư mục repo — cài ở repo có giao diện |
 
 Baseline của `visual` nằm ở `.compass/<id>/baseline/<repo>/<viewport>.png`, evidence ở

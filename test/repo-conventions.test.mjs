@@ -336,27 +336,31 @@ test('CP-98-H7 status names the repo without its own conventions and leaves the 
   assert.match(single.output, /sai ở đây thì gate `test` đỏ mà không rõ vì sao\.$/);
 });
 
-test('CP-98-H8 done closes a green task and prints the pending line for its repo', async () => {
+// CP-103 (issue #6) đổi tiền đề của case này: repo con thiếu convention riêng giờ dừng ở
+// gate `convention`, nên không còn tới được `done` xanh. Gốc thì không bao giờ bị chặn, nên
+// dòng nhắc trên `done` xanh bây giờ là của gốc. Dòng của `be` vẫn hiện khi file của nó bị
+// xóa sau lần gate xanh: `sourceHash` không phủ `.knowledge/`.
+test('CP-98-H8 done closes a green task and prints the pending line for the root', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'compass-cp98-done-'));
   initGit(root);
   const out = (ids) => ids.map((id, i) => `console.log('ok ${i + 1} - T-1-${id} x')`).join('; ');
   put(root, '.compass/config.json', JSON.stringify({ test: `node -e "${out(['H1', 'H2'])}"`, repos: { be: {} } }));
-  put(root, '.knowledge/decided/conventions.md', '# Quy ước\n\nTên nói rõ nghĩa.\n');
+  put(root, '.knowledge/decided/conventions/be.md', '# Quy ước của be\n\nTên nói rõ nghĩa.\n');
   put(root, 'be/a.js', 'export const a = 1;\n');
-  put(root, '.compass/T-1/spec.md', SPEC({ scope: 'be/' }));
+  put(root, '.compass/T-1/spec.md', SPEC({ scope: 'be/, tools/x.js' }));
   commit(root, 'task');
   assert.equal(knowledgeCommand({ cwd: root, sync: true }).exitCode, 0);
   const c = await checkCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(c.exitCode, 0, c.output);
   const r = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(r.exitCode, 0, r.output);
-  assert.match(r.output, PENDING_BE);
-  assert.doesNotMatch(r.output, /Gốc chưa có convention/, 'gốc có conventions.md mà vẫn bị nhắc');
+  assert.match(r.output, /⚠ Gốc chưa có convention đã duyệt/);
+  assert.doesNotMatch(r.output, PENDING_BE, 'be có convention riêng mà vẫn bị nhắc');
 
-  // Phạm vi có file của gốc và gốc chưa có conventions.md: done nhắc cả gốc. Spec đổi
-  // nên done đỏ, và dòng nhắc vẫn phải có trên nhánh đỏ.
-  rmSync(path.join(root, '.knowledge', 'decided', 'conventions.md'));
-  put(root, '.compass/T-1/spec.md', SPEC({ scope: 'be/, tools/x.js' }));
+  // File của `be` bị xóa sau lần gate xanh, rồi spec đổi nên done đỏ: dòng nhắc của cả
+  // gốc lẫn `be` vẫn phải có trên nhánh đỏ.
+  rmSync(path.join(root, '.knowledge', 'decided', 'conventions', 'be.md'));
+  put(root, '.compass/T-1/spec.md', SPEC({ scope: 'be/, tools/' }));
   const red = doneCommand({ cwd: root, taskId: 'T-1' });
   assert.notEqual(red.exitCode, 0, red.output);
   assert.match(red.output, /⚠ Gốc chưa có convention đã duyệt/);
@@ -451,7 +455,8 @@ test('CP-98-E3 done with a config that is not JSON behaves exactly as before', a
   const { doneCommand: oldDone } = await oldModule('commands/done.mjs');
   const before = oldDone({ cwd: root, taskId: 'T-1' });
   assert.equal(now.exitCode, before.exitCode);
-  assert.equal(now.output, before.output);
+  // Khác duy nhất: từ CP-103 `fix` cũng đòi gate `convention`, nên có thêm một dòng "chưa chạy".
+  assert.equal(now.output, before.output.replace('  Gate "test" chưa chạy.\n', '  Gate "test" chưa chạy.\n  Gate "convention" chưa chạy.\n'));
   assert.doesNotMatch(now.output, /chưa có convention đã duyệt/);
 });
 

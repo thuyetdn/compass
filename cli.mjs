@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { initCommand, initMultiCommand } from './commands/init.mjs';
 import { specCommand } from './commands/spec.mjs';
 import { testCommand } from './commands/test.mjs';
-import { conventionCommand, conventionDraftCommand } from './commands/convention.mjs';
+import { conventionCommand, conventionDraftCommand, conventionApproveCommand } from './commands/convention.mjs';
 import { knowledgeCommand } from './commands/knowledge.mjs';
 import { uiCommand } from './commands/ui.mjs';
 import { visualCommand } from './commands/visual.mjs';
@@ -29,6 +29,9 @@ Dùng:
   compass convention --draft [--force]  soạn nháp conventions.md từ config và code
   compass convention --draft --repo=<repo> [--force]
                                          soạn nháp convention riêng của một repo trong "repos"
+  compass convention --approve --repo=<repo>
+                                         chép bản nháp đã điền và người dùng đã xác nhận
+                                         thành convention đã duyệt của repo đó
   compass test <id>
   compass ui <id>
   compass visual <id>
@@ -99,8 +102,12 @@ async function main() {
         result = knowledgeCommand({ cwd, taskId, sync: flags.sync === true, page: flags.page === true });
         break;
       case 'convention':
-        if (flags.draft === true && flags.repo !== undefined && typeof flags.repo !== 'string') {
+        if ((flags.draft === true || flags.approve === true) && flags.repo !== undefined && typeof flags.repo !== 'string') {
           result = { exitCode: 2, output: 'Viết --repo=<tên repo>, có dấu "=" và một tên khai trong "repos".' };
+          break;
+        }
+        if (flags.approve === true) {
+          result = conventionApproveCommand({ cwd, repo: typeof flags.repo === 'string' ? flags.repo : null });
           break;
         }
         result = flags.draft === true

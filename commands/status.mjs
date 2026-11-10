@@ -6,7 +6,7 @@ import { rulesFor } from '../lib/task-types.mjs';
 import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
 import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
 import { loadConfig, DEAD_FIELDS } from '../lib/config.mjs';
-import { resolveRepos, reposForScope } from '../lib/repos.mjs';
+import { resolveRepos, resolveReposForScope, reposForScope } from '../lib/repos.mjs';
 import { parseSecretsPublic } from '../lib/secrets-scan.mjs';
 import { pendingLines } from '../lib/repo-conventions.mjs';
 
@@ -22,7 +22,9 @@ function cauHinh(root) {
     return { exitCode: 2, output: [`Config có lỗi:`, ...cfg.errors.map((e) => `  ${e}`)].join('\n') };
   }
 
-  const resolved = resolveRepos(root, cfg.config);
+  // Repo khai mà chưa clone về máy không làm hỏng cả trang cấu hình (CP-103, issue #6):
+  // task nào nhắc tới nó thì `check` vẫn dừng; ở đây chỉ cần nói nó không có.
+  const resolved = resolveRepos(root, cfg.config, { allowMissing: true });
   if (!resolved.ok) {
     return {
       exitCode: 2,
@@ -44,6 +46,9 @@ function cauHinh(root) {
     // Chỉ in devUrl của repo có khai. In "(không có)" cho mọi backend là nhiễu,
     // và tệ hơn: nó gợi ý rằng thiếu devUrl là chỗ cần sửa.
     if (repo.config.devUrl) lines.push(`      devUrl: ${repo.config.devUrl}`);
+  }
+  for (const m of resolved.missing ?? []) {
+    lines.push(`  ${m.name}`, `      ℹ không có trên máy này (không tìm thấy thư mục ${m.relative}); task nào có nó trong Phạm vi sẽ dừng ở check`);
   }
 
   // Việc treo của CP-98: gốc và từng repo chưa có convention đã duyệt. Tính lại mỗi
@@ -135,12 +140,13 @@ export function statusCommand({ cwd, taskId }) {
   // the spec's scope line alone — show what Compass read out of it.
   const cfg = loadConfig(root);
   if (cfg.ok && cfg.config.repos) {
-    const resolved = resolveRepos(root, cfg.config);
+    const resolved = resolveReposForScope(root, cfg.config, spec.scope ?? '');
     if (resolved.ok) {
       const applies = reposForScope(resolved.repos, spec.scope ?? '');
       lines.push(applies.length
         ? `Repo áp dụng: ${applies.map((r) => r.name).join(', ')}`
         : `Repo áp dụng: không repo nào khớp "Phạm vi: ${spec.scope ?? ''}"`);
+      lines.push(...resolved.notes.map((n) => `ℹ ${n}`));
     } else {
       lines.push(`Cấu hình repo có lỗi: ${resolved.errors[0]}`);
     }

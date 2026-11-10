@@ -213,7 +213,8 @@ test('CP-60-V2 a nested repo with a .git directory stays in every gate', () => {
   const root = initRepo(tempDir('compass-cp60mr-'));
   write(root, '.compass/config.json', JSON.stringify({ test: 'node -e 0', repos: { 'store/backend': {} } }));
   write(root, '.compass/T-1/spec.md', specText({ scope: 'store/backend' }));
-  write(root, '.knowledge/decided/conventions.md', CONVENTIONS);
+  // Luật của repo con nằm ở file riêng của nó từ CP-103 (issue #6).
+  write(root, '.knowledge/decided/conventions/store/backend.md', CONVENTIONS);
   const backend = path.join(root, 'store', 'backend');
   mkdirSync(backend, { recursive: true });
   git(backend, 'init', '-q');
@@ -306,7 +307,8 @@ test('CP-60-EC2 a worktree inside a declared repo is skipped by convention and t
   const root = initRepo(tempDir('compass-cp60fe-'));
   write(root, '.compass/config.json', JSON.stringify({ test: 'node -e 0', repos: { fe: {} } }));
   write(root, '.compass/T-1/spec.md', specText({ scope: 'fe/src' }));
-  write(root, '.knowledge/decided/conventions.md', CONVENTIONS);
+  // Luật của repo con nằm ở file riêng của nó từ CP-103 (issue #6).
+  write(root, '.knowledge/decided/conventions/fe.md', CONVENTIONS);
   const fe = path.join(root, 'fe');
   mkdirSync(fe, { recursive: true });
   initRepo(fe);

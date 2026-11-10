@@ -13,7 +13,7 @@ import { visualCommand } from './visual.mjs';
 import { reviewCommand } from './review.mjs';
 import { secretsCommand } from './secrets.mjs';
 import { GATE_ORDER, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
-import { resolveRepos, reposForScope } from '../lib/repos.mjs';
+import { resolveReposForScope, reposForScope } from '../lib/repos.mjs';
 import { loadConfig } from '../lib/config.mjs';
 
 const IMPLEMENTED = {
@@ -69,7 +69,8 @@ export async function checkCommand({ cwd, taskId, only }) {
   const cfg = loadConfig(root);
   if (!cfg.ok) return { exitCode: 2, output: cfg.errors.join("\n") };
 
-  const resolved = resolveRepos(root, cfg.config);
+  // Repo khai mà chưa có trên máy, ngoài Phạm vi: bỏ qua và nói ra (CP-103, issue #6).
+  const resolved = resolveReposForScope(root, cfg.config, spec.scope);
   if (!resolved.ok) {
     return { exitCode: 2, output: resolved.errors.join("\n") };
   }
@@ -88,7 +89,7 @@ export async function checkCommand({ cwd, taskId, only }) {
   // qua repo đó — không thêm quy ước đặt tên nào phải nhớ.
   const CAN_TRINH_DUYET = BROWSER_GATES;
 
-  const lines = [];
+  const lines = (resolved.notes ?? []).map((n) => `ℹ ${n}`);
   const skipped = [];
 
   for (const gate of gates) {

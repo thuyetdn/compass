@@ -77,9 +77,9 @@ Loại task quyết định số test tối thiểu và gate nào chạy:
 
 | Loại | Dùng khi | Test tối thiểu | Gate |
 |---|---|---|---|
-| `fix` | typo, 1–2 dòng, không đổi hành vi | 2 | spec, knowledge, secrets, test |
+| `fix` | typo, 1–2 dòng, không đổi hành vi | 2 | spec, knowledge, secrets, test, convention |
 | `bug` | sửa lỗi có nguyên nhân rõ | 6 | như `fix` |
-| `feature-s` | tính năng nhỏ, 1 module | 13 | + convention, ui, visual, review |
+| `feature-s` | tính năng nhỏ, 1 module | 13 | + ui, visual, review |
 | `feature-m` | tính năng vừa, nhiều module | 21 | như `feature-s` |
 | `feature-l` | tính năng lớn, nhiều repo | 30 | như `feature-s` |
 
@@ -126,9 +126,23 @@ Dự án nhiều repo thì mỗi repo khai trong `repos` có file convention ri�
 `.knowledge/decided/conventions/<repo>.md`, đặt ở gốc workspace. Brief soi code đưa người soi đúng file
 của repo bị sửa. Repo chưa có file đó thì brief đưa thay bằng số đếm tên hàm trong thư mục (ví dụ
 "`safeUp` 438/443 file") và hai file mẫu mới nhất theo commit. `compass status`, `compass done` và
-`compass pr` in dòng nhắc cho tới khi người duyệt chuyển bản nháp vào. Soạn nháp:
-`compass convention --draft --repo=<repo>`, ra `.compass/conventions-draft/<repo>.md`. Gốc chưa có
-`conventions.md` thì ba lệnh đó cũng nhắc, kể cả ở dự án một repo. Dòng nhắc không chặn gate nào.
+`compass pr` in dòng nhắc, và **gate `convention` đỏ ở repo đó với mọi loại task**, kể cả `fix`. Gate
+chạy luật của chính file `conventions/<repo>.md` trên repo đó. Luật ở `conventions.md` của gốc không
+chạy trên repo con: gate chỉ quét các repo con trong `Phạm vi`, và brief vẫn đưa file của gốc cho người
+soi khi task sửa file của gốc. Luật ở gốc mà khớp file của repo con làm gate đỏ, kèm lời bảo chuyển nó
+sang file của repo.
+
+Gặp gate đỏ vì thiếu convention thì agent dừng và hỏi bạn. Bạn đồng ý thì agent chạy
+`compass convention --draft --repo=<repo>` (ra `.compass/conventions-draft/<repo>.md`), đọc các file mẫu
+bản nháp liệt kê, và trả lời 12 tiêu chí (định dạng, đặt tên, cấu trúc thư mục, phụ thuộc giữa các lớp,
+import và export, kiểu dữ liệu, lỗi và log, dữ liệu và API, theo framework, test, cấu hình và bí mật,
+comment và tài liệu), mỗi ý kèm một file làm bằng chứng. Chỗ hai kiểu viết lẫn lộn thành dòng `- [ ]`
+cho bạn quyết. Bạn xác nhận thì agent chạy `compass convention --approve --repo=<repo>`; lệnh từ chối
+khi còn tiêu chí chưa trả lời, thiếu bằng chứng hay còn dòng `- [ ]`, và không bao giờ ghi đè file đã
+duyệt. Gốc chưa có `conventions.md` thì chỉ được nhắc, không bị chặn, kể cả ở dự án một repo.
+
+Repo khai trong `repos` mà chưa clone về máy và không nằm trong `Phạm vi` thì `status`, `check`,
+`done` và `test` bỏ qua với một dòng `ℹ`; task có repo đó trong `Phạm vi` vẫn dừng.
 
 **`test`** chạy lệnh test rồi đối chiếu: mọi ID trong spec phải xuất hiện trên một dòng **pass**.
 Thấy ID trên dòng fail hay skip, hay một ID khớp hai test khác nhau, đều là đỏ, và gate nói rõ trường

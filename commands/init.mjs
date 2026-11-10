@@ -4,7 +4,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findRoot, compassDir, taskDir, specPath, configPath, validateTaskId } from '../lib/paths.mjs';
 import { TASK_TYPES, rulesFor } from '../lib/task-types.mjs';
-import { DEFAULT_CONFIG } from '../lib/config.mjs';
+import { DEFAULT_CONFIG, loadConfig } from '../lib/config.mjs';
+import { resolveRepos } from '../lib/repos.mjs';
+import { pendingLines, readDeclaredRepos } from '../lib/repo-conventions.mjs';
 import { hint } from '../lib/report.mjs';
 import { ensureCompassGitignore } from '../lib/signature.mjs';
 import { conventionStatus } from '../lib/convention-draft.mjs';
@@ -119,6 +121,15 @@ export function initCommand({ cwd, taskId, type }) {
   // Task nào cũng mở bằng `init`, nên đây là chỗ convention thiếu hay đã cũ được
   // nói ra trước khi ai viết spec — không đợi người nhớ mà hỏi (CP-82).
   lines.push(...conventionStatus(root).lines);
+  // Từng repo con chưa có convention đã duyệt (CP-103, issue #6): gate `convention` sẽ đỏ
+  // ở repo đó, nên nói ngay lúc mở task, khi chưa ai viết dòng code nào. Spec còn trống
+  // nên chưa biết Phạm vi: nhắc mọi repo khai mà có trên máy.
+  const declared = readDeclaredRepos(root);
+  if (declared.ok && declared.repos !== null) {
+    const cfg = loadConfig(root);
+    const present = cfg.ok ? resolveRepos(root, cfg.config, { allowMissing: true }) : { ok: false };
+    if (present.ok) lines.push(...pendingLines(root, present.repos.map((r) => r.name).filter((n) => n !== null)));
+  }
   lines.push(
     '',
     hint('Điền spec, rồi chạy: compass spec ' + taskId)

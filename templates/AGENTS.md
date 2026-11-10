@@ -80,10 +80,21 @@ một brief thì không làm việc này; nó chỉ ghi `findings.json`.
 2. Đưa người xem `.compass/conventions-draft.md`, chỉ ra chỗ khác với file đang dùng.
 3. Chờ người duyệt. Không tự sửa `.knowledge/decided/`.
 
-Dự án nhiều repo: `compass status`, `compass done` hay `compass pr` in dòng "⚠ Repo … chưa có
-convention đã duyệt" cho repo `be` thì làm ba bước trên với `compass convention --draft --repo=be`. Bản nháp ở
-`.compass/conventions-draft/be.md`; người duyệt chuyển nó vào `.knowledge/decided/conventions/be.md`.
-Dòng `⚠ Gốc chưa có convention đã duyệt` thì làm đúng ba bước trên, với `compass convention --draft`.
+Dự án nhiều repo: gate `convention` đỏ vì "Repo `be` chưa có convention đã duyệt" (hay `init`,
+`status`, `done`, `compass pr` in dòng đó) thì **dừng và hỏi người dùng** có tạo bản nháp theo 12 tiêu
+chí không. Đồng ý thì:
+
+1. Chạy `compass convention --draft --repo=be`. Bản nháp ở `.compass/conventions-draft/be.md`.
+2. Đọc các file mẫu bản nháp liệt kê, trả lời từng tiêu chí trong mục "Agent đọc và viết". Mỗi ý kèm
+   một file trong repo làm bằng chứng, trong dấu backtick; không thấy thì ghi "Không thấy trong repo".
+   Hai kiểu viết lẫn lộn thì thành một dòng `- [ ]`. Trả lời xong thì xóa dòng `compass-fill`.
+3. Đưa người dùng duyệt bản nháp và từng dòng `- [ ]`.
+4. Người dùng xác nhận thì chạy `compass convention --approve --repo=be`. Không chạy trước khi họ đồng ý.
+
+Dòng `⚠ Gốc chưa có convention đã duyệt` thì làm ba bước phía trên, với `compass convention --draft`;
+gốc chỉ được nhắc, không bị chặn. Ở workspace nhiều repo, bản nháp chung đề xuất luật như
+`scope: **/*.js`: luật đó khớp file của repo con, nên nhận vào `conventions.md` của gốc là gate đỏ.
+Chỉ ra điều đó khi đưa người duyệt; luật cho repo con soạn bằng `--draft --repo=<repo>`.
 
 ### Soi PR của người khác
 

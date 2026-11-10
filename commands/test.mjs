@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import path from 'node:path';
 import { findRoot, specPath, compassDir, evidenceDir, configPath, validateTaskId } from '../lib/paths.mjs';
 import { loadConfig } from '../lib/config.mjs';
-import { resolveRepos, reposForScope } from '../lib/repos.mjs';
+import { resolveReposForScope, reposForScope } from '../lib/repos.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { runCommand } from '../lib/test-runner.mjs';
 import { extractRanIds, compareWithSpec } from '../lib/test-parser.mjs';
@@ -14,7 +14,15 @@ import { hashSource } from '../lib/source-hash.mjs';
 // `repo` là tên repo đang chạy (null nếu dự án một repo). `gateRoot` là thư mục
 // gốc — nơi có spec và sổ gate. Lệnh test chạy trong `cwd` của repo, nhưng spec
 // và bản ghi vẫn thuộc về task, không thuộc về repo.
-export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos = null }) {
+export function testCommand(options) {
+  // Repo khai mà chưa có trên máy, ngoài Phạm vi: gọi thẳng `compass test` cũng nói ra như
+  // `check` (CP-103). Gọi từ `check` thì danh sách repo có sẵn, và `check` tự in dòng đó.
+  const notes = [];
+  const result = testOnce(options, notes);
+  return notes.length ? { ...result, output: [...notes.map((n) => `ℹ ${n}`), result.output].join('\n') } : result;
+}
+
+function testOnce({ cwd, taskId, repo = null, gateRoot = null, repos = null }, notes) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass test <id>' };
 
   const validation = validateTaskId(taskId);
@@ -42,8 +50,9 @@ export function testCommand({ cwd, taskId, repo = null, gateRoot = null, repos =
   // đè bằng chứng đỏ của một repo bằng kết quả xanh của lệnh chung ở gốc.
   let danhSachRepo = repos;
   if (danhSachRepo === null) {
-    const resolved = resolveRepos(root, cfg.config);
+    const resolved = resolveReposForScope(root, cfg.config, spec.scope);
     if (!resolved.ok) return { exitCode: 2, output: resolved.errors.join("\n") };
+    notes.push(...resolved.notes);
     const khop = reposForScope(resolved.repos, spec.scope);
     if (khop.length === 0) {
       return {

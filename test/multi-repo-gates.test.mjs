@@ -30,6 +30,7 @@ import { hashSource } from '../lib/source-hash.mjs';
 import { initRepo } from './helpers/git-repo.mjs';
 import { playReviewer } from './helpers/review.mjs';
 import { withinBudget, withDeadline, readMarker } from './helpers/timing.mjs';
+import { approveConventions } from './helpers/conventions.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PNG_URL = pathToFileURL(path.join(ROOT, 'lib', 'png.mjs')).href;
@@ -83,6 +84,7 @@ function makeRoot({ type, scope, repos, shared = {}, files = {} } = {}) {
     mkdirSync(path.dirname(full), { recursive: true });
     writeFileSync(full, content);
   }
+  approveConventions(root, config);
   return root;
 }
 
@@ -106,10 +108,23 @@ message: Dùng CSS variable thay vì mã màu
 \`\`\`
 `;
 
+// Từ CP-103 (issue #6) luật của một repo con nằm ở `conventions/<repo>.md`; luật ở gốc mà
+// khớp file của repo con làm gate đỏ thay vì chạy. Nên ở dự án nhiều repo, luật mẫu được
+// ghi vào file của từng repo khai trong config — cùng một luật, chạy ở cùng chỗ như trước.
 function writeRules(root, scope = 'src/**/*.jsx') {
   const dir = path.join(root, '.knowledge', 'decided');
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(path.join(dir, 'conventions.md'), rule(scope));
+  const config = JSON.parse(readFileSync(path.join(root, '.compass', 'config.json'), 'utf8'));
+  const names = config.repos ? Object.keys(config.repos) : [];
+  if (names.length === 0) {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, 'conventions.md'), rule(scope));
+    return;
+  }
+  for (const name of names) {
+    const file = path.join(dir, 'conventions', `${name}.md`);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, rule(scope));
+  }
 }
 
 const CLEAN = 'export const App = () => null;\n';
@@ -188,6 +203,8 @@ async function frontEnd(root, rel, { color, marker, cwdMarker, port } = {}) {
   const dir = path.join(root, rel);
   writeServer(dir, { port: p, body: rel, cwdMarker });
   installStub(dir, { color, marker });
+  // Fixture nhiều repo có `.knowledge/` từ CP-103: file nguồn mới phải được sinh lại tài liệu.
+  knowledgeCommand({ cwd: root, sync: true });
   return { dev: 'node srv.cjs', devUrl: `http://127.0.0.1:${p}/`, devTimeoutMs: 20000 };
 }
 
@@ -327,6 +344,7 @@ function bareConventionThenRepos() {
   assert.equal(conventionCommand({ cwd: root, taskId: 'T-1' }).exitCode, 0);
   assert.equal(readGate(root, 'T-1', 'convention').exitCode, 0);
   setConfig(root, (c) => ({ ...c, repos: { be: { test: TEST_THEO_REPO.be }, fe: { test: TEST_THEO_REPO.fe } } }));
+  approveConventions(root, { repos: { be: {}, fe: {} } });
   return root;
 }
 
