@@ -2,13 +2,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { findRoot, specPath, taskDir, evidenceDir, validateTaskId, configPath } from '../lib/paths.mjs';
-import { collectDiff, buildBrief, buildVerifyBrief, openFindingsText, briefSubject, parseScopePaths, secretsPublicSection, briefSecretsPublic, linkedNote } from '../lib/review-brief.mjs';
+import { buildBrief, buildVerifyBrief, openFindingsText, briefSubject, secretsPublicSection, briefSecretsPublic, linkedNote } from '../lib/review-brief.mjs';
 import { parseSecretsPublic, secretsPublicFromText, normalisePath } from '../lib/secrets-scan.mjs';
 import { parseFindings, formatFinding, checkCoverage, checkRubric, openFindings, chainOf, RUNGS_NEEDING_TEST } from '../lib/findings.mjs';
 import { unitsOf, snapshot, snapshotAlive, fixDiff, parseHunks } from '../lib/review-rounds.mjs';
 import { readLedger, writeLedger, specKeyOf } from '../lib/review-ledger.mjs';
 import { collectContext } from '../lib/review-context.mjs';
-import { planUnits, collectUnits, notSkipped } from '../lib/workspace-git.mjs';
+import { taskDiffSetup } from '../lib/task-diff.mjs';
+import { preflightProblems, environmentSection, migrationGlobs } from '../lib/preflight.mjs';
+import { ENV_SECTION } from '../lib/spec-validator.mjs';
+import { notSkipped } from '../lib/workspace-git.mjs';
 import { writeGate, readGate, verifyAllGates } from '../lib/gate-store.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { passingTitles } from '../lib/test-parser.mjs';
@@ -146,74 +149,62 @@ function reviewOnce({ cwd, taskId }, notes) {
   // whole project rather than one task. `reviewBase` in config names the real
   // starting point when the default is too wide.
   const cfg = loadConfig(root);
-
-  // Spec đè config. `reviewBase` trong config là một giá trị chung cho cả dự án,
-  // nên trên nhánh mang nhiều task nó chỉ đúng cho một task: những task còn lại
-  // được soi trên diff không chứa code của chúng, agent nộp findings, và gate
-  // xanh trên bằng chứng nói về việc của người khác. Gặp thật ở CP-6, CP-10,
-  // CP-11, CP-13 — code của chúng nằm cách gốc soi tới 21 commit.
   const spec = parseSpec(readFileSync(file, 'utf8'));
-  const khaiTrongSpec = spec.reviewBase !== null && spec.reviewBase !== undefined;
-  const baseRef = khaiTrongSpec
-    ? spec.reviewBase
-    : (cfg.ok ? cfg.config.reviewBase ?? null : null);
-  // Nói ra chỗ khai. Ref không phân giải được mà chỉ báo tên ref thì người đọc
-  // đi sửa config trong khi lời khai nằm ở spec, hoặc ngược lại.
-  //
-  // Ba giá trị, không phải hai: không ai khai gì thì Compass tự lần về điểm rẽ,
-  // và nói "khai ở config.json" lúc đó là lời khai sai — nó chỉ người đọc tới
-  // một file không có dòng nào như vậy.
-  //
-  // Điều kiện phải TRÙNG với `resolveBase`, chỗ dùng `if (baseRef)`. Dùng
-  // `!== null` ở đây thì `reviewBase: 0` bị resolveBase bỏ qua mà brief vẫn khai
-  // "khai ở config.json" — lời khai sai về một giá trị chưa từng được dùng.
-  const nguonGoc = khaiTrongSpec ? 'spec' : (baseRef ? 'config.json' : null);
+  // Preflight khai mà chưa xanh trên code và config hiện tại thì không sinh brief (CP-108):
+  // agent không đọc code mà lint, typecheck hay kiểm tra migration đã bắt được lỗi. Bản ghi
+  // đỏ giữ diffHash và briefHash của bản ghi cũ, để lần chạy sau khi preflight xanh vẫn
+  // đối chiếu được findings đang có.
+  const preflight = preflightProblems(root, taskId, spec);
+  if (preflight.length) {
+    const prev = readGate(root, taskId, 'review');
+    writeGate(root, taskId, {
+      gate: 'review',
+      exitCode: 1,
+      reason: 'preflight-not-green',
+      checkedAt: new Date().toISOString(),
+      specHash: hashFile(file),
+      briefHash: prev?.briefHash ?? null,
+      diffHash: prev?.diffHash ?? null,
+      findingCount: null,
+      blockingCount: null,
+    });
+    return {
+      exitCode: 1,
+      output: [
+        fail('review', ['Preflight chưa xanh trên code hiện tại, nên Compass không sinh brief:', ...preflight.map((p) => `  ${p}`)]),
+        '',
+        hint(`Chạy: compass check ${taskId}`),
+      ].join('\n'),
+    };
+  }
 
-  // Nơi việc kết thúc, và diff thu hẹp theo Phạm vi — chỉ khi có Soi đến. Một
-  // task ở đỉnh nhánh vẫn được soi trọn, kể cả file nó quên khai (CP-36).
-  const khaiCuoi = spec.reviewEnd !== null && spec.reviewEnd !== undefined;
-  const scopeParsed = parseScopePaths(spec.scope);
-  // `Soi đến (be):` của repo con cũng thu hẹp theo Phạm vi (CP-84).
-  const thuHep = khaiCuoi || Object.keys(spec.repoEnds ?? {}).length > 0;
-  if (thuHep && scopeParsed.rejected.length) {
+  // Gốc soi, Soi đến, Phạm vi và repo con: một chỗ chung với gate `preflight` (CP-108).
+  const setup = taskDiffSetup(root, spec, cfg);
+  if (!setup.ok && setup.kind === 'scope') {
     return {
       exitCode: 2,
       output: [
         fail('review', [
           'Phạm vi trong spec có mục không dùng được làm pathspec:',
-          ...scopeParsed.rejected.map((r) => `  "${r.entry}" — ${r.reason}`),
+          ...setup.rejected.map((r) => `  "${r.entry}" — ${r.reason}`),
         ]),
         '',
         hint('Phạm vi chỉ nhận đường dẫn tương đối trong repo, phân cách bằng dấu phẩy.'),
       ].join('\n'),
     };
   }
-  const diffOptions = {
-    baseRef,
-    baseFrom: nguonGoc,
-    endRef: khaiCuoi ? spec.reviewEnd : null,
-    endFrom: 'spec',
-    scopePaths: khaiCuoi ? scopeParsed.paths : [],
-    // Đường dẫn `.compass/` khai trong Phạm vi được soi, có hay không có Soi đến (CP-48).
-    compassPaths: scopeParsed.paths,
-  };
-
-  // Repo con có git riêng (CP-84): mỗi git một diff, gộp vào một brief. Không có
-  // repo con nào như vậy thì `units` là null và mọi thứ đi đúng đường cũ.
-  const plan = planUnits(root, spec);
-  if (!plan.ok) {
+  if (!setup.ok) {
     return {
       exitCode: 2,
-      output: [fail('review', plan.errors), '', hint('Sửa lời khai trong spec hay config.json rồi chạy lại.')].join('\n'),
+      output: [fail('review', setup.errors), '', hint('Sửa lời khai trong spec hay config.json rồi chạy lại.')].join('\n'),
     };
   }
+  const { nguonGoc, plan } = setup;
   notes.push(...(plan.notes ?? []));
   // File chưa theo dõi bỏ vì nằm sau symlink hay junction thì nói ra (issue #5). Mỗi lượt
   // chạy gọi `collect` đúng một lần, ở pha một hay pha hai, nên dòng này không lặp.
   const collect = () => {
-    const collected = plan.units
-      ? collectUnits(root, plan, diffOptions, { scopePaths: scopeParsed.paths })
-      : collectDiff(root, diffOptions);
+    const collected = setup.collect();
     const note = linkedNote(collected.linked);
     if (note) notes.push(note);
     return collected;
@@ -259,7 +250,12 @@ function reviewOnce({ cwd, taskId }, notes) {
   };
   // Spec trong brief và trong id brief, không gồm quyết định của người sau vòng soi (CP-106).
   const specForBrief = () => specForReview(readFileSync(file, 'utf8'));
-  const idOf = (collected) => briefIdFor(specForBrief(),collected.diff, contextOf(collected).text + publicOf(collected));
+  // Sự thật môi trường của spec và migration trong diff, đặt ngay trên diff (CP-108). Vào
+  // id brief như ngữ cảnh; không có gì thì rỗng, id và brief như trước.
+  const globs = migrationGlobs(root, spec);
+  const envText = spec.sections.get(ENV_SECTION) ?? null;
+  const envOf = (collected) => environmentSection({ envText, collected, globs });
+  const idOf = (collected) => briefIdFor(specForBrief(),collected.diff, contextOf(collected).text + publicOf(collected) + envOf(collected));
 
   // Vòng soi (CP-106). Sổ cái nói các vòng đã chấm; spec đổi phần yêu cầu, sổ sai chữ ký
   // hay ảnh chụp đã bị git dọn thì làm lại từ vòng 1.
@@ -299,12 +295,12 @@ function reviewOnce({ cwd, taskId }, notes) {
     const relisted = new Map(open.filter((f) => closedAt.get(f.id)?.status === 'closed').map((f) => [f.id, closedAt.get(f.id)]));
     const usedIds = [...all.keys()];
     const ctx = contextOf(collected).text;
-    const id = briefIdFor(specForBrief(), diff, `${ctx}${publicOf(collected)}\nverify:${round}\n${openFindingsText(open, chains, relisted)}\n${usedIds.join(',')}`);
+    const id = briefIdFor(specForBrief(), diff, `${ctx}${publicOf(collected)}${envOf(collected)}\nverify:${round}\n${openFindingsText(open, chains, relisted)}\n${usedIds.join(',')}`);
     return {
       ok: true, round, kind: 'verify', priors, prev, newRound, snap, id, diffShown: diff, hunks: parseHunks(diff),
       brief: buildVerifyBrief({
         taskId, round, spec: specForBrief(), diff, files, briefId: id, open, chains, relisted, usedIds,
-        context: ctx, secretsPublic: publicOf(collected),
+        context: ctx, secretsPublic: publicOf(collected), environment: envOf(collected),
       }),
     };
   };
@@ -359,6 +355,7 @@ function reviewOnce({ cwd, taskId }, notes) {
     files: collected.files,
     briefId: idOf(collected),
     context: contextOf(collected).text,
+    environment: envOf(collected),
     base: collected.base,
     baseFrom: nguonGoc,
     end: collected.end ?? null,

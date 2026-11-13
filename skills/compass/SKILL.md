@@ -180,7 +180,7 @@ compass init <id> --type=<loại>
 
 Test case phải có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`), mô tả, và kỳ vọng **đo được**. "Hoạt động đúng" không phải kỳ vọng đo được.
 
-**Năm dòng khai thêm, dùng khi cần:**
+**Các dòng khai thêm, dùng khi cần:**
 
 | Dòng | Khi nào | Gate làm gì |
 |---|---|---|
@@ -189,6 +189,7 @@ Test case phải có ID (`H1`, `V1`, `E1`, `EC1`, `S1`, `P1`), mô tả, và k�
 | `Soi đến: <sha>` | Task nằm giữa lịch sử nhánh, có commit của việc khác đến sau nó | Gate `review` dừng diff ở commit đó và chỉ giữ file trong `Phạm vi:` |
 | `Dùng .env: <lý do>` | Task thật sự cần đọc file `.env` | Gate `secrets` cho phép **đọc**, vẫn chặn commit file `.env` |
 | `Gốc soi (be): <sha>`, `Soi đến (be): <sha>` | Repo con `be` có git riêng (mục "Repo con có git riêng") | Gốc soi và Soi đến của riêng git đó |
+| `Ngoại lệ migration: <đường dẫn> — <lý do>` | Người duyệt cho sửa một migration đã có ở gốc soi | Gate `preflight` cho file đó qua; mỗi file một dòng |
 
 `Kiểm tra bằng: mắt` không phải cửa sau. Gate vẫn đòi liệt kê từng case và cách kiểm tra, và báo lỗi
 nếu suite có test mang task id — lời khai mâu thuẫn với thực tế thì phải sửa, không đoán.
@@ -216,7 +217,7 @@ compass check <id>
 Chạy các gate áp dụng, dừng ngay khi fail. Rẻ trước, đắt sau:
 
 ```
-spec (0.1s) → secrets (0.3s) → convention (1s) → test (vài giây) → ui (30s) → visual (30s) → review (cần agent)
+spec (0.1s) → secrets (0.3s) → convention (1s) → preflight (lệnh bạn khai) → test (vài giây) → ui (30s) → visual (30s) → review (cần agent)
 ```
 
 Gate nào áp dụng thì tùy loại task — xem bảng Phân loại. Gate `test` không chỉ xem suite xanh:
@@ -487,6 +488,56 @@ dòng `ℹ`.
 Ở workspace nhiều repo, bản nháp chung (`compass convention --draft`, không `--repo`) vẫn đề xuất luật
 như `scope: **/*.js` cho `conventions.md` ở gốc. Luật đó khớp file của repo con, nên nhận vào gốc là gate
 đỏ. Dùng `--draft --repo=<repo>` cho từng repo.
+
+### Gate `preflight` — máy kiểm tra trước khi agent đọc
+
+Agent soi code tốn hàng chục phút. Lint, typecheck hay "migration đã chạy bị sửa" thì máy bắt trong vài
+giây, nên chúng chạy trước, và đỏ thì `review` không sinh brief (CP-108, issue #7). Gate chạy cho mọi
+loại task, sau `convention`, trước `test`.
+
+```json
+{
+  "preflight": ["npx eslint {changed}", "npx tsc --noEmit"],
+  "migrations": ["db/migrations/*.sql"]
+}
+```
+
+- **`preflight`**: danh sách lệnh shell, chạy theo thứ tự trong thư mục repo, dừng ở lệnh đỏ đầu tiên.
+  `{changed}` thành các file task thêm hay sửa (không gồm file xoá), tính từ thư mục repo, mỗi file trong
+  nháy kép. `{base}` thành SHA đầy đủ của gốc soi. Lệnh có `{changed}` mà repo không có file đổi thì bỏ
+  qua với một dòng `ℹ`. Tên file có `"`, `$`, `` ` ``, `%`, `\` hay xuống dòng thì lệnh không chạy và gate
+  đỏ: escape đúng cho cả `cmd.exe` lẫn `sh` thì không làm được, và đoán sai là chạy một phần tên file
+  như lệnh. Output đầy đủ ở `evidence/preflight.log`; gate in 40 dòng cuối của lệnh đỏ.
+- **`migrations`**: glob (`**`, `*`, `?`) tính từ thư mục repo. File khớp mà có ở gốc soi rồi bị sửa,
+  xoá hay đổi tên trong diff thì đỏ: migration đã áp thì viết migration mới, không sửa cái cũ. Thêm
+  migration mới thì không sao. Người duyệt cho phép sửa một file thì thêm vào phần đầu spec, mỗi file một
+  dòng, đúng như gate in ra: `Ngoại lệ migration: db/migrations/001.sql — <lý do>`.
+- Khai ở phần chung hay trong từng repo của `repos`, gộp theo trường như `devUrl`. Nhiều repo thì mỗi
+  repo một khe `preflight@<repo>`.
+- Gate đọc đúng diff của `review`: cùng gốc soi, cùng `Soi đến`, cùng repo con có git riêng.
+- Không khai gì thì gate xanh và nói chưa khai. Nó vẫn in một dòng `ℹ` nói nhánh chậm bao nhiêu commit so
+  với upstream (đọc ref local, kèm ngày fetch cuối). Dòng đó không bao giờ làm gate đỏ, và không vào
+  brief: brief là danh tính của vòng soi, một lần `git fetch` không được mở lại vòng đã xong.
+- `review` không sinh brief khi config khai `preflight` hay `migrations` mà bản ghi preflight của repo đó
+  thiếu, đỏ, hay cũ hơn code hoặc config hiện tại. `done` đòi bản ghi xanh và mới như với `test`.
+
+### Mục `## Môi trường` trong spec
+
+Tám trên mười Major ở issue #7 cần thông tin ngoài diff: migration đã chạy ở stage nào, cột có ở stage
+nào, PR của team khác trên cùng bảng. Loại nào cũng chỉ lộ ra ở vòng đầu tiên brief có thông tin đó. Từ
+`feature-m`, spec phải có mục này (CP-108); loại khác không bắt, nhưng có thì vẫn phải đúng dạng:
+
+```markdown
+## Môi trường
+| Sự thật | Nguồn | Ngày |
+|---|---|---|
+| Migration 041 đã chạy ở staging, chưa ở production | bảng schema_migrations | 2026-11-10 |
+```
+
+Mỗi hàng đủ ba ô, ngày dạng `YYYY-MM-DD` có thật. Repo không có môi trường nào như vậy (thư viện, CLI)
+thì cả mục là một dòng `Không áp dụng: <lý do>`. Brief đặt mục này, cùng danh sách file migration trong
+diff, ngay trên diff, dưới heading `## Môi trường (đọc trước diff)`. Task không có cả hai thì brief giữ
+nguyên từng byte.
 
 ### Gate `ui` — đo số, không nhìn ảnh
 
@@ -987,8 +1038,8 @@ Repo con đè lên phần chung theo từng trường — khai `test` mà không
 
 ### Gate nào chạy theo repo
 
-`convention`, `ui`, `visual` chạy lần lượt ở từng repo trong `Phạm vi`, mỗi repo một bản ghi ở khe
-`<gate>@<repo>`: `convention@<repo>`, `ui@<repo>`, `visual@<repo>`. Gọi thẳng `compass convention <id>`
+`convention`, `preflight`, `ui`, `visual` chạy lần lượt ở từng repo trong `Phạm vi`, mỗi repo một bản ghi ở khe
+`<gate>@<repo>`: `convention@<repo>`, `preflight@<repo>`, `ui@<repo>`, `visual@<repo>`. Gọi thẳng `compass convention <id>`
 cũng đi qua từng repo như `check`, không bao giờ ghi một khe chung.
 
 | Gate | Đo gì, ở đâu |

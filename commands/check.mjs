@@ -11,6 +11,7 @@ import { knowledgeCommand } from './knowledge.mjs';
 import { uiCommand } from './ui.mjs';
 import { visualCommand } from './visual.mjs';
 import { reviewCommand } from './review.mjs';
+import { preflightCommand } from './preflight.mjs';
 import { secretsCommand } from './secrets.mjs';
 import { GATE_ORDER, BROWSER_GATES, LY_DO_KHONG_DEVURL } from '../lib/gates.mjs';
 import { resolveReposForScope, reposForScope } from '../lib/repos.mjs';
@@ -22,6 +23,7 @@ const IMPLEMENTED = {
   knowledge: knowledgeCommand,
   secrets: secretsCommand,
   convention: conventionCommand,
+  preflight: preflightCommand,
   test: testCommand,
   ui: uiCommand,
   visual: visualCommand,

@@ -8,6 +8,7 @@ import { knowledgeCommand } from './commands/knowledge.mjs';
 import { uiCommand } from './commands/ui.mjs';
 import { visualCommand } from './commands/visual.mjs';
 import { reviewCommand } from './commands/review.mjs';
+import { preflightCommand } from './commands/preflight.mjs';
 import { prCommand, RUN_TESTS_WARNING } from './commands/pr.mjs';
 import { secretsCommand } from './commands/secrets.mjs';
 import { checkCommand } from './commands/check.mjs';
@@ -32,6 +33,7 @@ Dùng:
   compass convention --approve --repo=<repo>
                                          chép bản nháp đã điền và người dùng đã xác nhận
                                          thành convention đã duyệt của repo đó
+  compass preflight <id>        lệnh khai trong "preflight" và kiểm tra migration đã áp
   compass test <id>
   compass ui <id>
   compass visual <id>
@@ -113,6 +115,9 @@ async function main() {
         result = flags.draft === true
           ? conventionDraftCommand({ cwd, force: flags.force === true, repo: typeof flags.repo === 'string' ? flags.repo : null })
           : conventionCommand({ cwd, taskId });
+        break;
+      case 'preflight':
+        result = preflightCommand({ cwd, taskId });
         break;
       case 'test':
         result = testCommand({ cwd, taskId });

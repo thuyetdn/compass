@@ -59,6 +59,14 @@ test('CP-12-H1 thêm một việc', () => { ... });
 Một tên test chỉ mang một ID. Reporter phải in tên từng test: `node --test` chạy sẵn, Vitest cần
 `--reporter=tap`, Jest cần `--verbose`.
 
+### Preflight và môi trường
+
+`compass check` chạy gate `preflight` trước `test`: các lệnh khai trong `"preflight"` của config, và
+kiểm tra migration đã có ở gốc soi bị sửa (`"migrations"`). Preflight đỏ thì `review` không sinh brief.
+Migration đã áp thì viết migration mới; chỉ người duyệt mới thêm được dòng
+`Ngoại lệ migration: <đường dẫn> — <lý do>` vào spec. Từ `feature-m`, spec cần mục `## Môi trường`:
+bảng `| Sự thật | Nguồn | Ngày |`, hay một dòng `Không áp dụng: <lý do>`.
+
 ### Gate review
 
 Từ `feature-s`, gate `review` cần một người soi khác bạn:

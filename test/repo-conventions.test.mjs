@@ -461,8 +461,8 @@ test('CP-98-E3 done with a config that is not JSON behaves exactly as before', a
   const { doneCommand: oldDone } = await oldModule('commands/done.mjs');
   const before = oldDone({ cwd: root, taskId: 'T-1' });
   assert.equal(now.exitCode, before.exitCode);
-  // Khác duy nhất: từ CP-103 `fix` cũng đòi gate `convention`, nên có thêm một dòng "chưa chạy".
-  assert.equal(now.output, before.output.replace('  Gate "test" chưa chạy.\n', '  Gate "test" chưa chạy.\n  Gate "convention" chưa chạy.\n'));
+  // Khác duy nhất: từ CP-103 `fix` cũng đòi gate `convention`, từ CP-108 cả `preflight`, nên có thêm hai dòng "chưa chạy".
+  assert.equal(now.output, before.output.replace('  Gate "test" chưa chạy.\n', '  Gate "test" chưa chạy.\n  Gate "convention" chưa chạy.\n  Gate "preflight" chưa chạy.\n'));
   assert.doesNotMatch(now.output, /chưa có convention đã duyệt/);
 });
 

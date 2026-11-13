@@ -3,7 +3,7 @@ import path from 'node:path';
 import { findRoot, specPath, taskDir } from '../lib/paths.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { rulesFor } from '../lib/task-types.mjs';
-import { readGates, verifyAllGates } from '../lib/gate-store.mjs';
+import { readGates, verifyAllGates, parseSlot } from '../lib/gate-store.mjs';
 import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
 import { loadConfig, DEAD_FIELDS } from '../lib/config.mjs';
 import { resolveRepos, resolveReposForScope, reposForScope } from '../lib/repos.mjs';
@@ -164,14 +164,24 @@ export function statusCommand({ cwd, taskId }) {
   }
   lines.push('');
 
+  const stateOf = (name, record) => {
+    if (!IMPLEMENTED_GATES.includes(parseSlot(name).gate)) return '– chưa cài ở giai đoạn này';
+    if (!record) return '· chưa chạy';
+    if (record.skipped === true) return '– bỏ qua';
+    return record.exitCode === 0 ? '✓ pass' : '✗ fail';
+  };
   for (const name of rules?.gates ?? []) {
-    const record = gates[name];
-    let state;
-    if (!IMPLEMENTED_GATES.includes(name)) state = '– chưa cài ở giai đoạn này';
-    else if (!record) state = '· chưa chạy';
-    else if (record.exitCode === 0) state = '✓ pass';
-    else state = '✗ fail';
-    lines.push(`  ${name.padEnd(12)} ${state}`);
+    // Gate đo từng repo ghi khe `<gate>@<repo>` (CP-108): liệt kê từng khe, đừng báo khe
+    // trần là chưa chạy khi mọi repo đã có bản ghi.
+    const slots = gates[name] ? [] : Object.keys(gates).filter((k) => {
+      const s = parseSlot(k);
+      return s.gate === name && s.repo !== null;
+    });
+    if (slots.length === 0) {
+      lines.push(`  ${name.padEnd(12)} ${stateOf(name, gates[name])}`);
+      continue;
+    }
+    for (const slot of slots) lines.push(`  ${slot.padEnd(12)} ${stateOf(slot, gates[slot])}`);
   }
 
   if (!integrity.ok) {

@@ -5,7 +5,7 @@ Phạm vi: <file/module sẽ đụng>
 ## Mục tiêu
 <1-3 câu. Xong nghĩa là gì.>
 
-## Ràng buộc
+{{environment}}## Ràng buộc
 <không đổi API / backward compatible / theo ADR-002... — ghi "Không có" nếu thật sự không có>
 
 ## Rủi ro hồi quy

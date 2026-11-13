@@ -144,6 +144,17 @@ duyệt. Gốc chưa có `conventions.md` thì chỉ được nhắc, không b�
 Repo khai trong `repos` mà chưa clone về máy và không nằm trong `Phạm vi` thì `status`, `check`,
 `done` và `test` bỏ qua với một dòng `ℹ`; task có repo đó trong `Phạm vi` vẫn dừng.
 
+**`preflight`** chạy cho mọi loại task, trước `test`. Nó chạy các lệnh bạn khai trong `"preflight"` của
+config (lint, typecheck…; `{changed}` thành các file task thêm hay sửa, `{base}` thành SHA gốc soi), và
+đỏ khi một file khớp `"migrations"` đã có ở gốc soi bị sửa, xoá hay đổi tên. Người duyệt cho phép sửa một
+migration thì thêm `Ngoại lệ migration: <đường dẫn> — <lý do>` vào phần đầu spec. Preflight khai mà chưa
+xanh thì `review` không sinh brief. Gate cũng in một dòng `ℹ` nói nhánh chậm bao nhiêu commit so với
+upstream; dòng đó không làm gate đỏ.
+
+Từ `feature-m`, spec cần mục `## Môi trường`: bảng `| Sự thật | Nguồn | Ngày |` (migration đã chạy ở
+stage nào, cờ theo stage, PR của team khác), hay một dòng `Không áp dụng: <lý do>`. Brief đặt mục này,
+cùng các file migration trong diff, ngay trên diff.
+
 **`test`** chạy lệnh test rồi đối chiếu: mọi ID trong spec phải xuất hiện trên một dòng **pass**.
 Thấy ID trên dòng fail hay skip, hay một ID khớp hai test khác nhau, đều là đỏ, và gate nói rõ trường
 hợp nào để bạn biết phải làm gì.

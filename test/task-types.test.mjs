@@ -76,7 +76,7 @@ test('mutating gates array does not affect later calls', () => {
   const result1 = rulesFor('bug');
   result1.gates.push('HACKED');
   const result2 = rulesFor('bug');
-  assert.equal(result2.gates.length, 5);
+  assert.equal(result2.gates.length, 6);
   assert.ok(!result2.gates.includes('HACKED'));
 });
 
@@ -92,7 +92,7 @@ test('removing gates entry does not affect later calls', () => {
   result1.gates.splice(result1.gates.indexOf('test'), 1);
   const result2 = rulesFor('bug');
   assert.ok(result2.gates.includes('test'));
-  assert.deepEqual(result2.gates, ['spec', 'knowledge', 'secrets', 'test', 'convention']);
+  assert.deepEqual(result2.gates, ['spec', 'knowledge', 'secrets', 'test', 'convention', 'preflight']);
 });
 
 test('CP-2-H1 feature-s requires the ui and visual gates', () => {
@@ -114,6 +114,7 @@ test('CP-2-V1 fix and bug stay free of frontend gates', () => {
   // knowledge applies everywhere — stale docs mislead on a one-line fix too.
   // secrets too: a one-line fix commits a key as easily as a feature does.
   // convention too (CP-103, issue #6): a one-line fix breaks a convention as easily as a feature.
-  assert.deepEqual(rulesFor('fix').gates, ['spec', 'knowledge', 'secrets', 'test', 'convention']);
-  assert.deepEqual(rulesFor('bug').gates, ['spec', 'knowledge', 'secrets', 'test', 'convention']);
+  // preflight too (CP-108): a one-line fix edits an applied migration as easily as a feature.
+  assert.deepEqual(rulesFor('fix').gates, ['spec', 'knowledge', 'secrets', 'test', 'convention', 'preflight']);
+  assert.deepEqual(rulesFor('bug').gates, ['spec', 'knowledge', 'secrets', 'test', 'convention', 'preflight']);
 });

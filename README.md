@@ -85,7 +85,7 @@ Claude tự chạy quy trình:
 2. Viết spec vào `.compass/CP-1/spec.md` — mục tiêu, ràng buộc, rủi ro hồi quy, 13 test case.
 3. Chạy gate `spec`, rồi **dừng lại hỏi bạn duyệt**. Đây là điểm dừng duy nhất.
 4. Bạn duyệt → Claude viết test trước, thấy đỏ, rồi implement.
-5. Chạy `check`: 8 gate, dừng ngay khi có cái đỏ.
+5. Chạy `check`: 9 gate, dừng ngay khi có cái đỏ.
 6. Gate `review` sinh brief, và Claude giao brief cho một agent khác, không mang lịch sử chat. Agent
    đó soi theo 10 tiêu chí và quyết từng finding `fix` hay `kept` theo rubric. Claude sửa các finding
    `fix`, rồi vòng 2 chỉ kiểm tra bản sửa, không soi lại toàn bộ. Bản sửa thêm hay đổi code phải
@@ -113,7 +113,7 @@ kiểm tra **trước** khi kiểm tra, và kết luận phải dẫn về bằn
 Đóng hồ sơ được thì bẫy vừa gặp tự chép vào `.knowledge/decided/pitfalls.md` — lần sau
 không ai sập lại.
 
-## Tám gate
+## Chín gate
 
 | Gate | Đo gì |
 |---|---|
@@ -121,6 +121,7 @@ không ai sập lại.
 | `knowledge` | Tài liệu máy sinh còn khớp code |
 | `secrets` | File `.env` không lọt vào commit |
 | `convention` | Quy ước dự án, viết một lần chạy mãi |
+| `preflight` | Lệnh khai trong config (lint, typecheck…) xanh, và migration đã áp không bị sửa; đỏ thì `review` không sinh brief |
 | `test` | Suite xanh **và** mọi test ID trong spec đã thực sự chạy |
 | `ui` | Số đo CSS thật khớp design contract (±2px) |
 | `visual` | So pixel với baseline đã duyệt |
@@ -128,6 +129,13 @@ không ai sập lại.
 
 Gate `test` không chỉ xem suite xanh. Nó đối chiếu từng ID trong spec với output thật,
 nên "13 test case" trong spec mà chỉ viết 11 thì không qua được.
+
+Gate `preflight` chạy các lệnh khai trong `"preflight"` của config (`{changed}` thành file task thêm hay
+sửa, `{base}` thành SHA gốc soi), và đỏ khi một file khớp `"migrations"` đã có ở gốc soi bị sửa, xoá hay
+đổi tên. Người duyệt cho sửa một migration thì thêm `Ngoại lệ migration: <đường dẫn> — <lý do>` vào phần
+đầu spec. Preflight khai mà chưa xanh thì `review` không sinh brief. Từ `feature-m`, spec cần mục
+`## Môi trường` (bảng `| Sự thật | Nguồn | Ngày |`, hay `Không áp dụng: <lý do>`), và brief đặt mục đó
+cùng các file migration trong diff ngay trên diff.
 
 ## Soi PR của người khác
 
@@ -299,7 +307,7 @@ test trần duy nhất, kể cả khi đó là test của task khác.
 
 ## Trạng thái
 
-Tám gate: `spec`, `knowledge`, `secrets`, `convention`, `test`, `ui`, `visual`, `review`.
+Chín gate: `spec`, `knowledge`, `secrets`, `convention`, `preflight`, `test`, `ui`, `visual`, `review`.
 
 Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
 

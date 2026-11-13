@@ -817,6 +817,9 @@ Phạm vi: src/
 ## Mục tiêu
 Làm gì đó lớn.
 
+## Môi trường
+Không áp dụng: fixture, không deploy (CP-108)
+
 ## Ràng buộc
 Không có.
 

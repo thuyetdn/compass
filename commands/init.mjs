@@ -15,6 +15,19 @@ import { detectRepos } from '../lib/repo-detect.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = path.join(here, '..', 'templates', 'spec.md');
 
+const ENV_TYPES = ['feature-m', 'feature-l'];
+const ENV_TEMPLATE = [
+  '## Môi trường',
+  '<sự thật ngoài diff mà người soi cần: migration đã chạy ở stage nào, cờ theo stage, PR của team khác, thứ tự merge.',
+  'Mỗi hàng một nguồn và một ngày. Không có gì như vậy thì thay cả mục bằng một dòng "Không áp dụng: <lý do>".>',
+  '',
+  '| Sự thật | Nguồn | Ngày |',
+  '|---|---|---|',
+  '| <sự thật> | <nguồn> | <YYYY-MM-DD> |',
+  '',
+  '',
+].join('\n');
+
 // Hỏi git thật xem `data/` của task này có bị bỏ qua không — luật có thể nằm ở
 // `.gitignore` gốc repo, ở thư mục cha, hay ở exclude toàn cục, và chỉ git mới
 // gộp được hết. Dò một đường dẫn chứ không cần file có thật.
@@ -105,7 +118,9 @@ export function initCommand({ cwd, taskId, type }) {
     .replaceAll('{{taskId}}', taskId)
     .replaceAll('{{type}}', type)
     .replaceAll('{{minTests}}', String(rules.minTests))
-    .replaceAll('{{layers}}', rules.requiredLayers.join(', '));
+    .replaceAll('{{layers}}', rules.requiredLayers.join(', '))
+    // Từ feature-m, spec phải có sự thật môi trường (CP-108). Hàng mẫu cố ý không qua gate spec.
+    .replaceAll('{{environment}}', ENV_TYPES.includes(type) ? ENV_TEMPLATE : '');
   writeFileSync(spec, filled);
 
   const lines = [];
