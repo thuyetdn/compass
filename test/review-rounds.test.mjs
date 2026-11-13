@@ -108,7 +108,10 @@ const minorKept = (id) => ({
   id, severity: 'Minor', criterion: 'docs', title: `Nhỏ ${id}`, detail: 'tên khó hiểu',
   disposition: { action: 'kept', reason: 'không ai gặp lỗi khi dùng' },
 });
-const closed = (id, rung = 'narrow') => ({ id, status: 'closed', rung });
+// Fixture không có gate `test`: bản sửa thêm hay đổi code ghi `redTest: null` kèm lý do (CP-107).
+const closed = (id, rung = 'narrow') => ({
+  id, status: 'closed', rung, ...(rung === 'revert' ? {} : { redTest: null, note: 'fixture không có test' }),
+});
 // Dòng chấp nhận gắn với đúng finding người duyệt đã thấy: id kèm dấu vân tay.
 const acceptLine = (finding, reason) => `Chấp nhận ${finding.id}#${findingFingerprint(finding)}: ${reason}`;
 
@@ -192,7 +195,7 @@ test('CP-106-H4 closing the Major in round 2 passes and records the closure', ()
   assert.equal(r.exitCode, 0, r.output);
   const l = ledger(root);
   assert.deepEqual(l.rounds.map((x) => [x.round, x.kind]), [[1, 'full'], [2, 'verify']]);
-  assert.deepEqual(l.rounds[1].closures, [{ id: 'F1', status: 'closed', rung: 'narrow', note: null }]);
+  assert.deepEqual(l.rounds[1].closures, [{ id: 'F1', status: 'closed', rung: 'narrow', note: 'fixture không có test', redTest: null, rerunBy: null }]);
   // `check` chạy lại review: vòng đã xanh, code không đổi, thì vẫn xanh.
   const again = run(root);
   assert.equal(again.exitCode, 0, again.output);

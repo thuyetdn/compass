@@ -4,12 +4,14 @@ import path from 'node:path';
 import { findRoot, specPath, taskDir, evidenceDir, validateTaskId, configPath } from '../lib/paths.mjs';
 import { collectDiff, buildBrief, buildVerifyBrief, openFindingsText, briefSubject, parseScopePaths, secretsPublicSection, briefSecretsPublic, linkedNote } from '../lib/review-brief.mjs';
 import { parseSecretsPublic, secretsPublicFromText, normalisePath } from '../lib/secrets-scan.mjs';
-import { parseFindings, formatFinding, checkCoverage, checkRubric, openFindings, chainOf } from '../lib/findings.mjs';
+import { parseFindings, formatFinding, checkCoverage, checkRubric, openFindings, chainOf, RUNGS_NEEDING_TEST } from '../lib/findings.mjs';
 import { unitsOf, snapshot, snapshotAlive, fixDiff, parseHunks } from '../lib/review-rounds.mjs';
 import { readLedger, writeLedger, specKeyOf } from '../lib/review-ledger.mjs';
 import { collectContext } from '../lib/review-context.mjs';
 import { planUnits, collectUnits, notSkipped } from '../lib/workspace-git.mjs';
-import { writeGate, readGate } from '../lib/gate-store.mjs';
+import { writeGate, readGate, verifyAllGates } from '../lib/gate-store.mjs';
+import { hashSource } from '../lib/source-hash.mjs';
+import { passingTitles } from '../lib/test-parser.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { parseSpec, specForReview } from '../lib/spec-parser.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
@@ -92,6 +94,28 @@ function khaiPublicOGoc(root, ref, { rootGit, emptyTree }) {
   if (doc.value === undefined) return { ok: true, paths: [] };
   if (!Array.isArray(doc.value)) return { ok: false, reason: '`secretsPublic` ở gốc soi không phải danh sách' };
   return { ok: true, paths: doc.value.filter((v) => typeof v === 'string').map((v) => normalisePath(v.trim())) };
+}
+
+// Tên test pass trong log gate `test` của task (CP-107), chỉ qua bản ghi đã ký: bản ghi xanh,
+// đúng task và đúng khe, nói về code hiện tại, và log còn khớp `outputHash`.
+function testTitlesOf(root, taskId) {
+  const log = path.join('.compass', taskId, 'evidence', 'test.log');
+  const run = `Chạy: compass check ${taskId} rồi chạy lại review.`;
+  const integrity = verifyAllGates(root, taskId);
+  const untrusted = [...integrity.tampered, ...(integrity.misslotted ?? []), ...(integrity.wrongTask ?? []), ...(integrity.outdated ?? [])];
+  const record = untrusted.includes('test') ? null : readGate(root, taskId, 'test');
+  if (!record) return { ok: false, reason: `gate test chưa có bản ghi tin được. ${run}` };
+  if (record.exitCode !== 0) return { ok: false, reason: `gate test chưa xanh. ${run}` };
+  if (record.sourceHash !== hashSource(root)) return { ok: false, reason: `code đã đổi sau khi gate test chạy. ${run}` };
+  if (!record.outputHash) return { ok: false, reason: `gate test không chạy lệnh test nào, nên không có log. ${run}` };
+  let text;
+  try {
+    text = readFileSync(path.join(root, log), 'utf8');
+  } catch {
+    return { ok: false, reason: `không đọc được ${log}. ${run}` };
+  }
+  if (sha256(text) !== record.outputHash) return { ok: false, reason: `${log} không còn khớp bản ghi đã ký của gate test. ${run}` };
+  return { ok: true, titles: passingTitles(text), log };
 }
 
 // Dòng ghi chú của lần chạy (repo bị bỏ qua, CP-88) đi cuối output, dù gate xanh hay đỏ.
@@ -269,13 +293,17 @@ function reviewOnce({ cwd, taskId }, notes) {
     const open = openFindings(priors);
     const all = new Map(priors.flatMap((r) => r.findings).map((f) => [f.id, f]));
     const chains = new Map(open.map((f) => [f.id, chainOf(all, f.id)]));
+    // Mắt chuỗi đã đóng mà quay lại danh sách chờ: brief nói nó đóng ở vòng nào, bằng rung gì (CP-107).
+    const closedAt = new Map();
+    for (const r of priors) for (const c of r.closures ?? []) closedAt.set(c.id, { ...c, round: r.round });
+    const relisted = new Map(open.filter((f) => closedAt.get(f.id)?.status === 'closed').map((f) => [f.id, closedAt.get(f.id)]));
     const usedIds = [...all.keys()];
     const ctx = contextOf(collected).text;
-    const id = briefIdFor(specForBrief(), diff, `${ctx}${publicOf(collected)}\nverify:${round}\n${openFindingsText(open, chains)}\n${usedIds.join(',')}`);
+    const id = briefIdFor(specForBrief(), diff, `${ctx}${publicOf(collected)}\nverify:${round}\n${openFindingsText(open, chains, relisted)}\n${usedIds.join(',')}`);
     return {
       ok: true, round, kind: 'verify', priors, prev, newRound, snap, id, diffShown: diff, hunks: parseHunks(diff),
       brief: buildVerifyBrief({
-        taskId, round, spec: specForBrief(), diff, files, briefId: id, open, chains, usedIds,
+        taskId, round, spec: specForBrief(), diff, files, briefId: id, open, chains, relisted, usedIds,
         context: ctx, secretsPublic: publicOf(collected),
       }),
     };
@@ -576,6 +604,7 @@ function reviewOnce({ cwd, taskId }, notes) {
       priors: target.priors,
       acceptances: spec.acceptances ?? {},
       hunks: target.hunks,
+      testTitles: (() => { let got; return () => (got ??= testTitlesOf(root, taskId)); })(),
     });
     if (rubric.errors.length) {
       ghiDo('rubric-invalid');
@@ -639,6 +668,8 @@ function reviewOnce({ cwd, taskId }, notes) {
     }
     const keptMinor = rubric.record.filter((f) => f.severity === 'Minor' && f.disposition?.action === 'kept');
     if (keptMinor.length) notesAfter.push('', `${keptMinor.length} Minor giữ lại (kept), lý do ghi trong sổ cái.`);
+    const noTest = rubric.closures.filter((c) => c.status === 'closed' && RUNGS_NEEDING_TEST.includes(c.rung) && c.redTest === null);
+    if (noTest.length) notesAfter.push('', `${noTest.length} bản sửa không có test đỏ trước (redTest: null), lý do ghi trong sổ cái.`);
     notesAfter.push(...unexamined);
 
     const roundLabel = target.kind === 'full' ? `Vòng ${target.round} (soi toàn bộ).` : `Vòng ${target.round} (chỉ kiểm tra bản sửa).`;

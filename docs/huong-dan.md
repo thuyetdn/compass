@@ -160,7 +160,7 @@ chí và ghi `findings.json` với một kết luận cho **từng** tiêu chí;
 Mỗi finding có `id` và quyết định `fix` hay `kept` theo rubric trong brief; gate đỏ khi còn finding
 `fix`, hay khi một `Critical`/`Major` bị giữ mà spec chưa có dòng `Chấp nhận <id>#<vân tay>:` của người duyệt (gate in sẵn dòng đó).
 Sửa code sau khi soi thì vòng sau chỉ kiểm tra bản sửa: brief mới gồm diff của bản sửa và các finding
-đang chờ, không soi lại toàn bộ. Vòng 4 cần dòng `Vòng soi tối đa:` trong spec. Compass ghi mọi vòng
+đang chờ, không soi lại toàn bộ. Mỗi bản sửa thêm hay đổi code cần một test, và người soi ghi tên test đó vào `redTest` của closure; Compass tìm tên đó trên dòng pass của log gate `test`; gỡ cơ chế (`revert`) không cần test, còn bản sửa không có test để nêu thì ghi `redTest: null` kèm `note`. `rerunBy` (không bắt buộc) ghi lens đã chạy lại trên diff của bản sửa. Vòng 4 cần dòng `Vòng soi tối đa:` trong spec. Compass ghi mọi vòng
 vào `evidence/review-ledger.json` có ký. File chưa
 commit nằm sau một symlink hay junction không vào brief, và `review` in một dòng `ℹ` nêu thư mục link đó.
 

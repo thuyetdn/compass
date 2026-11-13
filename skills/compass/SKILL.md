@@ -631,6 +631,12 @@ vòng verify: spec, diff từ ảnh chụp vòng trước tới nay, và các fi
 
 - `closures`: mỗi finding đang chờ sửa một closure, `closed` kèm `rung` (`revert` gỡ cơ chế, `narrow`
   thu hẹp điều kiện, `reuse` dùng lại helper, `mechanism` thêm cơ chế mới), hay `open`. Còn `open` là đỏ.
+  Closure đóng bằng `narrow`, `reuse` hay `mechanism` phải có `redTest`: tên đầy đủ của một test phủ bản
+  sửa (CP-107). Compass tìm tên đó trên dòng pass của log gate `test` hiện tại, khớp nguyên vẹn, và chỉ
+  tin log qua bản ghi đã ký: bản ghi xanh, đúng code hiện tại, log còn khớp `outputHash`. Không có test
+  để nêu (sửa tài liệu) thì `"redTest": null` kèm `note`. `revert` không cần. `rerunBy` (không bắt buộc)
+  ghi lens đã chạy lại trên diff của bản sửa. Compass không chứng minh được test đỏ trước bản sửa;
+  phần đó là lời người soi.
 - finding mới, mỗi cái một `origin`: `fix-induced` (phải có `causedBy` và `file`/`line` nằm trong một
   hunk của bản sửa — Compass kiểm tra), `missed` (phải có `lens` lẽ ra bắt được; gate in nó như lỗi
   phương pháp), `env-fact`, `requirement-change`.
@@ -642,6 +648,9 @@ vòng verify: spec, diff từ ảnh chụp vòng trước tới nay, và các fi
 của finding. Vòng 1 soi lại hay sổ làm lại mà người soi mới đặt một lỗi khác vào cùng id thì vân tay
 lệch, và dòng cũ không chấp nhận lỗi chưa ai duyệt. Dòng `Chấp nhận` và `Vòng soi tối đa` không vào
 spec trong brief, nên thêm chúng sau một vòng không làm findings vừa nộp mất hiệu lực.
+
+Mắt thứ ba đã đóng không bằng `revert` quay lại danh sách chờ của vòng sau, và brief ghi ngay dưới nó
+vòng và rung đã dùng, để người soi biết vì sao nó còn đó.
 
 **Vòng 4 cần người quyết.** Vòng 2 và 3 không cần gì. Vòng 4 trở đi cần `Vòng soi tối đa: <n> — <lý do>`
 ở phần đầu spec; thiếu thì gate đỏ và không sinh brief.

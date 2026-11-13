@@ -88,7 +88,8 @@ Claude tự chạy quy trình:
 5. Chạy `check`: 8 gate, dừng ngay khi có cái đỏ.
 6. Gate `review` sinh brief, và Claude giao brief cho một agent khác, không mang lịch sử chat. Agent
    đó soi theo 10 tiêu chí và quyết từng finding `fix` hay `kept` theo rubric. Claude sửa các finding
-   `fix`, rồi vòng 2 chỉ kiểm tra bản sửa, không soi lại toàn bộ.
+   `fix`, rồi vòng 2 chỉ kiểm tra bản sửa, không soi lại toàn bộ. Bản sửa thêm hay đổi code phải
+   nêu tên một test đang pass (`redTest`); gỡ cơ chế (`revert`) thì không cần.
 7. `done` — chỉ exit 0 mới được báo hoàn thành.
 
 Khi gate đỏ, Claude không được bỏ qua. Nó sửa rồi chạy lại.

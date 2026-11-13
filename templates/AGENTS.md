@@ -70,9 +70,13 @@ Từ `feature-s`, gate `review` cần một người soi khác bạn:
    `.compass/<id>/evidence/findings.json`, với một kết luận cho từng tiêu chí. Mỗi finding có `id`
    và `disposition` (`fix`, hay `kept` kèm lý do) theo rubric trong brief.
 4. Chạy lại `compass review <id>` để gate đọc kết quả. Gate đỏ khi còn finding `fix`.
-5. Sửa các finding `fix`, rồi chạy lại `compass review <id>`. Vòng 2 chỉ kiểm tra bản sửa: Compass
+5. Sửa các finding `fix`, mỗi bản sửa kèm test đỏ trước, xanh sau, rồi chạy lại `compass review <id>`. Vòng 2 chỉ kiểm tra bản sửa: Compass
    sinh brief mới gồm diff của bản sửa và các finding đang chờ, đưa cho một phiên mới như bước 2.
    Đừng xóa `findings.json`; phiên soi ghi đè nó, bản cũ đã nằm trong sổ cái.
+   Phiên soi đóng từng finding bằng một closure. Bản sửa thêm hay đổi code (`narrow`, `reuse`,
+   `mechanism`) phải nêu `redTest`: tên đầy đủ của test phủ nó, và test đó phải pass trong log của
+   gate `test` hiện tại. Không có test để nêu (sửa tài liệu) thì `redTest: null` kèm `note`. Gỡ cơ chế
+   (`revert`) không cần test. `rerunBy` (không bắt buộc) ghi lens đã chạy lại trên diff của bản sửa.
 
 Giữ phạm vi đứng yên khi đang soi: yêu cầu mới thành task riêng. Sửa một finding thì ưu tiên gỡ hay
 thu hẹp hơn là thêm cơ chế. Chuỗi lỗi sửa tới lần thứ ba thì gỡ cơ chế, hay hỏi người. Vòng 4 cần
