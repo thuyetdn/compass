@@ -10,6 +10,7 @@ import { readLedger, writeLedger, specKeyOf } from '../lib/review-ledger.mjs';
 import { collectContext } from '../lib/review-context.mjs';
 import { taskDiffSetup } from '../lib/task-diff.mjs';
 import { preflightProblems, environmentSection, migrationGlobs } from '../lib/preflight.mjs';
+import { mutationProblems, survivorsOf, mutantSection } from '../lib/mutation.mjs';
 import { ENV_SECTION } from '../lib/spec-validator.mjs';
 import { notSkipped } from '../lib/workspace-git.mjs';
 import { writeGate, readGate, verifyAllGates } from '../lib/gate-store.mjs';
@@ -154,13 +155,15 @@ function reviewOnce({ cwd, taskId }, notes) {
   // agent không đọc code mà lint, typecheck hay kiểm tra migration đã bắt được lỗi. Bản ghi
   // đỏ giữ diffHash và briefHash của bản ghi cũ, để lần chạy sau khi preflight xanh vẫn
   // đối chiếu được findings đang có.
+  // Mutation khai mà chưa xanh cũng vậy (CP-109): mutant sống là một phần của brief vòng 1.
   const preflight = preflightProblems(root, taskId, spec);
-  if (preflight.length) {
+  const mutation = preflight.length ? [] : mutationProblems(root, taskId, spec);
+  if (preflight.length || mutation.length) {
     const prev = readGate(root, taskId, 'review');
     writeGate(root, taskId, {
       gate: 'review',
       exitCode: 1,
-      reason: 'preflight-not-green',
+      reason: preflight.length ? 'preflight-not-green' : 'mutation-not-green',
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
       briefHash: prev?.briefHash ?? null,
@@ -171,7 +174,10 @@ function reviewOnce({ cwd, taskId }, notes) {
     return {
       exitCode: 1,
       output: [
-        fail('review', ['Preflight chưa xanh trên code hiện tại, nên Compass không sinh brief:', ...preflight.map((p) => `  ${p}`)]),
+        fail('review', [
+          `${preflight.length ? 'Preflight' : 'Mutation'} chưa xanh trên code hiện tại, nên Compass không sinh brief:`,
+          ...[...preflight, ...mutation].map((p) => `  ${p}`),
+        ]),
         '',
         hint(`Chạy: compass check ${taskId}`),
       ].join('\n'),
@@ -255,7 +261,10 @@ function reviewOnce({ cwd, taskId }, notes) {
   const globs = migrationGlobs(root, spec);
   const envText = spec.sections.get(ENV_SECTION) ?? null;
   const envOf = (collected) => environmentSection({ envText, collected, globs });
-  const idOf = (collected) => briefIdFor(specForBrief(),collected.diff, contextOf(collected).text + publicOf(collected) + envOf(collected));
+  // Mutant sống của gate mutation (CP-109): vào brief vòng 1 và id của nó. Không có thì rỗng.
+  const survivors = survivorsOf(root, taskId, spec);
+  const mutantText = mutantSection(survivors);
+  const idOf = (collected) => briefIdFor(specForBrief(),collected.diff, contextOf(collected).text + publicOf(collected) + envOf(collected) + mutantText);
 
   // Vòng soi (CP-106). Sổ cái nói các vòng đã chấm; spec đổi phần yêu cầu, sổ sai chữ ký
   // hay ảnh chụp đã bị git dọn thì làm lại từ vòng 1.
@@ -356,6 +365,7 @@ function reviewOnce({ cwd, taskId }, notes) {
     briefId: idOf(collected),
     context: contextOf(collected).text,
     environment: envOf(collected),
+    mutants: mutantText,
     base: collected.base,
     baseFrom: nguonGoc,
     end: collected.end ?? null,
@@ -601,6 +611,7 @@ function reviewOnce({ cwd, taskId }, notes) {
       priors: target.priors,
       acceptances: spec.acceptances ?? {},
       hunks: target.hunks,
+      survivors: target.kind === 'full' ? survivors.map((m) => m.id) : null,
       testTitles: (() => { let got; return () => (got ??= testTitlesOf(root, taskId)); })(),
     });
     if (rubric.errors.length) {
@@ -635,6 +646,7 @@ function reviewOnce({ cwd, taskId }, notes) {
       files: snap.files ?? current.files,
       findings: rubric.record,
       closures: rubric.closures,
+      ...(rubric.mutants.length ? { mutants: rubric.mutants } : {}),
     }]);
 
     writeGate(root, taskId, {

@@ -67,6 +67,14 @@ Migration đã áp thì viết migration mới; chỉ người duyệt mới th�
 `Ngoại lệ migration: <đường dẫn> — <lý do>` vào spec. Từ `feature-m`, spec cần mục `## Môi trường`:
 bảng `| Sự thật | Nguồn | Ngày |`, hay một dòng `Không áp dụng: <lý do>`.
 
+### Mutation
+
+Từ `feature-s`, config khai `"mutation": { "test": "<lệnh test nhanh>" }` thì `compass check` chạy gate
+`mutation` sau `test`: mỗi dòng code đổi nhiều nhất một mutant, chạy trong worktree tạm. Mutant sống không
+làm gate đỏ mà vào brief vòng 1. Bạn không phán mutant của chính mình: người soi trả lời từng cái bằng một
+finding `"mutant": "M3"` (criterion `tests`) hay một mục `"mutants": [{ "id", "verdict": "equivalent", "reason" }]`.
+Mutation khai mà chưa xanh trên code hiện tại thì `review` không sinh brief.
+
 ### Gate review
 
 Từ `feature-s`, gate `review` cần một người soi khác bạn:

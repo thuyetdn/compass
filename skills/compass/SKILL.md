@@ -217,7 +217,7 @@ compass check <id>
 Chạy các gate áp dụng, dừng ngay khi fail. Rẻ trước, đắt sau:
 
 ```
-spec (0.1s) → secrets (0.3s) → convention (1s) → preflight (lệnh bạn khai) → test (vài giây) → ui (30s) → visual (30s) → review (cần agent)
+spec (0.1s) → secrets (0.3s) → convention (1s) → preflight (lệnh bạn khai) → test (vài giây) → mutation (lệnh test nhanh × số mutant) → ui (30s) → visual (30s) → review (cần agent)
 ```
 
 Gate nào áp dụng thì tùy loại task — xem bảng Phân loại. Gate `test` không chỉ xem suite xanh:
@@ -520,6 +520,42 @@ loại task, sau `convention`, trước `test`.
   brief: brief là danh tính của vòng soi, một lần `git fetch` không được mở lại vòng đã xong.
 - `review` không sinh brief khi config khai `preflight` hay `migrations` mà bản ghi preflight của repo đó
   thiếu, đỏ, hay cũ hơn code hoặc config hiện tại. `done` đòi bản ghi xanh và mới như với `test`.
+
+### Gate `mutation` — test có bắt được dòng vừa đổi không
+
+Issue #7 đo được 62% finding của vòng soi cuối là test yếu, trong khi mutation chỉ chạy sau hơn 40 vòng và
+chỉ trên mẫu. Gate này (CP-109) đặt nhiều nhất một mutant trên mỗi dòng đổi, như Google làm lúc review
+(ICSE-SEIP 2018), và đưa mutant sống cho người soi thay vì chặn theo điểm. Chạy từ `feature-s`, sau `test`.
+
+```json
+{
+  "mutation": { "test": "node --test test/filter.test.mjs", "setup": "npm ci", "max": 40, "timeout": 1200 }
+}
+```
+
+- **`test`** (bắt buộc): lệnh test **nhanh**, chỉ phủ phần code task đổi. Gate chạy nó một lần trên code
+  chưa đổi rồi một lần cho mỗi mutant; chạy cả suite 6 phút cho 40 mutant là 4 giờ. `setup` chạy một lần
+  trước baseline (cài dependency). `max` mặc định 40, `timeout` (giây, cho cả gate) mặc định 1200.
+- **Dòng nào**: dòng thêm hay sửa trong diff của task, trừ file test (`test/`, `tests/`, `__tests__/`,
+  `spec/`, tên có `.test.` hay `.spec.`), tài liệu (`.md`, `.json`, `.yml`, `.html`, `.css`…), dòng trống
+  và dòng comment. Nhiều hơn `max` thì lấy `max` dòng rải đều theo thứ tự diff, lần nào cũng như nhau.
+- **Mutant nào**: toán tử đầu tiên trong danh sách cố định áp được ngoài chuỗi: `===`→`!==`, `!==`→`===`,
+  `==`→`!=`, `!=`→`==`, `&&`→`||`, `||`→`&&`, `>=`→`>`, `<=`→`<`, `>`→`>=`, `<`→`<=`, `true`→`false`,
+  `false`→`true`, `return x`→`return !x`, `+ 1`→`- 1`, `- 1`→`+ 1`. Đổi bằng chữ, không parser: chuỗi
+  nhiều dòng vẫn có thể bị đổi, khi đó người soi đánh dấu `equivalent`.
+- **Chạy ở đâu**: Compass chụp code hiện tại (cả thay đổi chưa commit) thành một tree, dựng worktree tạm
+  không hook, cắt nó khỏi repo của bạn, rồi đổi file trong đó. Cây làm việc, index, HEAD và nhánh của
+  bạn không bao giờ bị đụng; lệnh test gọi `git` trong worktree thì không thấy repo nào. Baseline đỏ thì
+  gate đỏ và không mutant nào chạy. Hết `timeout` thì mutant còn lại ghi `not-run`.
+- **Kết quả**: `evidence/mutants.json` (nhiều repo thì mỗi repo một file, khe `mutation@<repo>`). Gate xanh
+  kể cả khi có mutant sống. Không khai `mutation` thì gate xanh và nói chưa khai.
+- **Mutant sống vào brief vòng 1**, mục `## Mutant sống`. Người soi trả lời mỗi cái đúng một lần: một
+  finding mang `"mutant": "M3"` và `"criterion": "tests"` (disposition theo rubric), hay một mục trong
+  danh sách `"mutants"` ở cấp trên cùng của findings.json: `{ "id": "M3", "verdict": "equivalent",
+  "reason": "…" }`. Thiếu, trả lời hai cách, hay nêu id không phải mutant sống là exit 2. Nhiều repo thì id
+  mang tên repo: `M3@be`. Vòng verify không có mục này.
+- `review` không sinh brief khi `mutation` khai mà bản ghi thiếu, đỏ, cũ hơn code hay config, hoặc
+  `mutants.json` bị sửa sau khi gate ghi.
 
 ### Mục `## Môi trường` trong spec
 
@@ -1038,8 +1074,8 @@ Repo con đè lên phần chung theo từng trường — khai `test` mà không
 
 ### Gate nào chạy theo repo
 
-`convention`, `preflight`, `ui`, `visual` chạy lần lượt ở từng repo trong `Phạm vi`, mỗi repo một bản ghi ở khe
-`<gate>@<repo>`: `convention@<repo>`, `preflight@<repo>`, `ui@<repo>`, `visual@<repo>`. Gọi thẳng `compass convention <id>`
+`convention`, `preflight`, `mutation`, `ui`, `visual` chạy lần lượt ở từng repo trong `Phạm vi`, mỗi repo một bản ghi ở khe
+`<gate>@<repo>`: `convention@<repo>`, `preflight@<repo>`, `mutation@<repo>`, `ui@<repo>`, `visual@<repo>`. Gọi thẳng `compass convention <id>`
 cũng đi qua từng repo như `check`, không bao giờ ghi một khe chung.
 
 | Gate | Đo gì, ở đâu |
@@ -1161,7 +1197,7 @@ hay repo bị bỏ sót — rẻ hơn nhiều so với phát hiện lúc gate đ
 
 ## Giai đoạn hiện tại
 
-Tám gate: `spec`, `knowledge`, `secrets`, `convention`, `test`, `ui`, `visual`, `review`.
+Mười gate: `spec`, `knowledge`, `secrets`, `convention`, `preflight`, `test`, `mutation`, `ui`, `visual`, `review`.
 
 Cộng knowledge base sinh tự động, lệnh `investigate`, config nhiều repo, và `check` chạy gate
 theo từng repo.

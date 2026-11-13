@@ -155,6 +155,15 @@ Từ `feature-m`, spec cần mục `## Môi trường`: bảng `| Sự thật | 
 stage nào, cờ theo stage, PR của team khác), hay một dòng `Không áp dụng: <lý do>`. Brief đặt mục này,
 cùng các file migration trong diff, ngay trên diff.
 
+**`mutation`** chạy từ `feature-s`, sau `test`, khi config khai `"mutation": { "test": "<lệnh>" }` (thêm
+`"setup"`, `"max"` mặc định 40, `"timeout"` mặc định 1200 giây nếu cần). Mỗi dòng code task thêm hay sửa
+(không tính file test, tài liệu, dòng trống hay comment) nhận nhiều nhất một mutant: toán tử đầu tiên trong
+một danh sách cố định (`===`→`!==`, `&&`→`||`, `>`→`>=`, `true`→`false`…) nằm ngoài chuỗi. Compass chụp code
+hiện tại, dựng một worktree tạm, chạy `setup` một lần, chạy lệnh test trên code chưa đổi (baseline, phải
+xanh), rồi từng mutant một. Lệnh đỏ là mutant bị giết; lệnh xanh là mutant sống. Mutant sống không làm
+gate đỏ: nó vào brief vòng 1, và người soi trả lời từng cái. Danh sách nằm ở `evidence/mutants.json`.
+Dùng một lệnh test nhanh, chỉ phủ phần code đổi: chạy cả suite cho 40 mutant là chạy suite 41 lần.
+
 **`test`** chạy lệnh test rồi đối chiếu: mọi ID trong spec phải xuất hiện trên một dòng **pass**.
 Thấy ID trên dòng fail hay skip, hay một ID khớp hai test khác nhau, đều là đỏ, và gate nói rõ trường
 hợp nào để bạn biết phải làm gì.

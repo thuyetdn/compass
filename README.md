@@ -85,7 +85,7 @@ Claude tự chạy quy trình:
 2. Viết spec vào `.compass/CP-1/spec.md` — mục tiêu, ràng buộc, rủi ro hồi quy, 13 test case.
 3. Chạy gate `spec`, rồi **dừng lại hỏi bạn duyệt**. Đây là điểm dừng duy nhất.
 4. Bạn duyệt → Claude viết test trước, thấy đỏ, rồi implement.
-5. Chạy `check`: 9 gate, dừng ngay khi có cái đỏ.
+5. Chạy `check`: 10 gate, dừng ngay khi có cái đỏ.
 6. Gate `review` sinh brief, và Claude giao brief cho một agent khác, không mang lịch sử chat. Agent
    đó soi theo 10 tiêu chí và quyết từng finding `fix` hay `kept` theo rubric. Claude sửa các finding
    `fix`, rồi vòng 2 chỉ kiểm tra bản sửa, không soi lại toàn bộ. Bản sửa thêm hay đổi code phải
@@ -113,7 +113,7 @@ kiểm tra **trước** khi kiểm tra, và kết luận phải dẫn về bằn
 Đóng hồ sơ được thì bẫy vừa gặp tự chép vào `.knowledge/decided/pitfalls.md` — lần sau
 không ai sập lại.
 
-## Chín gate
+## Mười gate
 
 | Gate | Đo gì |
 |---|---|
@@ -123,6 +123,7 @@ không ai sập lại.
 | `convention` | Quy ước dự án, viết một lần chạy mãi |
 | `preflight` | Lệnh khai trong config (lint, typecheck…) xanh, và migration đã áp không bị sửa; đỏ thì `review` không sinh brief |
 | `test` | Suite xanh **và** mọi test ID trong spec đã thực sự chạy |
+| `mutation` | Từ `feature-s`: đổi mỗi dòng code của task một chút rồi chạy lệnh test nhanh; mutant sống vào brief cho người soi xử lý |
 | `ui` | Số đo CSS thật khớp design contract (±2px) |
 | `visual` | So pixel với baseline đã duyệt |
 | `review` | Agent khác soi theo 10 tiêu chí (convention, ảnh hưởng chỗ khác, hiệu năng, bảo mật…), phải kết luận cho từng tiêu chí; từ vòng 2 chỉ kiểm tra bản sửa, ghi sổ cái có ký |
@@ -136,6 +137,12 @@ sửa, `{base}` thành SHA gốc soi), và đỏ khi một file khớp `"migrati
 đầu spec. Preflight khai mà chưa xanh thì `review` không sinh brief. Từ `feature-m`, spec cần mục
 `## Môi trường` (bảng `| Sự thật | Nguồn | Ngày |`, hay `Không áp dụng: <lý do>`), và brief đặt mục đó
 cùng các file migration trong diff ngay trên diff.
+
+Gate `mutation` (từ `feature-s`) chạy khi config khai `"mutation": { "test": "<lệnh test nhanh>" }`. Mỗi dòng
+code task thêm hay sửa (không tính test, tài liệu, comment) nhận nhiều nhất một mutant (`>` thành `>=`, `&&`
+thành `||`…), tối đa `max` (mặc định 40) rải đều. Compass chạy chúng trong một worktree tạm dựng từ ảnh
+chụp code, không đụng cây làm việc của bạn. Mutant sống không làm gate đỏ: nó vào brief vòng 1, và người
+soi phải trả lời từng cái, bằng một finding `tests` hay một mục `equivalent` kèm lý do.
 
 ## Soi PR của người khác
 
@@ -307,7 +314,7 @@ test trần duy nhất, kể cả khi đó là test của task khác.
 
 ## Trạng thái
 
-Chín gate: `spec`, `knowledge`, `secrets`, `convention`, `preflight`, `test`, `ui`, `visual`, `review`.
+Mười gate: `spec`, `knowledge`, `secrets`, `convention`, `preflight`, `test`, `mutation`, `ui`, `visual`, `review`.
 
 Hai loại việc: BUILD (`init` → `spec` → `check` → `done`) và điều tra (`investigate` → `--close`).
 

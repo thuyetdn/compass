@@ -329,8 +329,8 @@ export function doneCommand({ cwd, taskId }) {
   // xanh mà bản ghi vẫn được tính thì lời khai thu hồi rồi vẫn còn hiệu lực. Bản ghi
   // `secrets` của 3.1.2 trở về trước băm config theo cách khác, nên cũng lệch và
   // phải chạy lại một lần — lời báo nói cả khả năng đó.
-  // `preflight` chạy lệnh từ config như `test` (CP-108).
-  const CONFIG_DEPENDENT_GATES = ['test', 'secrets', 'preflight'];
+  // `preflight` (CP-108) và `mutation` (CP-109) chạy lệnh từ config như `test`.
+  const CONFIG_DEPENDENT_GATES = ['test', 'secrets', 'preflight', 'mutation'];
   const currentConfigHash = hashFile(configPath(root));
   for (const name of soi) {
     const record = gates[name];
@@ -344,6 +344,8 @@ export function doneCommand({ cwd, taskId }) {
     } else if (record.configHash !== currentConfigHash) {
       them(gate === 'preflight'
         ? `config.json đã đổi kể từ khi gate "${name}" chạy — lệnh preflight hay glob migrations có thể đã khác. ${chayLai}`
+        : gate === 'mutation'
+        ? `config.json đã đổi kể từ khi gate "${name}" chạy — lệnh test của mutation có thể đã khác. ${chayLai}`
         : gate === 'secrets'
         ? `config.json đã đổi kể từ khi gate "${name}" chạy (hoặc bản ghi từ Compass 3.1.2 trở về trước) — danh sách secretsPublic có thể đã khác. ${chayLai}`
         : `Lệnh test đã đổi kể từ khi gate "${name}" chạy — bằng chứng không còn mô tả đúng lệnh sẽ chạy bây giờ. ${chayLai}`, batBuocKhe(name));

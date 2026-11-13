@@ -9,6 +9,7 @@ import { uiCommand } from './commands/ui.mjs';
 import { visualCommand } from './commands/visual.mjs';
 import { reviewCommand } from './commands/review.mjs';
 import { preflightCommand } from './commands/preflight.mjs';
+import { mutationCommand } from './commands/mutation.mjs';
 import { prCommand, RUN_TESTS_WARNING } from './commands/pr.mjs';
 import { secretsCommand } from './commands/secrets.mjs';
 import { checkCommand } from './commands/check.mjs';
@@ -35,6 +36,7 @@ Dùng:
                                          thành convention đã duyệt của repo đó
   compass preflight <id>        lệnh khai trong "preflight" và kiểm tra migration đã áp
   compass test <id>
+  compass mutation <id>        đổi từng dòng code của task, chạy lệnh test nhanh, ghi mutant sống
   compass ui <id>
   compass visual <id>
   compass review <id>
@@ -118,6 +120,9 @@ async function main() {
         break;
       case 'preflight':
         result = preflightCommand({ cwd, taskId });
+        break;
+      case 'mutation':
+        result = mutationCommand({ cwd, taskId });
         break;
       case 'test':
         result = testCommand({ cwd, taskId });

@@ -8,7 +8,7 @@ import { writeGate, repoEvidenceDir } from '../lib/gate-store.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { hashSource } from '../lib/source-hash.mjs';
 import { runCommand } from '../lib/test-runner.mjs';
-import { taskDiffSetup } from '../lib/task-diff.mjs';
+import { lazyTaskDiff } from '../lib/task-diff.mjs';
 import { declared, configErrors, unsafeName, substitute, gitOf, editedMigrations, upstreamLine } from '../lib/preflight.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 
@@ -39,20 +39,7 @@ export function preflightCommand({ cwd, taskId, repo, gateRoot }) {
   if (bad.length) return { exitCode: 2, output: [fail('preflight', bad), '', hint('Sửa config.json rồi chạy lại.')].join('\n') };
 
   // Diff của task đọc một lần, chỉ khi có repo cần nó.
-  let diff;
-  const diffOf = () => {
-    if (diff) return diff;
-    const setup = taskDiffSetup(root, spec, cfg);
-    if (!setup.ok) {
-      diff = { ok: false, reason: setup.kind === 'scope' ? 'Phạm vi có mục không dùng làm pathspec được' : setup.errors.join('; ') };
-      return diff;
-    }
-    const collected = setup.collect();
-    diff = collected.ok || collected.ly_do === 'empty'
-      ? { ok: true, plan: setup.plan, collected: collected.ok ? collected : { ...collected, files: [], deleted: [], diff: '' } }
-      : { ok: false, reason: collected.reason };
-    return diff;
-  };
+  const diffOf = lazyTaskDiff(root, spec, cfg);
 
   const outputs = [];
   let exitCode = 0;
