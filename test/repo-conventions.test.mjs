@@ -410,7 +410,13 @@ test('CP-98-V3 basis declared is accepted only when a declared file is shown for
 
   put(root, '.knowledge/decided/conventions/be.md', '# be\n\nMigration dùng safeUp.\n');
   briefOf(root);
-  writeReview(root, 'T-1', { coverage, findings: [finding('declared')] });
+  // File convention mới nằm trong diff của git gốc, nên đây là vòng 2 (CP-106): finding mới
+  // cần id mới, origin và closures.
+  writeReview(root, 'T-1', { coverage, findings: [{ ...finding('declared'), id: 'F2', origin: 'missed', lens: 'convention' }] });
+  {
+    const file = path.join(root, '.compass', 'T-1', 'evidence', 'findings.json');
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), closures: [] }));
+  }
   const accepted = reviewCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(accepted.exitCode, 0, accepted.output);
 });

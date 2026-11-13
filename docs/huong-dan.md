@@ -157,7 +157,11 @@ so gì; xem ảnh, thấy đúng thì commit.
 **`review`** sinh một brief gồm spec, diff và phần ngữ cảnh máy dò từ repo (convention đã khai,
 nơi gọi code vừa đổi, tài liệu nhắc tới nó), đưa cho một agent **khác** soi. Agent đó xét mười tiêu
 chí và ghi `findings.json` với một kết luận cho **từng** tiêu chí; thiếu một tiêu chí là gate đỏ.
-Finding mức `Critical` hay `Major` chặn gate. Sửa code sau khi soi thì gate tự mở lại. File chưa
+Mỗi finding có `id` và quyết định `fix` hay `kept` theo rubric trong brief; gate đỏ khi còn finding
+`fix`, hay khi một `Critical`/`Major` bị giữ mà spec chưa có dòng `Chấp nhận <id>#<vân tay>:` của người duyệt (gate in sẵn dòng đó).
+Sửa code sau khi soi thì vòng sau chỉ kiểm tra bản sửa: brief mới gồm diff của bản sửa và các finding
+đang chờ, không soi lại toàn bộ. Vòng 4 cần dòng `Vòng soi tối đa:` trong spec. Compass ghi mọi vòng
+vào `evidence/review-ledger.json` có ký. File chưa
 commit nằm sau một symlink hay junction không vào brief, và `review` in một dòng `ℹ` nêu thư mục link đó.
 
 **`compass pr <số PR | nhánh>`** không phải gate mà là lệnh soi PR của người khác theo cùng mười

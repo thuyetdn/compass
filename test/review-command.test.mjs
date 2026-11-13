@@ -69,9 +69,19 @@ function briefIdFrom(root) {
 // một tiêu chí. Các test ở file này đo chuyện khác — gắn brief, mức chặn, sổ ghi
 // — nên hàm này điền phần đó cho khớp với danh sách finding được truyền vào.
 // Luật coverage có test riêng ở review-coverage.test.mjs.
+// Từ CP-106 mỗi finding có `id`, và Critical/Major/Minor có `disposition` theo rubric.
+// Mặc định giống người soi theo rubric: Critical và Major đem sửa, Minor giữ lại kèm lý
+// do. Luật rubric có test riêng ở review-rounds.test.mjs.
+function withRound1Fields(f, i) {
+  const out = { id: `F${i + 1}`, ...f };
+  if (!('disposition' in f) && ['Critical', 'Major'].includes(f.severity)) out.disposition = { action: 'fix' };
+  if (!('disposition' in f) && f.severity === 'Minor') out.disposition = { action: 'kept', reason: 'không ai gặp lỗi khi dùng' };
+  return out;
+}
+
 function writeFindings(root, findings, brief = briefIdFrom(root)) {
   const filed = Array.isArray(findings)
-    ? findings.map((f) => (f && typeof f === 'object' && !('criterion' in f) ? { ...f, criterion: 'spec' } : f))
+    ? findings.map((f, i) => (f && typeof f === 'object' ? withRound1Fields({ ...f, criterion: f.criterion ?? 'spec' }, i) : f))
     : findings;
   const used = new Set(Array.isArray(filed) ? filed.map((f) => f?.criterion).filter(Boolean) : []);
   const coverage = Object.fromEntries(CRITERIA.map(({ key }) => [key, { verdict: used.has(key) ? 'findings' : 'clean' }]));
@@ -271,7 +281,8 @@ test('CP-6-S3 changing the code after findings were filed reopens the review', (
 
   const result = reviewCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1, result.output);
-  assert.match(result.output, /Code hoặc spec đã đổi/);
+  // CP-106: sửa code sau một vòng đã chấm mở vòng 2, chỉ kiểm tra bản sửa.
+  assert.match(result.output, /Code đã đổi sau vòng 1/);
 
   const brief = readFileSync(path.join(root, '.compass', 'T-1', 'review-brief.md'), 'utf8');
   assert.match(brief, /backdoor/);
@@ -1120,7 +1131,8 @@ test('CP-38-H2 a code change after findings still reports a stale brief', () => 
   writeFileSync(path.join(root, 'src', 'backdoor.js'), 'eval(process.env.EVIL);\n');
   const result = reviewCommand({ cwd: root, taskId: 'T-1' });
   assert.equal(result.exitCode, 1, result.output);
-  assert.match(result.output, /Code hoặc spec đã đổi/);
+  // CP-106: sửa code sau một vòng đã chấm mở vòng 2, chỉ kiểm tra bản sửa.
+  assert.match(result.output, /Code đã đổi sau vòng 1/);
   assert.notEqual(readFileSync(briefFile, 'utf8'), before);
 });
 

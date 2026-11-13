@@ -26,13 +26,26 @@ export function briefIdIn(root, taskId) {
   return brief.match(/"brief":\s*"([^"]+)"/)?.[1] ?? null;
 }
 
+// Từ CP-106 mỗi finding có `id`, và Critical/Major/Minor có `disposition` theo rubric.
+// Mặc định giống người soi theo rubric: Critical và Major đem sửa, Minor giữ lại kèm lý
+// do. Finding đã tự khai trường nào thì giữ nguyên trường đó.
+export function withRubric(findings) {
+  return findings.map((f, i) => {
+    if (!f || typeof f !== 'object') return f;
+    const out = { id: `F${i + 1}`, ...f };
+    if (!('disposition' in f) && ['Critical', 'Major'].includes(f.severity)) out.disposition = { action: 'fix' };
+    if (!('disposition' in f) && f.severity === 'Minor') out.disposition = { action: 'kept', reason: 'không ai gặp lỗi khi dùng' };
+    return out;
+  });
+}
+
 export function writeReview(root, taskId, { findings = [], coverage, brief } = {}) {
   const dir = path.join(root, '.compass', taskId, 'evidence');
   mkdirSync(dir, { recursive: true });
   const body = {
     brief: brief ?? briefIdIn(root, taskId),
     coverage: coverage ?? coverageFor(),
-    findings,
+    findings: Array.isArray(findings) ? withRubric(findings) : findings,
   };
   writeFileSync(path.join(dir, FINDINGS_FILE), JSON.stringify(body, null, 2));
 }

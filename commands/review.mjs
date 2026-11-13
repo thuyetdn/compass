@@ -2,14 +2,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { findRoot, specPath, taskDir, evidenceDir, validateTaskId, configPath } from '../lib/paths.mjs';
-import { collectDiff, buildBrief, briefSubject, parseScopePaths, secretsPublicSection, briefSecretsPublic, linkedNote } from '../lib/review-brief.mjs';
+import { collectDiff, buildBrief, buildVerifyBrief, openFindingsText, briefSubject, parseScopePaths, secretsPublicSection, briefSecretsPublic, linkedNote } from '../lib/review-brief.mjs';
 import { parseSecretsPublic, secretsPublicFromText, normalisePath } from '../lib/secrets-scan.mjs';
-import { parseFindings, formatFinding, checkCoverage, BLOCKING } from '../lib/findings.mjs';
+import { parseFindings, formatFinding, checkCoverage, checkRubric, openFindings, chainOf } from '../lib/findings.mjs';
+import { unitsOf, snapshot, snapshotAlive, fixDiff, parseHunks } from '../lib/review-rounds.mjs';
+import { readLedger, writeLedger, specKeyOf } from '../lib/review-ledger.mjs';
 import { collectContext } from '../lib/review-context.mjs';
 import { planUnits, collectUnits, notSkipped } from '../lib/workspace-git.mjs';
 import { writeGate, readGate } from '../lib/gate-store.mjs';
 import { loadConfig } from '../lib/config.mjs';
-import { parseSpec } from '../lib/spec-parser.mjs';
+import { parseSpec, specForReview } from '../lib/spec-parser.mjs';
 import { hashFile, sha256 } from '../lib/hash.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 
@@ -43,9 +45,12 @@ export function briefId(findingsSource) {
 // Brief cũ nói về đúng spec và diff này không. Không đọc được hai phần đó (brief
 // sửa tay, hay mẫu brief đã khác) thì coi như không — báo "code hoặc spec đã đổi"
 // an toàn hơn đoán là ngữ cảnh.
-export function sameSubject(oldBrief, spec, diff) {
+//
+// `normalise` đưa spec của brief cũ về cùng dạng với `spec` (CP-106): brief của bản
+// Compass trước chép spec nguyên văn, kể cả dòng trống và dòng quyết định ở phần đầu.
+export function sameSubject(oldBrief, spec, diff, normalise = (s) => s) {
   const old = briefSubject(oldBrief);
-  return old !== null && old.spec === spec && old.diff === diff;
+  return old !== null && normalise(old.spec) === spec && old.diff === diff;
 }
 
 // Brief cũ nói về một danh sách secretsPublic khác mục `nay` không. Một chỗ cho cả hai
@@ -228,13 +233,100 @@ function reviewOnce({ cwd, taskId }, notes) {
     }
     return publics.get(collected);
   };
-  const idOf = (collected) => briefIdFor(readFileSync(file, 'utf8'), collected.diff, contextOf(collected).text + publicOf(collected));
+  // Spec trong brief và trong id brief, không gồm quyết định của người sau vòng soi (CP-106).
+  const specForBrief = () => specForReview(readFileSync(file, 'utf8'));
+  const idOf = (collected) => briefIdFor(specForBrief(),collected.diff, contextOf(collected).text + publicOf(collected));
+
+  // Vòng soi (CP-106). Sổ cái nói các vòng đã chấm; spec đổi phần yêu cầu, sổ sai chữ ký
+  // hay ảnh chụp đã bị git dọn thì làm lại từ vòng 1.
+  if (spec.maxRounds && !spec.maxRounds.ok) {
+    return {
+      exitCode: 2,
+      output: [
+        fail('review', [`Dòng \`Vòng soi tối đa:\` ở dòng ${spec.maxRounds.line} của spec ${spec.maxRounds.reason}.`]),
+        '',
+        hint('Viết dạng: `Vòng soi tối đa: 4 — <lý do>`, ở phần đầu spec.'),
+      ].join('\n'),
+    };
+  }
+  const specKey = specKeyOf(readFileSync(file, 'utf8'));
+  const ledger = readLedger(root, taskId, specKey);
+  if (ledger.note) notes.push(ledger.note);
+  let rounds = ledger.rounds;
+
+  // Brief mà vòng hiện tại phải có. Code không đổi so với vòng đã chấm cuối thì vòng đó
+  // là vòng hiện tại (chấm lại được, như hôm nay); đổi thì sang vòng mới, chỉ kiểm tra bản sửa.
+  const targets = new WeakMap();
+  const targetOf = (collected) => {
+    if (!targets.has(collected)) targets.set(collected, computeTarget(collected));
+    return targets.get(collected);
+  };
+  const fullTarget = (collected, snap = null) => ({
+    ok: true, round: 1, kind: 'full', priors: [], prev: null, newRound: false, snap,
+    brief: briefFor(collected), id: idOf(collected), diffShown: collected.diff, hunks: null,
+  });
+  const verifyTarget = (collected, { round, prev, priors, diff, files, snap, newRound }) => {
+    const open = openFindings(priors);
+    const all = new Map(priors.flatMap((r) => r.findings).map((f) => [f.id, f]));
+    const chains = new Map(open.map((f) => [f.id, chainOf(all, f.id)]));
+    const usedIds = [...all.keys()];
+    const ctx = contextOf(collected).text;
+    const id = briefIdFor(specForBrief(), diff, `${ctx}${publicOf(collected)}\nverify:${round}\n${openFindingsText(open, chains)}\n${usedIds.join(',')}`);
+    return {
+      ok: true, round, kind: 'verify', priors, prev, newRound, snap, id, diffShown: diff, hunks: parseHunks(diff),
+      brief: buildVerifyBrief({
+        taskId, round, spec: specForBrief(), diff, files, briefId: id, open, chains, usedIds,
+        context: ctx, secretsPublic: publicOf(collected),
+      }),
+    };
+  };
+  const computeTarget = (collected) => {
+    if (!rounds.length) return fullTarget(collected);
+    const units = unitsOf(root, plan, collected);
+    const last = rounds.at(-1);
+    const prevOfLast = rounds.at(-2) ?? null;
+    if (!snapshotAlive(units, last.snapshot) || (prevOfLast && !snapshotAlive(units, prevOfLast.snapshot))) {
+      notes.push(`Ảnh chụp code của vòng ${last.round} không còn trong git (git gc đã dọn) — soi lại từ vòng 1.`);
+      rounds = [];
+      return fullTarget(collected);
+    }
+    const union = (a) => [...new Set([...(a ?? []), ...collected.files])];
+    const snap = snapshot(units, union(last.files));
+    if (!snap.ok) return { ok: false, exitCode: 2, reason: snap.reason };
+    // Sổ ghi đúng danh sách ảnh chụp đã băm. Ghi danh sách hẹp hơn thì lần sau một file
+    // bản sửa đã gỡ lấy lại bản trong index, và vòng đã xanh tự mở lại.
+    snap.files = union(last.files);
+    const delta = fixDiff(units, last.snapshot, snap.trees, union(last.files));
+    if (!delta.ok) return { ok: false, exitCode: 2, reason: delta.reason };
+    if (delta.diff === '') {
+      // Code y như lúc vòng cuối được chấm: vòng đó vẫn là vòng hiện tại.
+      if (!prevOfLast) return fullTarget(collected, snap);
+      const again = fixDiff(units, prevOfLast.snapshot, snap.trees, union(prevOfLast.files));
+      if (!again.ok) return { ok: false, exitCode: 2, reason: again.reason };
+      return verifyTarget(collected, {
+        round: last.round, prev: prevOfLast, priors: rounds.slice(0, -1), diff: again.diff, files: again.files, snap, newRound: false,
+      });
+    }
+    const round = last.round + 1;
+    const allowed = round <= 3 || (spec.maxRounds?.ok && spec.maxRounds.value >= round);
+    if (!allowed) {
+      return {
+        ok: false,
+        exitCode: 1,
+        reason: [
+          `Code đã đổi sau vòng ${last.round}. Vòng ${round} cần quyết định của người duyệt, nên Compass không sinh brief.`,
+          `Người duyệt đồng ý soi thêm thì thêm vào phần đầu spec: \`Vòng soi tối đa: ${round} — <lý do>\`.`,
+        ].join('\n'),
+      };
+    }
+    return verifyTarget(collected, { round, prev: last, priors: rounds, diff: delta.diff, files: delta.files, snap, newRound: true });
+  };
 
   // Ba chỗ dựng brief, một hình dạng. Lệch một trường là brief "hiện tại" ở pha
   // hai không khớp brief pha một đã ghi, và gate mở lại vô cớ.
   const briefFor = (collected) => buildBrief({
     taskId,
-    spec: readFileSync(file, 'utf8'),
+    spec: specForBrief(),
     diff: collected.diff,
     files: collected.files,
     briefId: idOf(collected),
@@ -249,6 +341,7 @@ function reviewOnce({ cwd, taskId }, notes) {
     rootRange: collected.rootRange ?? true,
     repoRanges: collected.repoRanges ?? [],
     secretsPublic: publicOf(collected),
+    rubric: true,
   });
 
   // Phase two: an agent has answered, so read the verdict — but only if the
@@ -346,9 +439,44 @@ function reviewOnce({ cwd, taskId }, notes) {
       };
     }
 
-    const wanted = briefFor(current);
+    const target = targetOf(current);
+    if (!target.ok) {
+      ghiDo('round-blocked');
+      return { exitCode: target.exitCode, output: fail('review', target.reason.split('\n')) };
+    }
+    const wanted = target.brief;
     const briefIsCurrent = readFileSync(briefFile, 'utf8') === wanted;
-    const answersThisBrief = briefId(source) === idOf(current);
+    const answersThisBrief = briefId(source) === target.id;
+
+    // Findings của vòng trước, code đã sửa sau đó: vòng mới chỉ kiểm tra bản sửa (CP-106).
+    // Không bảo xóa findings.json — người soi vòng mới ghi đè nó, và bản cũ đã nằm trong sổ cái.
+    // Cả lần chạy sau đó, khi brief vòng mới đã nằm sẵn mà người soi chưa nộp: vẫn là đang chờ.
+    if (target.newRound && target.priors.some((r) => r.brief === briefId(source))) {
+      writeFileSync(briefFile, wanted);
+      writeGate(root, taskId, {
+        gate: 'review',
+        exitCode: 1,
+        checkedAt: new Date().toISOString(),
+        specHash: hashFile(file),
+        briefHash: hashFile(briefFile),
+        diffHash: sha256(current.diff),
+        findingCount: null,
+        blockingCount: null,
+      });
+      return {
+        exitCode: 1,
+        output: [
+          fail('review', [
+            `Code đã đổi sau vòng ${target.prev.round} — vòng ${target.round} chỉ kiểm tra bản sửa và đang chờ findings.`,
+            `Đã sinh brief vòng ${target.round}: .compass/${taskId}/${BRIEF_FILE}`,
+            // Người soi vòng mới quên đổi trường brief thì đọc được ngay ở đây (CP-106).
+            `findings.json hiện có trả lời brief ${briefId(source)} của vòng trước; brief vòng ${target.round} là ${target.id}.`,
+          ]),
+          '',
+          hint('Đưa brief cho một agent KHÁC. Nó ghi đè findings.json; findings vòng trước đã nằm trong sổ cái.'),
+        ].join('\n'),
+      };
+    }
 
     if (!briefIsCurrent) {
       // Brief cũ ghi nguyên spec và diff nó được viết cho. Cả hai còn y nguyên mà
@@ -357,7 +485,7 @@ function reviewOnce({ cwd, taskId }, notes) {
       // tìm một thay đổi không có (CP-38). Đọc từ brief chứ không từ sổ: nhánh
       // findings-hỏng ghi đè sổ, và lần chạy sau báo nhầm (CP-79).
       const briefCu = readFileSync(briefFile, 'utf8');
-      const onlyContext = sameSubject(briefCu, readFileSync(file, 'utf8'), current.diff);
+      const onlyContext = sameSubject(briefCu, specForBrief(), target.diffShown, specForReview);
       const khaiPublicDoi = onlyContext && khaiPublicDoiTrong(briefCu, publicOf(current));
       writeFileSync(briefFile, wanted);
       writeGate(root, taskId, {
@@ -393,7 +521,7 @@ function reviewOnce({ cwd, taskId }, notes) {
       // left over from an earlier round. Saying "code đã đổi" here sends the
       // reader hunting for a change that never happened (CP-38).
       const quoted = briefId(source);
-      const wantedId = idOf(current);
+      const wantedId = target.id;
       writeGate(root, taskId, {
         gate: 'review',
         exitCode: 1,
@@ -442,47 +570,109 @@ function reviewOnce({ cwd, taskId }, notes) {
         ...coverage.insufficient.map(({ key, note }) => `  - ${key}: ${note}`)]
       : [];
 
-    const blocking = findings.filter((f) => BLOCKING.includes(f.severity));
+    // CP-106: quyết định từng finding theo rubric, nguồn gốc finding mới, closure finding cũ.
+    const rubric = checkRubric(parsed, {
+      kind: target.kind,
+      priors: target.priors,
+      acceptances: spec.acceptances ?? {},
+      hunks: target.hunks,
+    });
+    if (rubric.errors.length) {
+      ghiDo('rubric-invalid');
+      return {
+        exitCode: 2,
+        output: [
+          fail('review', rubric.errors),
+          '',
+          hint(`Sửa ${FINDINGS_FILE} theo mục "Mức và quyết định" trong brief rồi chạy lại: compass review ${taskId}`),
+        ].join('\n'),
+      };
+    }
+
+    // Ghi vòng này vào sổ cái, thay bản cũ của chính vòng này nếu có: chấm lại cùng findings
+    // ra cùng một sổ. Ảnh chụp là trạng thái code mà brief này nói về.
+    const units = unitsOf(root, plan, current);
+    const snap = target.snap ?? snapshot(units, current.files);
+    if (!snap.ok) {
+      ghiDo('snapshot-failed');
+      return { exitCode: 2, output: fail('review', [snap.reason]) };
+    }
+    const blockingCount = rubric.blockingCount;
+    writeLedger(root, taskId, specKey, [...target.priors, {
+      round: target.round,
+      kind: target.kind,
+      brief: target.id,
+      recordedAt: new Date().toISOString(),
+      verdict: blockingCount > 0 ? 'fail' : 'pass',
+      heads: snap.heads,
+      snapshot: snap.trees,
+      files: snap.files ?? current.files,
+      findings: rubric.record,
+      closures: rubric.closures,
+    }]);
 
     writeGate(root, taskId, {
       gate: 'review',
-      exitCode: blocking.length > 0 ? 1 : 0,
+      exitCode: blockingCount > 0 ? 1 : 0,
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
       briefHash: existsSync(briefFile) ? hashFile(briefFile) : null,
       findingsHash: hashFile(findingsFile),
       diffHash: sha256(current.diff),
       findingCount: findings.length,
-      blockingCount: blocking.length,
+      blockingCount,
       coverage: coverage.counts,
+      round: target.round,
       outputFile: `evidence/${FINDINGS_FILE}`,
     });
 
-    if (blocking.length > 0) {
-      const others = findings.filter((f) => !BLOCKING.includes(f.severity));
-      const lines = [
-        `${blocking.length} finding chặn gate:`,
-        ...blocking.map(formatFinding),
-      ];
-      if (others.length) {
-        lines.push('', `Kèm ${others.length} finding không chặn:`, ...others.map(formatFinding));
+    const show = (f) => `${f.id ? `${f.id} ` : ''}${formatFinding(f)}`;
+    const chainText = (chain) => chain.join(' → ');
+    const notesAfter = [];
+    if (rubric.missed.length) {
+      notesAfter.push('', `Lỗi phương pháp — vòng trước bỏ sót ${rubric.missed.length} finding:`,
+        ...rubric.missed.map((f) => `  ${f.id}: lens "${f.lens}" lẽ ra phải bắt — ${f.title}`));
+    }
+    if (rubric.keptAccepted.length) {
+      notesAfter.push('', `Người duyệt đã chấp nhận giữ ${rubric.keptAccepted.length} finding:`,
+        ...rubric.keptAccepted.map((f) => `  ${f.id} [${f.severity}] ${f.title} — ${spec.acceptances[rubric.acceptKey(f.id)]}`));
+    }
+    const keptMinor = rubric.record.filter((f) => f.severity === 'Minor' && f.disposition?.action === 'kept');
+    if (keptMinor.length) notesAfter.push('', `${keptMinor.length} Minor giữ lại (kept), lý do ghi trong sổ cái.`);
+    notesAfter.push(...unexamined);
+
+    const roundLabel = target.kind === 'full' ? `Vòng ${target.round} (soi toàn bộ).` : `Vòng ${target.round} (chỉ kiểm tra bản sửa).`;
+    if (blockingCount > 0) {
+      const lines = [roundLabel, `${blockingCount} finding chặn gate:`];
+      if (rubric.toFix.length) lines.push('', `Cần sửa (${rubric.toFix.length}):`, ...rubric.toFix.map(show));
+      for (const chain of rubric.longChains) {
+        const id = chain.at(-1);
+        lines.push('', `Chuỗi ${chainText(chain)} đã sửa tới lần thứ ${chain.length}. Bản sửa của ${id} phải gỡ cơ chế (closure rung "revert" ở vòng sau), hoặc người duyệt ghi vào phần đầu spec: \`Chấp nhận ${rubric.acceptKey(id)}: <lý do>\`.`);
       }
-      lines.push(...unexamined);
+      if (rubric.keptBlocking.length) {
+        lines.push('', 'Giữ lại (kept) mà spec chưa có dòng chấp nhận của người duyệt:', ...rubric.keptBlocking.map(show));
+        lines.push(...rubric.keptBlocking.map((f) => `  Người duyệt đồng ý giữ thì thêm vào phần đầu spec, trên heading ## đầu tiên: \`Chấp nhận ${rubric.acceptKey(f.id)}: <lý do>\``));
+      }
+      if (rubric.stillOpen.length) lines.push('', 'Vẫn còn mở sau bản sửa:', ...rubric.stillOpen.map(show));
+      for (const { closure, chain } of rubric.badClosures) {
+        lines.push('', `${closure.id} là mắt thứ ${chain.length} của chuỗi ${chainText(chain)} mà đóng bằng rung "${closure.rung}". Phải gỡ cơ chế (revert), hoặc người duyệt ghi \`Chấp nhận ${rubric.acceptKey(closure.id)}: <lý do>\` vào phần đầu spec.`);
+      }
+      lines.push(...notesAfter);
       return {
         exitCode: 1,
         output: [
           fail('review', lines),
           '',
-          hint(`Sửa xong thì xóa ${FINDINGS_FILE} và chạy lại review — soi lại từ đầu, không sửa findings cũ.`),
+          hint(`Sửa xong chạy lại: compass review ${taskId}. Vòng sau chỉ kiểm tra bản sửa; đừng xóa ${FINDINGS_FILE} và đừng sửa findings cũ.`),
         ].join('\n'),
       };
     }
 
     const lines = [pass('review', findings.length === 0
       ? 'không có finding nào'
-      : `${findings.length} finding, không cái nào chặn`)];
-    if (findings.length) lines.push('', ...findings.map(formatFinding));
-    lines.push(...unexamined);
+      : `${findings.length} finding, không cái nào chặn`), roundLabel];
+    if (findings.length) lines.push('', ...findings.map((f, i) => show({ ...f, id: rubric.record[i].id })));
+    lines.push(...notesAfter);
     return { exitCode: 0, output: lines.join('\n') };
   }
 
@@ -508,7 +698,12 @@ function reviewOnce({ cwd, taskId }, notes) {
   const diffHash = sha256(collected.diff);
   const hadBrief = existsSync(briefFile);
 
-  const fresh = briefFor(collected);
+  const target = targetOf(collected);
+  if (!target.ok) {
+    recordPending({ diffHash });
+    return { exitCode: target.exitCode, output: fail('review', target.reason.split('\n')) };
+  }
+  const fresh = target.brief;
 
   // Compare the brief itself, not just a diff hash: a rewritten spec changes
   // what a reviewer is asked to judge against, and a brief left over from the
@@ -517,7 +712,7 @@ function reviewOnce({ cwd, taskId }, notes) {
 
   // Cùng luật với pha hai, đọc từ brief cũ trước khi nó bị ghi đè: spec và diff
   // trong đó còn y nguyên mà brief khác thì thứ đổi là ngữ cảnh repo (CP-38, CP-79).
-  const onlyContext = stale && sameSubject(readFileSync(briefFile, 'utf8'), readFileSync(file, 'utf8'), collected.diff);
+  const onlyContext = stale && sameSubject(readFileSync(briefFile, 'utf8'), specForBrief(), target.diffShown, specForReview);
   const khaiPublicDoi = onlyContext && khaiPublicDoiTrong(readFileSync(briefFile, 'utf8'), publicOf(collected));
 
   if (!hadBrief || stale) {
@@ -537,8 +732,11 @@ function reviewOnce({ cwd, taskId }, notes) {
           ? 'Danh sách secretsPublic trong config.json đã đổi — brief cũ nói về danh sách cũ.'
           : onlyContext
           ? 'Brief đã đổi dù spec và code của task không đổi: ngữ cảnh repo (convention, nơi gọi, tài liệu) hoặc mẫu brief của Compass đã khác.'
+          : target.newRound ? `Code đã đổi sau vòng ${target.prev.round} — vòng ${target.round} chỉ kiểm tra bản sửa.`
           : stale ? 'Code hoặc spec đã đổi — brief cũ nói về bản cũ.' : 'Chưa ai soi diff này.',
-        `Brief: .compass/${taskId}/${BRIEF_FILE}  (${collected.files.length} file, ${diffHash.slice(7, 15)})`,
+        target.kind === 'verify'
+          ? `Brief vòng ${target.round}: .compass/${taskId}/${BRIEF_FILE}  (bản sửa, ${target.hunks.size} file)`
+          : `Brief: .compass/${taskId}/${BRIEF_FILE}  (${collected.files.length} file, ${diffHash.slice(7, 15)})`,
       ];
 
   return {

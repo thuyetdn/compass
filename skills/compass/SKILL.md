@@ -584,7 +584,8 @@ Findings theo format cứng:
 {
   "brief": "<id trong brief>",
   "coverage": { "spec": { "verdict": "clean" }, "performance": { "verdict": "insufficient", "note": "spec không nói cỡ dữ liệu" } },
-  "findings": [{ "severity": "Major", "criterion": "impact", "title": "...", "detail": "...", "file": "a.js", "line": 42 }]
+  "findings": [{ "id": "F1", "severity": "Major", "criterion": "impact", "title": "...", "detail": "...", "file": "a.js", "line": 42,
+                 "disposition": { "action": "fix" } }]
 }
 ```
 
@@ -598,9 +599,71 @@ Mỗi finding mang `criterion`. Finding thuộc `convention` mang thêm `basis`:
 luật trong `conventions.md`, `inferred` khi suy ra từ code. Repo chưa khai convention mà ghi
 `declared` là đỏ.
 
-`Critical` và `Major` chặn gate. `Minor` và `Info` hiện ra nhưng không chặn. Không tìm thấy gì thì vẫn nộp đủ `coverage` với `"findings": []` — đừng bịa cho có.
+Không tìm thấy gì thì vẫn nộp đủ `coverage` với `"findings": []` — đừng bịa cho có.
 
-Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ, Compass sinh brief mới và bắt soi lại. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code. Id băm cả spec, diff lẫn ngữ cảnh, nên khi chỉ ngữ cảnh đổi gate cũng mở lại, và nói rõ là ngữ cảnh đổi chứ không phải code đổi. Ngữ cảnh đổi riêng theo hai đường. Một là nâng cấp Compass: mẫu brief và cách dò ngữ cảnh nằm trong Compass, nên bản mới có thể ra brief khác cho đúng spec và diff cũ. Hai là task khai `Soi đến:`, tức là diff bị chốt ở một commit: ai đó sửa `conventions.md` sau commit đó thì gate báo ngữ cảnh đổi. Không khai `Soi đến:` thì diff đi tới cây làm việc, nên sửa `conventions.md` cũng là một phần của diff, và gate báo đúng là code hoặc spec đã đổi.
+#### Vòng soi: một hai vòng là xong
+
+Soi lại toàn bộ mỗi lần sửa không hội tụ. Một task `feature-l` đo được ở issue #7 cần khoảng 45 vòng
+mà vòng nào cũng còn finding: 37% finding do chính bản sửa của vòng trước sinh ra (81% ở vòng 21), 72%
+trong số đó từ việc sửa một Minor, và mỗi lần soi lại bằng LLM ra một tập khác. Nên gate chạy theo
+vòng (CP-106):
+
+**Vòng 1 soi toàn bộ, theo rubric.** Mỗi finding Critical, Major và Minor mang `id` (không trùng trong
+cả task) và `disposition`: `fix`, hoặc `kept` kèm `reason`. Người soi quyết theo rubric trong brief,
+không phải người viết code. Minor chỉ đem sửa khi người dùng thấy sai, test yếu trên code của một case
+trong spec, hoặc tài liệu sai mà người deploy sẽ làm theo; còn lại `kept`. Info không cần `disposition`.
+
+| Tình huống | Gate |
+|---|---|
+| Còn finding `fix` | đỏ (mã 1), liệt kê từng cái |
+| Minor `kept` | không chặn, lý do vào sổ cái |
+| Critical/Major `kept` | đỏ, cho tới khi người duyệt chép dòng gate in ra, `Chấp nhận <id>#<vân tay>: <lý do>`, vào phần đầu spec |
+| Thiếu `id`, thiếu `disposition` cho Critical/Major/Minor, `kept` không lý do | lỗi định dạng (mã 2) |
+
+**Compass ghi sổ cái** `.compass/<id>/evidence/review-ledger.json`, ký như `gate.json`: mỗi vòng đã
+chấm có id brief, HEAD và một git tree chụp code của từng git, mọi finding với quyết định, nguồn gốc,
+`causedBy`, và các closure. Tree ghi qua index tạm, chỉ băm file trong danh sách của vòng; index,
+HEAD và nhánh của bạn không bị đụng, và không ref nào được tạo.
+
+**Từ vòng 2 chỉ kiểm tra bản sửa.** Sửa code sau một vòng đã chấm thì `compass review` sinh brief
+vòng verify: spec, diff từ ảnh chụp vòng trước tới nay, và các finding đang chờ sửa. **Đừng xóa
+`findings.json`** — người soi vòng mới ghi đè nó, bản cũ đã nằm trong sổ. Người soi ghi:
+
+- `closures`: mỗi finding đang chờ sửa một closure, `closed` kèm `rung` (`revert` gỡ cơ chế, `narrow`
+  thu hẹp điều kiện, `reuse` dùng lại helper, `mechanism` thêm cơ chế mới), hay `open`. Còn `open` là đỏ.
+- finding mới, mỗi cái một `origin`: `fix-induced` (phải có `causedBy` và `file`/`line` nằm trong một
+  hunk của bản sửa — Compass kiểm tra), `missed` (phải có `lens` lẽ ra bắt được; gate in nó như lỗi
+  phương pháp), `env-fact`, `requirement-change`.
+
+**Chuỗi sửa tới lần thứ ba thì gỡ cơ chế.** Chuỗi `causedBy` dài 3 mắt thì mắt thứ ba phải đóng bằng
+`rung: revert`, trừ khi người duyệt ghi dòng `Chấp nhận <id>#<vân tay>: <lý do>` gate in ra vào spec.
+
+**Dòng chấp nhận gắn với đúng finding.** Vân tay là sáu ký tự hex băm mức, tiêu chí, tiêu đề và file
+của finding. Vòng 1 soi lại hay sổ làm lại mà người soi mới đặt một lỗi khác vào cùng id thì vân tay
+lệch, và dòng cũ không chấp nhận lỗi chưa ai duyệt. Dòng `Chấp nhận` và `Vòng soi tối đa` không vào
+spec trong brief, nên thêm chúng sau một vòng không làm findings vừa nộp mất hiệu lực.
+
+**Vòng 4 cần người quyết.** Vòng 2 và 3 không cần gì. Vòng 4 trở đi cần `Vòng soi tối đa: <n> — <lý do>`
+ở phần đầu spec; thiếu thì gate đỏ và không sinh brief.
+
+**Sổ làm lại từ vòng 1** khi spec đổi phần yêu cầu (đổi các dòng `Soi đến`, `Chấp nhận`, `Vòng soi tối
+đa` hay dòng trống ở phần đầu thì không tính), khi sổ sai chữ ký (sửa tay, chép từ task khác, hay ghi ở
+máy khác), hoặc khi `git gc` đã dọn tree của vòng trước (tree không có ref giữ, hạn mặc định hai tuần).
+Mỗi trường hợp in một dòng `ℹ`.
+
+Quy trình đi kèm, máy không đo được nên phải tự giữ:
+
+1. **Đóng băng phạm vi khi đang soi.** Yêu cầu mới thành task nhỏ riêng, có vòng 1 riêng. Rebase một
+   lần trước vòng 1.
+2. **Soi từng bản sửa trước khi commit.** Thứ tự ưu tiên: gỡ hay revert, thu hẹp điều kiện, dùng lại
+   helper, mới tới thêm cơ chế. Đoán ý người dùng qua tín hiệu gián tiếp tính là cơ chế mới. Bản sửa
+   kèm test đỏ trước, xanh sau.
+3. **Lens ma trận chạy hai lần độc lập rồi gộp**, với mọi cỡ task: hai lần soi LLM độc lập ra hai tập
+   khác nhau. Compass chưa đếm số lần chạy.
+
+`compass pr` chưa theo vòng: brief của nó không có rubric và findings không cần `disposition`.
+
+Sửa code sau khi nộp findings thì gate **tự mở lại**: findings cũ nói về bản cũ. Trước khi có vòng nào được chấm, Compass sinh brief mới và bắt soi lại; sau đó thì sang vòng verify như trên. Trường `brief` trong findings phải đúng id ghi trong brief — đó là thứ buộc một kết quả vào một bản code. Id băm cả spec, diff lẫn ngữ cảnh, nên khi chỉ ngữ cảnh đổi gate cũng mở lại, và nói rõ là ngữ cảnh đổi chứ không phải code đổi. Ngữ cảnh đổi riêng theo hai đường. Một là nâng cấp Compass: mẫu brief và cách dò ngữ cảnh nằm trong Compass, nên bản mới có thể ra brief khác cho đúng spec và diff cũ. Hai là task khai `Soi đến:`, tức là diff bị chốt ở một commit: ai đó sửa `conventions.md` sau commit đó thì gate báo ngữ cảnh đổi. Không khai `Soi đến:` thì diff đi tới cây làm việc, nên sửa `conventions.md` cũng là một phần của diff, và gate báo đúng là code hoặc spec đã đổi.
 
 **Phạm vi soi.** Mặc định Compass so với điểm rẽ khỏi nhánh chính, hoặc commit đầu tiên nếu không có. Repo chỉ có đúng một commit thì Compass so với cây rỗng của git, nên chính commit đó cũng được soi, và gate `secrets` quét nó. Nhánh sống lâu thì phạm vi đó là cả dự án chứ không phải một task.
 

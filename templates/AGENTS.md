@@ -67,8 +67,16 @@ Từ `feature-s`, gate `review` cần một người soi khác bạn:
 2. Mở một phiên Codex mới, không mang lịch sử chat của phiên này, đưa nó file brief. Brief có
    spec, diff và ngữ cảnh máy dò từ repo; người soi không cần biết lý do bạn viết như vậy.
 3. Phiên đó xét mười tiêu chí ghi trong brief và ghi kết quả vào
-   `.compass/<id>/evidence/findings.json`, với một kết luận cho từng tiêu chí.
-4. Chạy lại `compass review <id>` để gate đọc kết quả.
+   `.compass/<id>/evidence/findings.json`, với một kết luận cho từng tiêu chí. Mỗi finding có `id`
+   và `disposition` (`fix`, hay `kept` kèm lý do) theo rubric trong brief.
+4. Chạy lại `compass review <id>` để gate đọc kết quả. Gate đỏ khi còn finding `fix`.
+5. Sửa các finding `fix`, rồi chạy lại `compass review <id>`. Vòng 2 chỉ kiểm tra bản sửa: Compass
+   sinh brief mới gồm diff của bản sửa và các finding đang chờ, đưa cho một phiên mới như bước 2.
+   Đừng xóa `findings.json`; phiên soi ghi đè nó, bản cũ đã nằm trong sổ cái.
+
+Giữ phạm vi đứng yên khi đang soi: yêu cầu mới thành task riêng. Sửa một finding thì ưu tiên gỡ hay
+thu hẹp hơn là thêm cơ chế. Chuỗi lỗi sửa tới lần thứ ba thì gỡ cơ chế, hay hỏi người. Vòng 4 cần
+dòng `Vòng soi tối đa: 4 — <lý do>` của người trong spec; Major giữ lại cần dòng `Chấp nhận <id>#<vân tay>: <lý do>` gate in ra.
 
 ### Convention thiếu hoặc đã cũ
 
