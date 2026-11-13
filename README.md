@@ -121,7 +121,7 @@ không ai sập lại.
 | `knowledge` | Tài liệu máy sinh còn khớp code |
 | `secrets` | File `.env` không lọt vào commit |
 | `convention` | Quy ước dự án, viết một lần chạy mãi |
-| `preflight` | Lệnh khai trong config (lint, typecheck…) xanh, và migration đã áp không bị sửa; đỏ thì `review` không sinh brief |
+| `preflight` | Lệnh khai trong config (lint, typecheck…) xanh, migration đã áp không bị sửa, và đường dẫn, commit, tên hàm trong tài liệu vừa thêm có thật; đỏ thì `review` không sinh brief |
 | `test` | Suite xanh **và** mọi test ID trong spec đã thực sự chạy |
 | `mutation` | Từ `feature-s`: đổi mỗi dòng code của task một chút rồi chạy lệnh test nhanh; mutant sống vào brief cho người soi xử lý |
 | `ui` | Số đo CSS thật khớp design contract (±2px) |
@@ -134,7 +134,9 @@ nên "13 test case" trong spec mà chỉ viết 11 thì không qua được.
 Gate `preflight` chạy các lệnh khai trong `"preflight"` của config (`{changed}` thành file task thêm hay
 sửa, `{base}` thành SHA gốc soi), và đỏ khi một file khớp `"migrations"` đã có ở gốc soi bị sửa, xoá hay
 đổi tên. Người duyệt cho sửa một migration thì thêm `Ngoại lệ migration: <đường dẫn> — <lý do>` vào phần
-đầu spec. Preflight khai mà chưa xanh thì `review` không sinh brief. Từ `feature-m`, spec cần mục
+đầu spec. Preflight còn kiểm tra tuyên bố trong tài liệu: đường dẫn, SHA commit và tên hàm viết trong inline
+code ở dòng `.md` task thêm và trong spec phải có thật; tuyên bố về repo Compass không thấy thì người duyệt
+miễn bằng `Tuyên bố ngoài repo: <span> — <lý do>`. Preflight khai mà chưa xanh thì `review` không sinh brief. Từ `feature-m`, spec cần mục
 `## Môi trường` (bảng `| Sự thật | Nguồn | Ngày |`, hay `Không áp dụng: <lý do>`), và brief đặt mục đó
 cùng các file migration trong diff ngay trên diff.
 

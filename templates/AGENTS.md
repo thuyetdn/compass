@@ -64,7 +64,9 @@ Một tên test chỉ mang một ID. Reporter phải in tên từng test: `node 
 `compass check` chạy gate `preflight` trước `test`: các lệnh khai trong `"preflight"` của config, và
 kiểm tra migration đã có ở gốc soi bị sửa (`"migrations"`). Preflight đỏ thì `review` không sinh brief.
 Migration đã áp thì viết migration mới; chỉ người duyệt mới thêm được dòng
-`Ngoại lệ migration: <đường dẫn> — <lý do>` vào spec. Từ `feature-m`, spec cần mục `## Môi trường`:
+`Ngoại lệ migration: <đường dẫn> — <lý do>` vào spec. Preflight cũng soi tuyên bố: đường dẫn, SHA và tên
+hàm trong inline code của dòng tài liệu bạn thêm và của spec phải có thật. Sai thì sửa tài liệu; chỉ người
+duyệt mới thêm được dòng `Tuyên bố ngoài repo: <span> — <lý do>`. Từ `feature-m`, spec cần mục `## Môi trường`:
 bảng `| Sự thật | Nguồn | Ngày |`, hay một dòng `Không áp dụng: <lý do>`.
 
 ### Mutation

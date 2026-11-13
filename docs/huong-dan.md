@@ -151,6 +151,12 @@ migration thì thêm `Ngoại lệ migration: <đường dẫn> — <lý do>` v�
 xanh thì `review` không sinh brief. Gate cũng in một dòng `ℹ` nói nhánh chậm bao nhiêu commit so với
 upstream; dòng đó không làm gate đỏ.
 
+Preflight còn một bước luôn chạy, kể cả khi config không khai gì: **claim check**. Nó đọc inline code ở
+dòng tài liệu (`.md`, `.mdx`) task thêm và ở spec (trừ bảng Test cases và khối rào). Đường dẫn có đoạn đầu
+có thật ở gốc repo thì cả đường dẫn phải có thật; chuỗi 7–40 ký tự hex có cả số lẫn chữ phải là commit;
+`tên()` phải xuất hiện như một từ trong file code. Sai thì gate đỏ, chỉ ra file, dòng và span. Tuyên bố
+về một repo Compass không thấy thì người duyệt thêm `Tuyên bố ngoài repo: <span> — <lý do>` vào phần đầu spec.
+
 Từ `feature-m`, spec cần mục `## Môi trường`: bảng `| Sự thật | Nguồn | Ngày |` (migration đã chạy ở
 stage nào, cờ theo stage, PR của team khác), hay một dòng `Không áp dụng: <lý do>`. Brief đặt mục này,
 cùng các file migration trong diff, ngay trên diff.

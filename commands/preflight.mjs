@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { findRoot, specPath, configPath } from '../lib/paths.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { loadConfig } from '../lib/config.mjs';
@@ -10,6 +11,7 @@ import { hashSource } from '../lib/source-hash.mjs';
 import { runCommand } from '../lib/test-runner.mjs';
 import { lazyTaskDiff } from '../lib/task-diff.mjs';
 import { declared, configErrors, unsafeName, substitute, gitOf, editedMigrations, upstreamLine } from '../lib/preflight.mjs';
+import { checkClaims, docSources, specSource } from '../lib/claims.mjs';
 import { pass, fail, hint } from '../lib/report.mjs';
 
 const TAIL = 40;
@@ -38,20 +40,36 @@ export function preflightCommand({ cwd, taskId, repo, gateRoot }) {
   }
   if (bad.length) return { exitCode: 2, output: [fail('preflight', bad), '', hint('Sửa config.json rồi chạy lại.')].join('\n') };
 
-  // Diff của task đọc một lần, chỉ khi có repo cần nó.
+  // Diff của task đọc một lần.
   const diffOf = lazyTaskDiff(root, spec, cfg);
+  // Spec nói về mọi repo trong phạm vi: tuyên bố của nó tìm ở mọi repo đó và ở gốc (CP-110).
+  const all = reposForGate(root, spec.scope, null);
+  const specAnchors = [...new Set([...(all.ok && all.repos ? all.repos.map((x) => x.dir) : []), root])];
 
   const outputs = [];
   let exitCode = 0;
   for (const r of list) {
-    const result = runOne({ root, taskId, spec, r, diffOf });
+    const result = runOne({ root, taskId, spec, r, diffOf, specAnchors });
     outputs.push(r.name === null || repo != null ? result.output : `[${r.name}] ${result.output}`);
     if (result.exitCode !== 0) { exitCode = result.exitCode; break; }
   }
   return { exitCode, output: outputs.join('\n') };
 }
 
-function runOne({ root, taskId, spec, r, diffOf }) {
+// Nội dung một file ở phía mới của diff: commit Soi đến của git chứa nó, hay cây làm việc (CP-110).
+function newSide(root, where) {
+  return (file) => {
+    try {
+      if (!where?.end) return readFileSync(path.join(root, file), 'utf8');
+      const inGit = where.prefix ? file.slice(where.prefix.length + 1) : file;
+      return execFileSync('git', ['show', `${where.end}:${inGit}`], { cwd: where.cwd, encoding: 'utf8', maxBuffer: 50_000_000, stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      return null;
+    }
+  };
+}
+
+function runOne({ root, taskId, spec, r, diffOf, specAnchors }) {
   const startedAt = Date.now();
   const rel = r.name === null ? '' : path.relative(root, r.dir).split(path.sep).join('/');
   const commands = r.config.preflight ?? [];
@@ -62,11 +80,12 @@ function runOne({ root, taskId, spec, r, diffOf }) {
   const ran = [];
   let red = null;
   let migrations = { checked: globs.length > 0, edited: [], exempted: [] };
+  let claims = null;
 
   const lag = upstreamLine(r.dir);
   if (lag) infos.push(lag);
 
-  if (declared(r.config)) {
+  {
     const d = diffOf();
     const where = d.ok ? gitOf({ root, plan: d.plan, collected: d.collected, name: r.name }) : null;
 
@@ -93,7 +112,28 @@ function runOne({ root, taskId, spec, r, diffOf }) {
       }
     }
 
-    // 2. Lệnh khai trong config, theo thứ tự, dừng ở lệnh đỏ đầu tiên.
+    // 2. Claim check (CP-110): đường dẫn, commit và tên hàm trong tài liệu vừa thêm và trong spec.
+    // Chạy cả khi config không khai gì.
+    if (!red) {
+      const exempt = new Map((spec.claimExceptions ?? []).filter((x) => x.ok).map((x) => [x.span, x.reason]));
+      const docAnchors = [...new Set([r.dir, root])];
+      const got = checkClaims([
+        ...(d.ok ? docSources(d.collected.diff ?? '', rel, docAnchors, newSide(root, where)) : []),
+        specSource(readFileSync(specPath(root, taskId), 'utf8'), `.compass/${taskId}/spec.md`, specAnchors),
+      ], exempt);
+      claims = { checked: got.checked.length, wrong: got.wrong.length, exempted: [...got.exempted.keys()] };
+      for (const [span, reason] of got.exempted) infos.push(`Tuyên bố \`${span}\` được miễn theo dòng Tuyên bố ngoài repo của spec: ${reason}`);
+      if (got.wrong.length) {
+        red = [
+          `${got.wrong.length} tuyên bố trong tài liệu hay spec không khớp repo:`,
+          ...got.wrong.map((c) => `  ${c.where} \`${c.span}\` — ${c.reason}`),
+          'Sửa tài liệu cho đúng. Tuyên bố đúng ở một repo Compass không thấy thì người duyệt thêm vào phần đầu spec, mỗi span một dòng:',
+          ...[...new Set(got.wrong.map((c) => c.span))].map((sp) => `  Tuyên bố ngoài repo: ${sp} — <lý do>`),
+        ];
+      }
+    }
+
+    // 3. Lệnh khai trong config, theo thứ tự, dừng ở lệnh đỏ đầu tiên.
     for (const command of red ? [] : commands) {
       const needsDiff = command.includes('{changed}') || command.includes('{base}');
       let changed = [];
@@ -143,6 +183,7 @@ function runOne({ root, taskId, spec, r, diffOf }) {
     exitCode: red ? 1 : 0,
     commands: ran,
     migrations,
+    claims,
     startedAt: new Date(startedAt).toISOString(),
     durationMs: Date.now() - startedAt,
     outputFile: log.length ? path.relative(path.join(root, '.compass', taskId), logFile).split(path.sep).join('/') : null,

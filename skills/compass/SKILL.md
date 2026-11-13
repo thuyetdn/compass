@@ -515,11 +515,27 @@ loại task, sau `convention`, trước `test`.
 - Khai ở phần chung hay trong từng repo của `repos`, gộp theo trường như `devUrl`. Nhiều repo thì mỗi
   repo một khe `preflight@<repo>`.
 - Gate đọc đúng diff của `review`: cùng gốc soi, cùng `Soi đến`, cùng repo con có git riêng.
-- Không khai gì thì gate xanh và nói chưa khai. Nó vẫn in một dòng `ℹ` nói nhánh chậm bao nhiêu commit so
+- Không khai gì thì gate chỉ chạy claim check (bên dưới); xanh thì nói chưa khai. Nó vẫn in một dòng `ℹ` nói nhánh chậm bao nhiêu commit so
   với upstream (đọc ref local, kèm ngày fetch cuối). Dòng đó không bao giờ làm gate đỏ, và không vào
   brief: brief là danh tính của vòng soi, một lần `git fetch` không được mở lại vòng đã xong.
 - `review` không sinh brief khi config khai `preflight` hay `migrations` mà bản ghi preflight của repo đó
   thiếu, đỏ, hay cũ hơn code hoặc config hiện tại. `done` đòi bản ghi xanh và mới như với `test`.
+- **Claim check** (CP-110) chạy sau kiểm tra migration, trước lệnh khai, và chạy cả khi config không khai
+  gì: issue #7 đo được 57% finding về tài liệu là thứ script bắt được. Nó chỉ đọc inline code, ở dòng thêm
+  của file `.md`/`.mdx` trong diff và ở mọi dòng của spec trừ mục `## Test cases` (fixture mang tên bịa).
+  Khối rào bỏ qua. Ba loại tuyên bố:
+  - **Đường dẫn**: span không khoảng trắng, không `* ? [ ] { } < > …`, không URL, không mở đầu bằng `-`,
+    có `/` hay đuôi file. Chỉ phán khi đoạn đầu có thật ở gốc repo hay gốc Compass (`lib/`, `db/`); khi đó
+    cả đường dẫn phải có thật. `:12` ở cuối được bỏ trước khi so.
+  - **Commit**: 7–40 ký tự hex có cả số lẫn chữ, phải là commit trong git chứa repo (một
+    `git cat-file --batch-check` cho mọi SHA).
+  - **Hàm**: `tên()` hay `a.b(x)`; phần cuối phải là một từ trọn vẹn trong file không phải Markdown, theo
+    dõi hay chưa theo dõi mà không bị ignore (một `git grep` cho mọi tên).
+
+  Sai thì preflight đỏ, nêu file, dòng (spec là `.compass/<id>/spec.md:<dòng>`), span và lý do; không in
+  phần còn lại của dòng. Tuyên bố đúng ở một repo Compass không thấy thì người duyệt thêm vào phần đầu
+  spec, mỗi span một dòng: `Tuyên bố ngoài repo: <span> — <lý do>`. Bản ghi preflight đỏ chặn brief kể
+  cả ở repo không khai preflight. Không xét: số lượng test, tham chiếu issue, giá trị enum.
 
 ### Gate `mutation` — test có bắt được dòng vừa đổi không
 

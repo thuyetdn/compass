@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -96,10 +96,21 @@ test('CP-40-H6 the record carries sourceHash, specHash and a signature that veri
   assert.equal(verifyAllGates(root, 'T-S').ok, true);
 });
 
+// Task gần nhất của repo này khai `Gốc soi` (số lớn nhất). Gate `secrets` quét từ gốc soi tới cây làm
+// việc, nên một task cố định như CP-40 thì diff lớn dần theo lịch sử, tới lúc vượt giới hạn 2 MB và
+// test đỏ dù gate không sai (gặp ở CP-110). Task mới nhất luôn có gốc soi gần HEAD.
+function newestTaskWithBase() {
+  const dir = path.join(process.cwd(), '.compass');
+  const ids = readdirSync(dir).filter((n) => /^CP-\d+$/.test(n) && existsSync(path.join(dir, n, 'spec.md')))
+    .filter((n) => /^Gốc soi:\s*\S+/m.test(readFileSync(path.join(dir, n, 'spec.md'), 'utf8')))
+    .sort((a, b) => Number(b.slice(3)) - Number(a.slice(3)));
+  return ids[0];
+}
+
 test('CP-40-H7 this repo scans clean against its own history', () => {
   // The gate must pass on a project that has no .env — including this one, on the
   // range the spec names. A gate that is red out of the box gets switched off.
-  const result = secretsCommand({ cwd: process.cwd(), taskId: 'CP-40' });
+  const result = secretsCommand({ cwd: process.cwd(), taskId: newestTaskWithBase() });
   assert.equal(result.exitCode, 0, result.output);
 });
 
@@ -208,7 +219,7 @@ test('CP-40-S4 a base ref starting with - is refused, never passed to git', () =
 
 test('CP-40-P2 scanning this repo end to end stays under 3 s', () => {
   const { value: result } = withinBudget({
-    run: () => secretsCommand({ cwd: process.cwd(), taskId: 'CP-40' }), budgetMs: 3000, label: 'secretsCommand',
+    run: () => secretsCommand({ cwd: process.cwd(), taskId: newestTaskWithBase() }), budgetMs: 3000, label: 'secretsCommand',
   });
   assert.equal(result.exitCode, 0, result.output);
 });
