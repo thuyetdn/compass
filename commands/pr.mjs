@@ -418,6 +418,10 @@ function reviewPr({ cwd, ref, base = null, specFile = null, runTests = false, pr
     if (!isAncestor(repo, sinceSha, source.sha) || sinceSha === source.sha) {
       return { exitCode: 2, output: prFail([`--since=${since}: ${sinceSha.slice(0, 7)} không phải tổ tiên của đầu ${source.label} (${source.sha.slice(0, 7)}) — không có khoảng nào để soi.`]) };
     }
+    // Commit trước điểm rẽ thì diff gồm cả việc của nhánh gốc (CP-113).
+    if (!isAncestor(repo, fork, sinceSha)) {
+      return { exitCode: 2, output: prFail([`--since=${since}: ${sinceSha.slice(0, 7)} nằm trước điểm rẽ ${fork.slice(0, 7)} của ${source.label} khỏi ${baseRes.label} — diff sẽ gồm cả việc của nhánh gốc. Dùng điểm rẽ hay một commit của PR.`]) };
+    }
   }
 
   let ticket = null;

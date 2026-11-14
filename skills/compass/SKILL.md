@@ -526,7 +526,8 @@ loại task, sau `convention`, trước `test`.
   Khối rào bỏ qua. Ba loại tuyên bố:
   - **Đường dẫn**: span không khoảng trắng, không `* ? [ ] { } < > …`, không URL, không mở đầu bằng `-`,
     có `/` hay đuôi file. Chỉ phán khi đoạn đầu có thật ở gốc repo hay gốc Compass (`lib/`, `db/`); khi đó
-    cả đường dẫn phải có thật. `:12` ở cuối được bỏ trước khi so.
+    cả đường dẫn phải có thật. `:12` ở cuối được bỏ trước khi so. File mà diff của task xoá hay đổi tên đi
+    thì không bị phán: nó có ở gốc soi, và gỡ nó là việc của task.
   - **Commit**: 7–40 ký tự hex có cả số lẫn chữ, phải là commit trong git chứa repo (một
     `git cat-file --batch-check` cho mọi SHA).
   - **Hàm**: `tên()` hay `a.b(x)`; phần cuối phải là một từ trọn vẹn trong file không phải Markdown, theo
@@ -743,7 +744,8 @@ vòng verify: spec, diff từ ảnh chụp vòng trước tới nay, và các fi
 
   **Findings theo lens (CP-111).** Issue #7 chạy 4–6 người soi mỗi vòng, mỗi người một góc, và 84% lỗi lọt
   là chỗ có kỹ thuật mà không ai áp vào. Khai trong config, theo loại task:
-  `"reviewLenses": { "feature-m": ["matrix", "matrix-2", "deploy"] }`. Khi đó mỗi lens là một agent riêng,
+  `"reviewLenses": { "feature-m": ["matrix", "matrix-2", "deploy"] }`; khoá phải là một loại task, gõ sai là
+  exit 2. Khi đó mỗi lens là một agent riêng,
   ghi `.compass/<id>/evidence/findings/<lens>.json` (tên lens: chữ thường, số, `-`, tối đa 32 ký tự) cùng
   định dạng và cùng trường `brief`; brief nêu đúng tên từng file. Compass gộp: finding và closure nối lại
   (id không trùng giữa các file, mỗi finding cũ một closure), coverage lấy kết luận nặng nhất (`findings`,
@@ -969,7 +971,8 @@ Những điều cần biết:
   `--run-tests`; `prSetup` đỏ là preflight đỏ ở bước chuẩn bị. Mỗi lệnh preflight bị giới hạn bởi
   `prTestTimeout` như test. Lệnh đỏ thì không có brief (máy đã bắt được lỗi, người soi khỏi
   đọc), và `report.md` nêu lệnh đó, mã thoát và đoạn cuối output. Xanh thì báo cáo có dòng `**Preflight:**`.
-- **`--since=<sha>` soi lại sau khi người viết sửa.** `<sha>` phải là tổ tiên của đầu PR. Diff của brief
+- **`--since=<sha>` soi lại sau khi người viết sửa.** `<sha>` phải là điểm rẽ hay một commit của PR: tổ tiên
+  của đầu PR, và không nằm trước điểm rẽ (nằm trước thì diff gồm cả việc của nhánh gốc). Diff của brief
   chỉ từ đó tới đầu PR, và mục "Findings lần trước" liệt kê findings của báo cáo gần nhất (lưu ở
   `reported.json` cạnh báo cáo) để người soi xét cái nào còn. Không có báo cáo nào thì mục đó nói vậy.
   Không có sổ cái closure: findings của PR không mang quyết định `fix`/`kept`.

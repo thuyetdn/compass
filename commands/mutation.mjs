@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { findRoot, specPath, configPath } from '../lib/paths.mjs';
+import { findRoot, specPath, configPath, validateTaskId } from '../lib/paths.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { reposForGate, repoPathError } from '../lib/gates.mjs';
@@ -25,6 +25,8 @@ const HET_GIO = 'hết thời gian';
 // qua mọi repo trong phạm vi, như `preflight`.
 export function mutationCommand({ cwd, taskId, repo, gateRoot }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass mutation <id>' };
+  const validation = validateTaskId(taskId);
+  if (!validation.ok) return { exitCode: 2, output: validation.reason };
   const root = gateRoot ?? findRoot(cwd);
   if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
   const file = specPath(root, taskId);

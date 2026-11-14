@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { findRoot, specPath, configPath } from '../lib/paths.mjs';
+import { findRoot, specPath, configPath, validateTaskId } from '../lib/paths.mjs';
 import { parseSpec } from '../lib/spec-parser.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { reposForGate, repoPathError } from '../lib/gates.mjs';
@@ -20,6 +20,8 @@ const TAIL = 40;
 // hay null ở dự án một repo). Gọi thẳng thì đi qua mọi repo trong phạm vi, như `convention`.
 export function preflightCommand({ cwd, taskId, repo, gateRoot }) {
   if (!taskId) return { exitCode: 2, output: 'Thiếu task id.\nDùng: compass preflight <id>' };
+  const validation = validateTaskId(taskId);
+  if (!validation.ok) return { exitCode: 2, output: validation.reason };
   const root = gateRoot ?? findRoot(cwd);
   if (!root) return { exitCode: 2, output: 'Không tìm thấy .compass/config.json.' };
   const file = specPath(root, taskId);
@@ -54,6 +56,20 @@ export function preflightCommand({ cwd, taskId, repo, gateRoot }) {
     if (result.exitCode !== 0) { exitCode = result.exitCode; break; }
   }
   return { exitCode, output: outputs.join('\n') };
+}
+
+// File diff của task xoá hay đổi tên đi, đường dẫn tuyệt đối (CP-113). `--no-renames`: một `git mv` hiện
+// ra là xoá tên cũ. Không biết gốc soi thì tập rỗng, và claim check phán như trước.
+function removedFiles(where) {
+  if (!where?.base) return new Set();
+  try {
+    const out = execFileSync('git', ['diff', '--no-renames', '--no-ext-diff', '--relative', '--name-only', '-z', '--diff-filter=D', where.base, ...(where.end ? [where.end] : [])], {
+      cwd: where.cwd, encoding: 'utf8', maxBuffer: 50_000_000, stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return new Set(out.split('\0').filter(Boolean).map((p) => path.resolve(where.cwd, p)));
+  } catch {
+    return new Set();
+  }
 }
 
 // Nội dung một file ở phía mới của diff: commit Soi đến của git chứa nó, hay cây làm việc (CP-110).
@@ -120,7 +136,7 @@ function runOne({ root, taskId, spec, r, diffOf, specAnchors }) {
       const got = checkClaims([
         ...(d.ok ? docSources(d.collected.diff ?? '', rel, docAnchors, newSide(root, where)) : []),
         specSource(readFileSync(specPath(root, taskId), 'utf8'), `.compass/${taskId}/spec.md`, specAnchors),
-      ], exempt);
+      ], exempt, removedFiles(where));
       claims = { checked: got.checked.length, wrong: got.wrong.length, exempted: [...got.exempted.keys()] };
       for (const [span, reason] of got.exempted) infos.push(`Tuyên bố \`${span}\` được miễn theo dòng Tuyên bố ngoài repo của spec: ${reason}`);
       if (got.wrong.length) {
