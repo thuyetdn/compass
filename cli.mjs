@@ -10,7 +10,7 @@ import { visualCommand } from './commands/visual.mjs';
 import { reviewCommand } from './commands/review.mjs';
 import { preflightCommand } from './commands/preflight.mjs';
 import { mutationCommand } from './commands/mutation.mjs';
-import { prCommand, RUN_TESTS_WARNING } from './commands/pr.mjs';
+import { prCommand, RUN_TESTS_WARNING, PREFLIGHT_WARNING } from './commands/pr.mjs';
 import { secretsCommand } from './commands/secrets.mjs';
 import { checkCommand } from './commands/check.mjs';
 import { doneCommand } from './commands/done.mjs';
@@ -40,7 +40,7 @@ Dùng:
   compass ui <id>
   compass visual <id>
   compass review <id>
-  compass pr <số PR|nhánh|sha> [--base=<nhánh>] [--spec=<file>] [--run-tests]
+  compass pr <số PR|nhánh|sha> [--base=<nhánh>] [--spec=<file>] [--run-tests] [--preflight] [--since=<sha>]
                                 soi PR của người khác theo mười tiêu chí
   compass check <id>
   compass done <id>
@@ -140,23 +140,26 @@ async function main() {
       case 'pr':
         // `--base main` không có `=` thì `main` thành đối số thứ hai và cờ bị bỏ qua
         // lặng lẽ: soi nhầm nhánh gốc mà không ai biết.
-        if (flags.base === true || flags.spec === true || flags.base === '' || flags.spec === '') {
-          result = { exitCode: 2, output: 'Viết --base=<nhánh> và --spec=<file>, có dấu "=" và một giá trị.' };
+        if (flags.base === true || flags.spec === true || flags.since === true || flags.base === '' || flags.spec === '' || flags.since === '') {
+          result = { exitCode: 2, output: 'Viết --base=<nhánh>, --spec=<file> và --since=<sha>, có dấu "=" và một giá trị.' };
           break;
         }
-        if (typeof flags['run-tests'] === 'string') {
-          result = { exitCode: 2, output: '--run-tests không nhận giá trị: viết đúng --run-tests.' };
+        if (typeof flags['run-tests'] === 'string' || typeof flags.preflight === 'string') {
+          result = { exitCode: 2, output: '--run-tests và --preflight không nhận giá trị: viết đúng tên cờ.' };
           break;
         }
         // Nói trước khi chạy, không đợi tới cuối: lệnh test là code của người viết PR.
         if (flags['run-tests'] === true) process.stderr.write(`${RUN_TESTS_WARNING}\n`);
+        if (flags.preflight === true) process.stderr.write(`${PREFLIGHT_WARNING}\n`);
         result = prCommand({
           cwd,
           ref: rest[0],
           base: typeof flags.base === 'string' ? flags.base : null,
           specFile: typeof flags.spec === 'string' ? flags.spec : null,
           runTests: flags['run-tests'] === true,
-          warned: flags['run-tests'] === true,
+          preflight: flags.preflight === true,
+          since: typeof flags.since === 'string' ? flags.since : null,
+          warned: flags['run-tests'] === true || flags.preflight === true,
         });
         break;
       case 'review':

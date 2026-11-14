@@ -96,6 +96,11 @@ Từ `feature-s`, gate `review` cần một người soi khác bạn:
    gate `test` hiện tại. Không có test để nêu (sửa tài liệu) thì `redTest: null` kèm `note`. Gỡ cơ chế
    (`revert`) không cần test. `rerunBy` (không bắt buộc) ghi lens đã chạy lại trên diff của bản sửa.
 
+Config khai `"reviewLenses": { "feature-m": ["matrix", "deploy"] }` thì mỗi lens là một phiên soi riêng, ghi
+`.compass/<id>/evidence/findings/<lens>.json` thay cho `findings.json`; brief nêu đúng tên từng file. Compass
+gộp các file: id finding không trùng giữa các file, coverage lấy kết luận nặng nhất. Thiếu file của một lens
+đã khai thì gate đỏ; có cả `findings.json` lẫn thư mục `findings/` là lỗi.
+
 Giữ phạm vi đứng yên khi đang soi: yêu cầu mới thành task riêng. Sửa một finding thì ưu tiên gỡ hay
 thu hẹp hơn là thêm cơ chế. Chuỗi lỗi sửa tới lần thứ ba thì gỡ cơ chế, hay hỏi người. Vòng 4 cần
 dòng `Vòng soi tối đa: 4 — <lý do>` của người trong spec; Major giữ lại cần dòng `Chấp nhận <id>#<vân tay>: <lý do>` gate in ra.
@@ -131,7 +136,11 @@ Chỉ ra điều đó khi đưa người duyệt; luật cho repo con soạn b�
 `compass pr <số PR | nhánh>` soi một PR theo cùng mười tiêu chí, không đụng branch hay cây làm việc
 của bạn. Nó sinh `.git/compass/pr/<key>/review-brief.md` rồi thoát mã 1. Đưa brief cho một phiên Codex
 mới, phiên đó ghi `findings.json` cạnh brief, rồi chạy lại cùng lệnh để ra `report.md` dán vào PR.
-Chỉ thêm `--run-tests` khi người dùng đồng ý: nó chạy code của người viết PR trên máy này.
+Chỉ thêm `--run-tests` khi người dùng đồng ý: nó chạy code của người viết PR trên máy này. `--preflight` cũng
+vậy: nó chạy lệnh `"preflight"` của config nhánh gốc trên code của PR (sau `prSetup` nếu có khai), đỏ thì
+không sinh brief.
+`--since=<sha>` soi lại PR sau khi người viết sửa: diff chỉ từ `<sha>` tới đầu PR, và brief liệt kê findings
+của báo cáo lần trước để phiên soi kiểm tra.
 
 ### Khi chưa biết lỗi ở đâu
 

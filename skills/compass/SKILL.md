@@ -740,6 +740,18 @@ vòng verify: spec, diff từ ảnh chụp vòng trước tới nay, và các fi
   để nêu (sửa tài liệu) thì `"redTest": null` kèm `note`. `revert` không cần. `rerunBy` (không bắt buộc)
   ghi lens đã chạy lại trên diff của bản sửa. Compass không chứng minh được test đỏ trước bản sửa;
   phần đó là lời người soi.
+
+  **Findings theo lens (CP-111).** Issue #7 chạy 4–6 người soi mỗi vòng, mỗi người một góc, và 84% lỗi lọt
+  là chỗ có kỹ thuật mà không ai áp vào. Khai trong config, theo loại task:
+  `"reviewLenses": { "feature-m": ["matrix", "matrix-2", "deploy"] }`. Khi đó mỗi lens là một agent riêng,
+  ghi `.compass/<id>/evidence/findings/<lens>.json` (tên lens: chữ thường, số, `-`, tối đa 32 ký tự) cùng
+  định dạng và cùng trường `brief`; brief nêu đúng tên từng file. Compass gộp: finding và closure nối lại
+  (id không trùng giữa các file, mỗi finding cũ một closure), coverage lấy kết luận nặng nhất (`findings`,
+  rồi `insufficient`, rồi `clean`), và mỗi finding ghi `lens` là tên file trong sổ cái. Thiếu file của
+  lens đã khai là exit 1; có cả `findings.json` lẫn `findings/`, file sai tên, link, hay hai file trả lời
+  hai brief khác nhau là exit 2. Không khai thì `findings.json` vẫn như cũ. Bộ lens gợi ý: `matrix` (ma
+  trận case thật), `deploy` (triển khai, vận hành), `hostile` (người dùng phá, a11y), `permissions`,
+  `docs` (tài liệu so với code); CLI thì bỏ a11y.
 - finding mới, mỗi cái một `origin`: `fix-induced` (phải có `causedBy` và `file`/`line` nằm trong một
   hunk của bản sửa — Compass kiểm tra), `missed` (phải có `lens` lẽ ra bắt được; gate in nó như lỗi
   phương pháp), `env-fact`, `requirement-change`.
@@ -912,6 +924,8 @@ compass pr feature/loc-quoc-gia      một nhánh, hay một sha
                                      base khác (develop) dùng bản local đang có
   --spec=ticket.md                   soi theo ticket; không có thì soi theo commit message
   --run-tests                        chạy test của PR
+  --preflight                        chạy lệnh "preflight" của config nhánh gốc trước khi sinh brief
+  --since=<sha>                      chỉ soi từ <sha> tới đầu PR, kèm findings của báo cáo lần trước
 ```
 
 Hai pha như gate `review`:
@@ -948,6 +962,17 @@ Những điều cần biết:
   trước khi dán lên PR. Không bật thì báo cáo ghi "chưa chạy", không bao giờ ngụ ý là đã pass.
 - **PR đổi thì soi lại.** Đầu PR có commit mới thì brief đổi, findings cũ không còn khớp, và lệnh nói
   rõ "PR đã đổi".
+- **`--preflight` (CP-111) cũng chạy code của người khác**, nên có cùng lời cảnh báo với `--run-tests`. Lệnh
+  lấy từ `"preflight"` của config đã commit ở nhánh gốc, không bao giờ của PR. `{changed}` thành file PR
+  thêm hay sửa, `{base}` thành điểm rẽ; lệnh có `{changed}` mà PR không thêm hay sửa file nào thì bỏ qua.
+  Worktree tạm chưa cài gì, nên `prSetup` chạy trước lệnh preflight, một lần cho cả `--preflight` lẫn
+  `--run-tests`; `prSetup` đỏ là preflight đỏ ở bước chuẩn bị. Mỗi lệnh preflight bị giới hạn bởi
+  `prTestTimeout` như test. Lệnh đỏ thì không có brief (máy đã bắt được lỗi, người soi khỏi
+  đọc), và `report.md` nêu lệnh đó, mã thoát và đoạn cuối output. Xanh thì báo cáo có dòng `**Preflight:**`.
+- **`--since=<sha>` soi lại sau khi người viết sửa.** `<sha>` phải là tổ tiên của đầu PR. Diff của brief
+  chỉ từ đó tới đầu PR, và mục "Findings lần trước" liệt kê findings của báo cáo gần nhất (lưu ở
+  `reported.json` cạnh báo cáo) để người soi xét cái nào còn. Không có báo cáo nào thì mục đó nói vậy.
+  Không có sổ cái closure: findings của PR không mang quyết định `fix`/`kept`.
 
 ## Điều tra — khi chưa biết vấn đề ở đâu
 

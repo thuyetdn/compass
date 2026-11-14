@@ -163,6 +163,17 @@ gốc (không từ PR, không từ bản chưa commit trên máy); cần cài g�
 trước (ví dụ `npm ci`) thì khai `"prSetup": "npm ci"` trong đó. Cả `prSetup` lẫn test dùng chung
 một hạn `prTestTimeout` giây, mặc định 20 phút; quá hạn thì cả cây tiến trình bị dừng.
 
+`--preflight` chạy lệnh `"preflight"` của cùng config đó (nhánh gốc, không bao giờ của PR) trong worktree
+của PR trước khi sinh brief, sau một lời cảnh báo như `--run-tests`. Worktree chưa cài gì, nên `prSetup`
+chạy trước (một lần, dù có cả `--run-tests`), và mỗi lệnh preflight cũng bị giới hạn bởi `prTestTimeout`. Lệnh đỏ thì không có brief, và
+`report.md` nêu lệnh đó cùng mã thoát. `--since=<sha>` soi lại sau khi người viết sửa: diff chỉ từ `<sha>`
+(phải là tổ tiên của đầu PR) tới đầu PR, và brief có mục "Findings lần trước" liệt kê findings của báo cáo
+gần nhất để người soi kiểm tra.
+
+Ở gate `review`, config khai `"reviewLenses": { "feature-m": ["matrix", "deploy"] }` thì mỗi lens là một
+người soi riêng, ghi `.compass/<id>/evidence/findings/<lens>.json`; Compass gộp lại, coverage lấy kết luận nặng
+nhất, và đòi đủ file của mọi lens đã khai.
+
 ## Dự án nhiều repo
 
 Một task hay đụng cả backend lẫn frontend. Để Claude dò giúp:

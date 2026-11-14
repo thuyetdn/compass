@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { findRoot, specPath, taskDir, evidenceDir, validateTaskId, configPath } from '../lib/paths.mjs';
-import { buildBrief, buildVerifyBrief, openFindingsText, briefSubject, secretsPublicSection, briefSecretsPublic, linkedNote } from '../lib/review-brief.mjs';
+import { buildBrief, buildVerifyBrief, openFindingsText, briefSubject, secretsPublicSection, briefSecretsPublic, linkedNote, lensSection } from '../lib/review-brief.mjs';
 import { parseSecretsPublic, secretsPublicFromText, normalisePath } from '../lib/secrets-scan.mjs';
-import { parseFindings, formatFinding, checkCoverage, checkRubric, openFindings, chainOf, RUNGS_NEEDING_TEST } from '../lib/findings.mjs';
+import { parseFindings, formatFinding, checkCoverage, checkRubric, openFindings, chainOf, RUNGS_NEEDING_TEST, lensConfig, readFindingsSource } from '../lib/findings.mjs';
 import { unitsOf, snapshot, snapshotAlive, fixDiff, parseHunks } from '../lib/review-rounds.mjs';
 import { readLedger, writeLedger, specKeyOf } from '../lib/review-ledger.mjs';
 import { collectContext } from '../lib/review-context.mjs';
@@ -143,7 +143,6 @@ function reviewOnce({ cwd, taskId }, notes) {
   if (!existsSync(file)) return { exitCode: 2, output: `Không tìm thấy spec: ${file}` };
 
   const briefFile = path.join(taskDir(root, taskId), BRIEF_FILE);
-  const findingsFile = path.join(evidenceDir(root, taskId), FINDINGS_FILE);
 
   // Where this task's work starts. Left unset, Compass walks back to the branch
   // point or the first commit — safe, but on a long-lived branch that is the
@@ -151,6 +150,11 @@ function reviewOnce({ cwd, taskId }, notes) {
   // starting point when the default is too wide.
   const cfg = loadConfig(root);
   const spec = parseSpec(readFileSync(file, 'utf8'));
+  // Lens dự án khai cho loại task này (CP-111): mỗi lens nộp một file trong `evidence/findings/`.
+  const lensCfg = cfg.ok ? lensConfig(cfg.config) : { ok: true, lenses: {} };
+  if (!lensCfg.ok) return { exitCode: 2, output: [fail('review', lensCfg.errors), '', hint('Sửa config.json rồi chạy lại.')].join('\n') };
+  const lenses = lensCfg.lenses[spec.type] ?? [];
+  const lensText = lensSection(taskId, lenses);
   // Preflight khai mà chưa xanh trên code và config hiện tại thì không sinh brief (CP-108):
   // agent không đọc code mà lint, typecheck hay kiểm tra migration đã bắt được lỗi. Bản ghi
   // đỏ giữ diffHash và briefHash của bản ghi cũ, để lần chạy sau khi preflight xanh vẫn
@@ -309,7 +313,7 @@ function reviewOnce({ cwd, taskId }, notes) {
       ok: true, round, kind: 'verify', priors, prev, newRound, snap, id, diffShown: diff, hunks: parseHunks(diff),
       brief: buildVerifyBrief({
         taskId, round, spec: specForBrief(), diff, files, briefId: id, open, chains, relisted, usedIds,
-        context: ctx, secretsPublic: publicOf(collected), environment: envOf(collected),
+        context: ctx, secretsPublic: publicOf(collected), environment: envOf(collected), lenses: lensText,
       }),
     };
   };
@@ -376,6 +380,7 @@ function reviewOnce({ cwd, taskId }, notes) {
     rootRange: collected.rootRange ?? true,
     repoRanges: collected.repoRanges ?? [],
     secretsPublic: publicOf(collected),
+    lenses: lensText,
     rubric: true,
   });
 
@@ -383,7 +388,12 @@ function reviewOnce({ cwd, taskId }, notes) {
   // answer is about the code as it stands now. A finding set outlives the diff
   // it was written against: reviewer reports Major, author fixes, reruns, and
   // the stale pass would sail through. That is normal workflow, not cheating.
-  if (existsSync(findingsFile)) {
+  const submitted = readFindingsSource(evidenceDir(root, taskId), lenses);
+  // Lời khuyên nói đúng chỗ người soi đã ghi: thư mục lens, hay findings.json (CP-111).
+  const lensMode = existsSync(path.join(evidenceDir(root, taskId), 'findings'));
+  const answerFile = lensMode ? 'các file trong evidence/findings/' : FINDINGS_FILE;
+  const answerPath = lensMode ? `.compass/${taskId}/evidence/findings/` : `.compass/${taskId}/evidence/${FINDINGS_FILE}`;
+  if (submitted.kind !== 'none') {
     const current = collect();
     const recorded = readGate(root, taskId, 'review')?.diffHash ?? null;
 
@@ -415,7 +425,7 @@ function reviewOnce({ cwd, taskId }, notes) {
               : 'Không còn bản ghi brief nào khớp với findings này.',
           ]),
           '',
-          hint(`Xóa .compass/${taskId}/evidence/${FINDINGS_FILE} rồi chạy lại: compass review ${taskId}`),
+          hint(`Xóa ${answerPath} rồi chạy lại: compass review ${taskId}`),
         ].join('\n'),
       };
     }
@@ -425,7 +435,27 @@ function reviewOnce({ cwd, taskId }, notes) {
     // one-second resolution on Windows — and the recorded diffHash cannot
     // either, because a phase-one run between review and verdict refreshes it,
     // which would make an old verdict read as current.
-    const source = readFileSync(findingsFile, 'utf8');
+    // Findings theo lens (CP-111): thư mục `findings/` gộp thành một findings.json. Sai định dạng
+    // là exit 2; thiếu lens config đòi là exit 1, như findings chưa nộp đủ.
+    if (submitted.kind === 'error') {
+      ghiDo('findings-malformed');
+      return {
+        exitCode: 2,
+        output: [fail('review', submitted.errors), '', hint(`Sửa thư mục evidence/findings/ rồi chạy lại: compass review ${taskId}`)].join('\n'),
+      };
+    }
+    if (submitted.kind === 'missing') {
+      ghiDo('lens-missing');
+      return {
+        exitCode: 1,
+        output: [
+          fail('review', [`Thiếu kết quả của ${submitted.missing.length} lens config.json đòi cho loại ${spec.type}: ${submitted.missing.join(', ')}.`]),
+          '',
+          hint(`Mỗi lens một agent, ghi vào .compass/${taskId}/evidence/findings/<lens>.json, rồi chạy lại: compass review ${taskId}`),
+        ].join('\n'),
+      };
+    }
+    const source = submitted.source;
 
     // Malformed JSON is a format problem, and saying so is more useful than
     // reporting the brief id it could not contain.
@@ -437,7 +467,7 @@ function reviewOnce({ cwd, taskId }, notes) {
         output: [
           fail('review', parsed.errors),
           '',
-          hint(`Sửa ${FINDINGS_FILE} cho đúng format rồi chạy lại: compass review ${taskId}`),
+          hint(`Sửa ${answerFile} cho đúng format rồi chạy lại: compass review ${taskId}`),
         ].join('\n'),
       };
     }
@@ -545,7 +575,7 @@ function reviewOnce({ cwd, taskId }, notes) {
             `Đã sinh brief mới: .compass/${taskId}/${BRIEF_FILE}`,
           ]),
           '',
-          hint(`Xóa .compass/${taskId}/evidence/${FINDINGS_FILE} rồi đưa brief mới cho một agent khác soi lại.`),
+          hint(`Xóa ${answerPath} rồi đưa brief mới cho một agent khác soi lại.`),
         ].join('\n'),
       };
     }
@@ -577,7 +607,7 @@ function reviewOnce({ cwd, taskId }, notes) {
             'Code và spec không đổi. Findings này chép từ task khác, hoặc còn lại từ lần soi trước.',
           ]),
           '',
-          hint(`Xóa .compass/${taskId}/evidence/${FINDINGS_FILE} rồi đưa brief hiện có cho một agent khác soi.`),
+          hint(`Xóa ${answerPath} rồi đưa brief hiện có cho một agent khác soi.`),
         ].join('\n'),
       };
     }
@@ -596,7 +626,7 @@ function reviewOnce({ cwd, taskId }, notes) {
         output: [
           fail('review', coverage.errors),
           '',
-          hint(`Sửa ${FINDINGS_FILE} theo mục "Tiêu chí soi" trong brief rồi chạy lại: compass review ${taskId}`),
+          hint(`Sửa ${answerFile} theo mục "Tiêu chí soi" trong brief rồi chạy lại: compass review ${taskId}`),
         ].join('\n'),
       };
     }
@@ -621,7 +651,7 @@ function reviewOnce({ cwd, taskId }, notes) {
         output: [
           fail('review', rubric.errors),
           '',
-          hint(`Sửa ${FINDINGS_FILE} theo mục "Mức và quyết định" trong brief rồi chạy lại: compass review ${taskId}`),
+          hint(`Sửa ${answerFile} theo mục "Mức và quyết định" trong brief rồi chạy lại: compass review ${taskId}`),
         ].join('\n'),
       };
     }
@@ -655,13 +685,13 @@ function reviewOnce({ cwd, taskId }, notes) {
       checkedAt: new Date().toISOString(),
       specHash: hashFile(file),
       briefHash: existsSync(briefFile) ? hashFile(briefFile) : null,
-      findingsHash: hashFile(findingsFile),
+      findingsHash: sha256(source),
       diffHash: sha256(current.diff),
       findingCount: findings.length,
       blockingCount,
       coverage: coverage.counts,
       round: target.round,
-      outputFile: `evidence/${FINDINGS_FILE}`,
+      outputFile: submitted.lensed ? 'evidence/findings/' : `evidence/${FINDINGS_FILE}`,
     });
 
     const show = (f) => `${f.id ? `${f.id} ` : ''}${formatFinding(f)}`;
@@ -703,7 +733,7 @@ function reviewOnce({ cwd, taskId }, notes) {
         output: [
           fail('review', lines),
           '',
-          hint(`Sửa xong chạy lại: compass review ${taskId}. Vòng sau chỉ kiểm tra bản sửa; đừng xóa ${FINDINGS_FILE} và đừng sửa findings cũ.`),
+          hint(`Sửa xong chạy lại: compass review ${taskId}. Vòng sau chỉ kiểm tra bản sửa; đừng xóa ${answerFile} và đừng sửa findings cũ.`),
         ].join('\n'),
       };
     }
@@ -785,7 +815,9 @@ function reviewOnce({ cwd, taskId }, notes) {
       fail('review', headline),
       '',
       hint(`Đưa brief cho một agent KHÁC — nó không được biết gì về quá trình làm task này.`),
-      hint(`Agent ghi kết quả vào .compass/${taskId}/evidence/${FINDINGS_FILE}, rồi chạy lại: compass review ${taskId}`),
+      hint(lenses.length
+        ? `Mỗi lens một agent khác nhau, ghi vào .compass/${taskId}/evidence/findings/<lens>.json (${lenses.join(', ')}), rồi chạy lại: compass review ${taskId}`
+        : `Agent ghi kết quả vào .compass/${taskId}/evidence/${FINDINGS_FILE}, rồi chạy lại: compass review ${taskId}`),
     ].join('\n'),
   };
 }

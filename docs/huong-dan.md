@@ -187,7 +187,9 @@ Mỗi finding có `id` và quyết định `fix` hay `kept` theo rubric trong br
 `fix`, hay khi một `Critical`/`Major` bị giữ mà spec chưa có dòng `Chấp nhận <id>#<vân tay>:` của người duyệt (gate in sẵn dòng đó).
 Sửa code sau khi soi thì vòng sau chỉ kiểm tra bản sửa: brief mới gồm diff của bản sửa và các finding
 đang chờ, không soi lại toàn bộ. Mỗi bản sửa thêm hay đổi code cần một test, và người soi ghi tên test đó vào `redTest` của closure; Compass tìm tên đó trên dòng pass của log gate `test`; gỡ cơ chế (`revert`) không cần test, còn bản sửa không có test để nêu thì ghi `redTest: null` kèm `note`. `rerunBy` (không bắt buộc) ghi lens đã chạy lại trên diff của bản sửa. Vòng 4 cần dòng `Vòng soi tối đa:` trong spec. Compass ghi mọi vòng
-vào `evidence/review-ledger.json` có ký. File chưa
+vào `evidence/review-ledger.json` có ký. Muốn nhiều góc soi song song thì khai `"reviewLenses"` theo loại
+task trong config: mỗi lens một agent, ghi `evidence/findings/<lens>.json`, Compass gộp lại và đòi đủ file.
+File chưa
 commit nằm sau một symlink hay junction không vào brief, và `review` in một dòng `ℹ` nêu thư mục link đó.
 
 **`compass pr <số PR | nhánh>`** không phải gate mà là lệnh soi PR của người khác theo cùng mười
@@ -195,7 +197,10 @@ tiêu chí. Nó lấy PR bằng `git fetch`, đọc code ở worktree tạm, soi
 message, và ghi `.git/compass/pr/<key>/report.md` để dán vào PR. Branch và thay đổi chưa commit của bạn
 giữ nguyên. `--run-tests` chạy test của PR, tức là chạy code của người khác trên máy bạn; lệnh
 test lấy từ config đã commit ở nhánh gốc, và `"prSetup": "npm ci"` trong config đó chạy trước nếu
-cần cài.
+cần cài. `--preflight` chạy lệnh `"preflight"` của config nhánh gốc trên code của PR trước khi sinh brief,
+sau `prSetup` nếu có khai (một lần cho cả preflight lẫn test, cùng hạn `prTestTimeout`); đỏ thì không có
+brief, và báo cáo nêu lệnh đỏ. `--since=<sha>` chỉ soi thay đổi từ `<sha>` tới đầu PR, kèm
+findings của báo cáo lần trước trong brief.
 
 Hai gate `ui` và `visual` cần `dev` và `devUrl` trong config. Repo không khai `devUrl` (backend
 chẳng hạn) thì `check` ghi bản ghi bỏ qua thay vì chạy.

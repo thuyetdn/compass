@@ -6,6 +6,7 @@ import { rulesFor } from '../lib/task-types.mjs';
 import { readGates, verifyAllGates, parseSlot } from '../lib/gate-store.mjs';
 import { IMPLEMENTED_GATES } from '../lib/gates.mjs';
 import { loadConfig, DEAD_FIELDS } from '../lib/config.mjs';
+import { lensConfig } from '../lib/findings.mjs';
 import { resolveRepos, resolveReposForScope, reposForScope } from '../lib/repos.mjs';
 import { parseSecretsPublic } from '../lib/secrets-scan.mjs';
 import { pendingLines } from '../lib/repo-conventions.mjs';
@@ -68,6 +69,15 @@ function cauHinh(root) {
   } else if (khaiPublic.paths.length) {
     lines.push('', `secretsPublic — gate secrets không quét ${khaiPublic.paths.length} file khai là public:`);
     for (const p of khaiPublic.paths) lines.push(`      ${p}`);
+  }
+
+  // Lens khai cho từng loại task (CP-111): review đòi mỗi lens một file trong evidence/findings/.
+  const lens = lensConfig(cfg.config);
+  if (!lens.ok) {
+    lines.push('', '⚠ reviewLenses có lỗi — gate review sẽ từ chối chạy:', ...lens.errors.map((e) => `   ${e}`));
+  } else if (Object.keys(lens.lenses).length) {
+    lines.push('', 'reviewLenses — review đòi mỗi lens một file evidence/findings/<lens>.json:');
+    for (const [type, names] of Object.entries(lens.lenses)) lines.push(`      ${type}: ${names.join(', ')}`);
   }
 
   // Trường bỏ rồi nhưng config cũ còn khai. Im lặng thì người dùng vẫn tin nó có
