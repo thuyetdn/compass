@@ -903,6 +903,12 @@ Bản ghi gate được ký kèm **danh tính**, không chỉ nội dung. Bốn 
 
 Gate nào đọc code mà thiếu `sourceHash` thì bị coi là bản ghi cũ và bị chặn — không được miễn.
 
+`sourceHash` theo `.gitignore`, như gate `secrets`. Trong git, nó chỉ băm file git biết: đang theo dõi,
+hay mới mà chưa bị ignore. Repo con có git riêng (kể cả repo khai trong `repos` mà git của gốc ignore) thì
+dùng git của chính nó. Thư mục bị ignore như `.venv` hay `vendor` không bị đọc, nên sửa trong đó không
+làm bằng chứng cũ đi. File `.env` bị ignore vẫn tính theo kích thước. Ngoài git, hay git không đọc được,
+thì đi cả cây như trước. Muốn một thư mục nặng ra khỏi `sourceHash` thì thêm nó vào `.gitignore`.
+
 ### Hai giới hạn còn lại
 
 **Khôi phục cả code lẫn bản ghi.** Lưu `gate.json` lúc xanh, sửa code, rồi khôi phục **cả hai** về đúng trạng thái cũ — `done` xanh. Đúng ra là nên thế: code đó thật sự là code đã được kiểm tra. Chỗ hở thật nằm ở việc không có gì xâu chuỗi các lần chạy theo thời gian.
